@@ -4,17 +4,29 @@
  */
 
 const { Client } = require('@hashgraph/sdk');
-const HederaAgentKit = require('hedera-agent-kit');
-const { createHederaTools } = require('hedera-agent-kit');
+// Import hedera-agent-kit dynamically since it uses ESM exports
+let HederaAgentKit;
+let createHederaTools;
+
+try {
+  // Dynamic import for ESM modules
+  import('hedera-agent-kit').then(module => {
+    HederaAgentKit = module.default;
+    createHederaTools = module.createHederaTools;
+    console.log('Successfully imported hedera-agent-kit as ESM module');
+  }).catch(err => {
+    console.error('Error importing hedera-agent-kit:', err);
+  });
+} catch (error) {
+  console.error('Failed to load hedera-agent-kit:', error);
+}
+
 const { NodeWithHistory } = require('@langchain/langgraph');
 const { ChatOpenAI } = require('@langchain/openai');
 const { ChatPromptTemplate } = require('@langchain/core/prompts');
-const { config } = require('../config');
 
-// Get Hedera credentials from config
-const accountId = config.HEDERA_AI_KIT_ACCOUNT_ID;
-const privateKey = config.HEDERA_AI_KIT_PRIVATE_KEY;
-const network = config.HEDERA_NETWORK || 'testnet';
+// Import configuration properly 
+const config = require('../config');
 
 // Global instance of the kit
 let agentKit = null;
@@ -27,6 +39,15 @@ function initializeAgentKit() {
   if (agentKit) return agentKit;
 
   try {
+    // Get credentials from config
+    const accountId = config.HEDERA_AI_KIT_ACCOUNT_ID;
+    const privateKey = config.HEDERA_AI_KIT_PRIVATE_KEY;
+    const network = config.HEDERA_NETWORK || 'testnet';
+    
+    if (!accountId || !privateKey) {
+      throw new Error('Missing required credentials (accountId or privateKey)');
+    }
+    
     // Create a new instance of the kit
     agentKit = new HederaAgentKit(accountId, privateKey, network);
     console.log('Hedera Agent Kit initialized successfully');
@@ -45,6 +66,10 @@ async function createHederaAgent() {
   try {
     // Initialize the agent kit
     const kit = initializeAgentKit();
+    
+    // Get credentials from config
+    const accountId = config.HEDERA_AI_KIT_ACCOUNT_ID;
+    const privateKey = config.HEDERA_AI_KIT_PRIVATE_KEY;
     
     // Create LLM using OpenAI
     const llm = new ChatOpenAI({
