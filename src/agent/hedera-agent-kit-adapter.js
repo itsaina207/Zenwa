@@ -4,28 +4,15 @@
  */
 
 const { Client } = require('@hashgraph/sdk');
-// Import hedera-agent-kit dynamically since it uses ESM exports
-let HederaAgentKit;
-let createHederaTools;
-
-try {
-  // Dynamic import for ESM modules
-  import('hedera-agent-kit').then(module => {
-    HederaAgentKit = module.default;
-    createHederaTools = module.createHederaTools;
-    console.log('Successfully imported hedera-agent-kit as ESM module');
-  }).catch(err => {
-    console.error('Error importing hedera-agent-kit:', err);
-  });
-} catch (error) {
-  console.error('Failed to load hedera-agent-kit:', error);
-}
-
 const { NodeWithHistory } = require('@langchain/langgraph');
 const { ChatOpenAI } = require('@langchain/openai');
 const { ChatPromptTemplate } = require('@langchain/core/prompts');
 
-// Import configuration properly 
+// Import our custom KitManager as fallback for hedera-agent-kit
+const KitManager = require('./kit-manager');
+const { createHederaTools } = require('./kit-manager');
+
+// Import configuration
 const config = require('../config');
 
 // Global instance of the kit
@@ -33,7 +20,7 @@ let agentKit = null;
 
 /**
  * Initialize the Hedera Agent Kit
- * @returns {HederaAgentKit} initialized agent kit
+ * @returns {KitManager} initialized kit instance
  */
 function initializeAgentKit() {
   if (agentKit) return agentKit;
@@ -48,9 +35,9 @@ function initializeAgentKit() {
       throw new Error('Missing required credentials (accountId or privateKey)');
     }
     
-    // Create a new instance of the kit
-    agentKit = new HederaAgentKit(accountId, privateKey, network);
-    console.log('Hedera Agent Kit initialized successfully');
+    // Create a new instance of our kit implementation
+    agentKit = new KitManager(accountId, privateKey, network);
+    console.log('Hedera Agent Kit initialized successfully (using internal implementation)');
     return agentKit;
   } catch (error) {
     console.error(`Failed to initialize Hedera Agent Kit: ${error.message}`);
