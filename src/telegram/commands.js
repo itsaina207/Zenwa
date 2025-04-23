@@ -961,7 +961,8 @@ function registerCommands(bot) {
   bot.onText(/\/sendtoken(.*)/, msg => handleSendToken(bot, msg));
   bot.onText(/\/history(.*)/, msg => handleHistory(bot, msg));
   bot.onText(/\/mint(.*)/, msg => handleMint(bot, msg));
-  bot.onText(/\/(language|langue)(.*)/, msg => handleLanguage(bot, msg));
+  // Nous avons désactivé l'ancien gestionnaire de langue qui causait des conflits
+  // bot.onText(/\/(language|langue)(.*)/, msg => handleLanguage(bot, msg));
   
   // Nous avons supprimé le gestionnaire de callbacks pour simplifier
   
