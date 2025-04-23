@@ -1,71 +1,95 @@
 /**
- * Utilitaires pour la génération de liens vers le Hedera Explorer
+ * Utilitaires pour générer des liens vers les explorateurs blockchain Hedera
  */
 
+// Configuration
+const config = require('../config');
+
 /**
- * Formats utilisés pour générer des liens vers le Hedera Explorer
+ * Types d'entités supportés
  * @type {Object}
  */
-const EXPLORER_URLS = {
-  // Hedera Explorer officiel
-  TESTNET: {
-    transaction: 'https://testnet.hederaexplorer.io/tx/{id}',
-    token: 'https://testnet.hederaexplorer.io/token/{id}',
-    account: 'https://testnet.hederaexplorer.io/accounts/{id}',
-    topic: 'https://testnet.hederaexplorer.io/topic/{id}'
-  },
-  MAINNET: {
-    transaction: 'https://hederaexplorer.io/tx/{id}',
-    token: 'https://hederaexplorer.io/token/{id}',
-    account: 'https://hederaexplorer.io/accounts/{id}',
-    topic: 'https://hederaexplorer.io/topic/{id}'
-  },
-  // HashScan Explorer (alternative)
-  HASHSCAN_TESTNET: {
-    transaction: 'https://hashscan.io/testnet/transaction/{id}',
-    token: 'https://hashscan.io/testnet/token/{id}',
-    account: 'https://hashscan.io/testnet/account/{id}',
-    topic: 'https://hashscan.io/testnet/topic/{id}'
-  },
-  HASHSCAN_MAINNET: {
-    transaction: 'https://hashscan.io/mainnet/transaction/{id}',
-    token: 'https://hashscan.io/mainnet/token/{id}',
-    account: 'https://hashscan.io/mainnet/account/{id}',
-    topic: 'https://hashscan.io/mainnet/topic/{id}'
-  }
+const ENTITY_TYPES = {
+  account: 'account',
+  transaction: 'transaction', 
+  token: 'token',
+  topic: 'topic',
+  contract: 'contract',
+  nft: 'nft',
 };
 
 /**
- * Récupère l'URL de l'explorateur de blocs Hedera pour l'ID d'un objet
- * @param {string} type - Type d'objet ('transaction', 'token', 'account', 'topic')
- * @param {string} id - Identifiant de l'objet
- * @param {string} network - Réseau ('testnet' ou 'mainnet')
- * @param {string} explorer - Explorateur à utiliser ('hedera' ou 'hashscan')
- * @returns {string} URL vers l'explorateur de blocs
+ * URLs de base des explorateurs selon le réseau
+ * @type {Object}
  */
-function getExplorerUrl(type, id, network = 'testnet', explorer = 'hedera') {
-  // Normaliser le type pour correspondre aux clés de l'objet
-  const normalizedType = type.toLowerCase();
-  
-  // Sélectionner le bon explorateur
-  let explorerType;
-  if (explorer.toLowerCase() === 'hashscan') {
-    explorerType = network.toLowerCase() === 'mainnet' ? 'HASHSCAN_MAINNET' : 'HASHSCAN_TESTNET';
-  } else {
-    explorerType = network.toLowerCase() === 'mainnet' ? 'MAINNET' : 'TESTNET';
+const EXPLORER_BASE_URLS = {
+  mainnet: {
+    hederaExplorer: 'https://hederaexplorer.io',
+    hashScan: 'https://hashscan.io/mainnet',
+  },
+  testnet: {
+    hederaExplorer: 'https://testnet.hederaexplorer.io',
+    hashScan: 'https://hashscan.io/testnet',
+  },
+  previewnet: {
+    hederaExplorer: 'https://previewnet.hederaexplorer.io',
+    hashScan: 'https://hashscan.io/previewnet',
+  },
+};
+
+/**
+ * Chemins des URLs selon le type d'entité et l'explorateur
+ * @type {Object}
+ */
+const URL_PATHS = {
+  hederaExplorer: {
+    account: 'account',
+    transaction: 'transaction',
+    token: 'token',
+    topic: 'topic',
+    contract: 'contract',
+    nft: 'nft',
+  },
+  hashScan: {
+    account: 'account',
+    transaction: 'tx',
+    token: 'token',
+    topic: 'topic',
+    contract: 'contract',
+    nft: 'token', // HashScan utilise /token/{tokenId}/nfts pour les NFTs
+  },
+};
+
+/**
+ * Génère des URLs pour les explorateurs Hedera
+ * @param {string} entityId - ID de l'entité (accountId, transactionId, tokenId, etc.)
+ * @param {string} entityType - Type d'entité (account, transaction, token, etc.)
+ * @param {string} [network] - Réseau (mainnet, testnet, previewnet)
+ * @returns {Object} URLs pour les différents explorateurs
+ */
+function getExplorerUrls(entityId, entityType, network) {
+  // Valider le type d'entité
+  if (!Object.values(ENTITY_TYPES).includes(entityType)) {
+    throw new Error(`Type d'entité non valide: ${entityType}`);
   }
   
-  // S'assurer que le type d'objet est valide
-  if (!EXPLORER_URLS[explorerType][normalizedType]) {
-    throw new Error(`Type d'objet non pris en charge: ${type}`);
+  // Déterminer le réseau
+  const networkName = network || config.HEDERA_NETWORK || 'testnet';
+  
+  // Récupérer les URLs de base
+  const baseUrls = EXPLORER_BASE_URLS[networkName];
+  if (!baseUrls) {
+    throw new Error(`Réseau non pris en charge: ${networkName}`);
   }
   
-  // Générer l'URL avec l'ID
-  const url = EXPLORER_URLS[explorerType][normalizedType].replace('{id}', id);
-  
-  return url;
+  // Construire les URLs
+  return {
+    hederaExplorer: `${baseUrls.hederaExplorer}/${URL_PATHS.hederaExplorer[entityType]}/${entityId}`,
+    hashScan: `${baseUrls.hashScan}/${URL_PATHS.hashScan[entityType]}/${entityId}`,
+  };
 }
 
 module.exports = {
-  getExplorerUrl
+  getExplorerUrls,
+  ENTITY_TYPES,
 };

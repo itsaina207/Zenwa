@@ -374,19 +374,11 @@ router.get('/kit/balance/hbar/:userId', async (req, res) => {
       });
     }
     
-    // Initialiser le kit agent si nécessaire
-    const kit = initializeAgentKit();
-    const wallet = await getWalletByUserId(userId);
+    // Utiliser le nouvel adaptateur officiel
+    const { getHbarBalance } = require('./agent/official-kit-adapter');
     
-    if (!wallet) {
-      return res.status(404).json({
-        success: false,
-        message: 'Wallet not found',
-      });
-    }
-    
-    // Utiliser directement la fonction getHbarBalance du kit
-    const result = await kit.getHbarBalance(wallet.accountId);
+    // Vérifier le solde
+    const result = await getHbarBalance(userId);
     
     res.json(result);
   } catch (error) {
@@ -413,29 +405,11 @@ router.post('/kit/transfer/hbar', async (req, res) => {
       });
     }
     
-    // Initialiser le kit agent
-    const kit = initializeAgentKit();
-    const wallet = await getWalletByUserId(fromUserId);
+    // Utiliser le nouvel adaptateur officiel
+    const { transferHbar } = require('./agent/official-kit-adapter');
     
-    if (!wallet) {
-      return res.status(404).json({
-        success: false,
-        message: 'Wallet not found',
-      });
-    }
-    
-    // Utiliser directement la fonction sendHbar au lieu de transferHbar du kit
-    const { sendHbar } = require('./hedera/account');
-    const result = await sendHbar(fromUserId, toAccountId, amount);
-    
-    // Ajouter des liens d'explorateur pour la transaction
-    const { getExplorerUrl } = require('./utils/explorer');
-    if (result.success && result.transactionId) {
-      result.explorerUrls = {
-        hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
-        hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
-      };
-    }
+    // Effectuer le transfert
+    const result = await transferHbar(fromUserId, toAccountId, amount);
     
     res.json(result);
   } catch (error) {
