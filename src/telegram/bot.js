@@ -24,11 +24,11 @@ function createBot() {
     // Create a bot instance with polling enabled
     bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
-    // Set up command handlers
-    registerCommands(bot);
-
-    // Set up middleware for message processing
+    // Set up middleware for message processing FIRST
     setupMiddleware(bot);
+    
+    // THEN set up command handlers
+    registerCommands(bot);
 
     console.log('Telegram bot initialized successfully');
     return bot;
