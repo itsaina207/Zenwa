@@ -1,12 +1,11 @@
 /**
- * Hedera Agent - Integration with Hedera Agent Kit
+ * Hedera Agent - Natural Language Processing for Hedera operations
  * Provides natural language processing for Hedera blockchain operations
  */
 
 const { Client } = require('@hashgraph/sdk');
 const { getClient } = require('../hedera/client');
 const { getWalletByUserId } = require('../storage/userWallets');
-const { processCommand, initializeAgentKit } = require('./hedera-agent-kit-adapter');
 
 /**
  * HederaAgent class for managing natural language interactions with Hedera
@@ -15,7 +14,6 @@ class HederaAgent {
   constructor() {
     this.client = null;
     this.initialized = false;
-    this.agentKit = null;
     this.supportedActions = [
       'check balance',
       'transfer HBAR',
@@ -32,15 +30,6 @@ class HederaAgent {
   initialize() {
     try {
       this.client = getClient();
-      
-      // Initialize Hedera Agent Kit
-      try {
-        this.agentKit = initializeAgentKit();
-      } catch (kitError) {
-        console.warn(`Warning: Hedera Agent Kit initialization failed: ${kitError.message}`);
-        console.warn('Continuing with fallback LLM service...');
-      }
-      
       this.initialized = true;
       console.log('✅ Hedera Agent initialized successfully');
       return true;
@@ -76,22 +65,11 @@ class HederaAgent {
         };
       }
 
-      // Try to use the Hedera Agent Kit first if available
-      if (this.agentKit) {
-        try {
-          const kitResult = await processCommand(userId, command);
-          return kitResult;
-        } catch (kitError) {
-          console.warn(`Warning: Hedera Agent Kit processing failed: ${kitError.message}`);
-          console.warn('Falling back to standard LLM service...');
-        }
-      }
-
-      // Fallback to our original LLM-based intent determination
+      // Déterminer l'intention à partir de la commande en langage naturel à l'aide du LLM
       const intent = await this.determineIntent(userId, command);
       console.log('Detected intent:', intent);
       
-      // Execute the appropriate action based on intent
+      // Exécuter l'action appropriée en fonction de l'intention
       switch (intent.action) {
         case 'balance':
           return await this.checkBalance(userId);
