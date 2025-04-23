@@ -856,28 +856,51 @@ Utilisez /balance pour vérifier votre nouveau solde.
  * @param {number} chatId - ID du chat
  */
 async function setLanguageDirectly(userId, newLang, bot, chatId) {
-  const success = setUserLanguage(userId, newLang);
+  console.log(`Setting language directly for user ${userId} to ${newLang}`);
   
-  if (success) {
-    // Envoyer un message de confirmation
-    await bot.sendMessage(
-      chatId,
-      translate(userId, 'language_changed'),
-      { parse_mode: 'Markdown' }
-    );
+  try {
+    const success = setUserLanguage(userId, newLang);
+    console.log(`Language set result: ${success}`);
     
-    // Envoyer un message d'aide dans la nouvelle langue
-    setTimeout(async () => {
+    if (success) {
+      // Vérifier la langue après le changement
+      const currentLang = getUserLanguage(userId);
+      console.log(`User ${userId} language is now: ${currentLang}`);
+      
+      // Récupérer le message de confirmation dans la nouvelle langue
+      const confirmMessage = translate(userId, 'language_changed');
+      console.log(`Confirmation message: ${confirmMessage}`);
+      
+      // Envoyer un message de confirmation
       await bot.sendMessage(
         chatId,
-        translate(userId, 'help'),
-        { parse_mode: 'Markdown' }
+        confirmMessage
       );
-    }, 500);
-  } else {
+      console.log(`Confirmation message sent to user ${userId}`);
+      
+      // Envoyer un message d'aide dans la nouvelle langue
+      setTimeout(async () => {
+        const helpMessage = translate(userId, 'help');
+        console.log(`Help message length: ${helpMessage.length} chars`);
+        
+        await bot.sendMessage(
+          chatId,
+          helpMessage
+        );
+        console.log(`Help message sent to user ${userId}`);
+      }, 500);
+    } else {
+      console.error(`Failed to set language for user ${userId}`);
+      await bot.sendMessage(
+        chatId,
+        "Erreur lors du changement de langue. Veuillez réessayer."
+      );
+    }
+  } catch (error) {
+    console.error(`Error in setLanguageDirectly: ${error.message}`);
     await bot.sendMessage(
       chatId,
-      "Erreur lors du changement de langue. Veuillez réessayer."
+      `Erreur technique: ${error.message}`
     );
   }
 }
@@ -890,20 +913,29 @@ async function setLanguageDirectly(userId, newLang, bot, chatId) {
 async function handleLanguage(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const args = msg.text.split(' ').slice(1);
+  
+  console.log(`Language command received from user ${userId}`);
+  
+  // Extraire les arguments de la commande
+  const args = msg.text.split(/\s+/).slice(1);
+  console.log(`Language args: ${JSON.stringify(args)}`);
   
   // Si un argument est fourni (comme "en" ou "fr"), utiliser directement
   if (args.length > 0) {
     const langArg = args[0].toLowerCase();
+    console.log(`Detected language arg: ${langArg}`);
     
     if (langArg === 'en' || langArg === 'english' || langArg === 'anglais') {
+      console.log(`Setting language to English for user ${userId}`);
       return setLanguageDirectly(userId, LANGUAGES.EN, bot, chatId);
     } else if (langArg === 'fr' || langArg === 'french' || langArg === 'français') {
+      console.log(`Setting language to French for user ${userId}`);
       return setLanguageDirectly(userId, LANGUAGES.FR, bot, chatId);
     }
   }
   
   // Sinon, afficher un message avec des options simples (pas de inline keyboard)
+  console.log(`Showing language selection menu to user ${userId}`);
   const message = `
 ${translate(userId, 'language_selection')}
 
@@ -911,7 +943,12 @@ Pour choisir le français: /language fr
 To choose English: /language en
   `;
   
-  await bot.sendMessage(chatId, message);
+  try {
+    await bot.sendMessage(chatId, message);
+    console.log(`Language menu sent successfully to user ${userId}`);
+  } catch (error) {
+    console.error(`Error sending language menu: ${error.message}`);
+  }
 }
 
 function registerCommands(bot) {
