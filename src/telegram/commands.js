@@ -5,7 +5,8 @@
 const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
-// Les imports NLP ont été supprimés
+const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera/topic-management');
+const { analyzeIntent, isBalanceCheck, isHistoryCheck } = require('../services/openai-service');
 
 // State management for multi-step operations
 const userState = new Map();
@@ -40,6 +41,8 @@ Commandes disponibles :
 /mint - Créer un nouveau token
 /help - Afficher ce message d'aide
 
+Vous pouvez aussi me parler directement en langage naturel ! Par exemple, essayez "Quel est mon solde ?" ou "Crée un nouveau wallet pour moi".
+
 Commençons ! Utilisez /createwallet pour créer votre premier wallet.
   `;
   
@@ -66,6 +69,14 @@ Commandes disponibles :
 /history - Consulter l'historique de vos transactions
 /mint _<nom> <symbole> <offre>_ - Créer un nouveau token (tous les paramètres sont optionnels)
 /help - Afficher ce message d'aide
+
+*Commandes en langage naturel :*
+Vous pouvez également me parler directement en langage naturel. Par exemple :
+• "Quel est mon solde ?"
+• "Envoie 10 HBAR à 0.0.12345"
+• "Crée un token Test avec le symbole TST"
+• "Affiche mon historique de transactions"
+• "Crée un topic nommé MonTopic"
 
 Ce wallet est custodial - vos clés privées sont stockées en toute sécurité sur notre serveur.
   `;
@@ -385,6 +396,275 @@ Utilisez /balance pour vérifier votre nouveau solde.
 }
 
 /**
+ * Handles natural language understanding with OpenAI
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ */
+async function handleNaturalLanguage(bot, msg) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
+  const text = msg.text.trim();
+  
+  // D'abord, essayons des détections rapides pour éviter d'appeler OpenAI pour des requêtes simples
+  
+  // Vérifier si c'est une demande de solde avec des mots-clés simples
+  if (isBalanceCheck(text)) {
+    // Simuler l'appel à la commande balance
+    await handleBalance(bot, msg);
+    return;
+  }
+  
+  // Vérifier si c'est une demande d'historique avec des mots-clés simples
+  if (isHistoryCheck(text)) {
+    // Simuler l'appel à la commande history
+    await handleHistory(bot, msg);
+    return;
+  }
+  
+  // Pour les autres requêtes, utiliser OpenAI pour comprendre l'intention
+  await bot.sendMessage(chatId, "Traitement de votre demande...");
+  
+  // Analyser l'intention avec OpenAI
+  const intentResult = await analyzeIntent(userId, text);
+  
+  if (!intentResult.success) {
+    await bot.sendMessage(
+      chatId,
+      `Désolé, je n'ai pas pu comprendre votre demande. ${intentResult.error || "Veuillez réessayer ou utiliser les commandes /help."}`,
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
+  
+  // Gérer l'intention détectée
+  switch (intentResult.action) {
+    case 'check_balance':
+      await handleBalance(bot, msg);
+      break;
+      
+    case 'transfer_hbar':
+      // Si les paramètres sont complets, initialiser directement le transfert
+      if (intentResult.params.recipientId && intentResult.params.amount) {
+        const toAccountId = intentResult.params.recipientId;
+        const amount = intentResult.params.amount;
+        
+        await bot.sendMessage(chatId, `Envoi de ${amount} HBAR à ${toAccountId} en cours...`);
+        
+        const result = await sendHbar(userId, toAccountId, amount);
+        
+        if (result.success) {
+          const message = `
+✅ ${result.message}
+
+*Détails de la transaction :*
+Transaction ID: \`${result.transactionId}\`
+
+[Voir dans l'explorateur](${result.explorerUrl})
+
+Utilisez /balance pour vérifier votre nouveau solde.
+`;
+          await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(chatId, `❌ ${result.message}`);
+        }
+      } else {
+        // Sinon, démarrer la conversation structurée normalement
+        await handleSend(bot, msg);
+      }
+      break;
+      
+    case 'create_token':
+      // Si tous les paramètres sont présents, créer directement le token
+      if (intentResult.params.name && intentResult.params.symbol) {
+        const tokenInfo = {
+          name: intentResult.params.name,
+          symbol: intentResult.params.symbol,
+          initialSupply: intentResult.params.initialSupply || 1000
+        };
+        
+        await bot.sendMessage(chatId, 'Création de votre token en cours... Cela peut prendre un moment.');
+        
+        const result = await mintToken(userId, tokenInfo);
+        
+        if (result.success) {
+          const message = `
+✅ ${result.message}
+
+*Informations du token :*
+Token ID: \`${result.tokenId}\`
+Nom: ${result.tokenName}
+Symbole: ${result.tokenSymbol}
+Offre initiale: ${result.initialSupply}
+
+[Voir dans l'explorateur](${result.explorerUrl})
+
+Utilisez /balance pour voir votre nouveau token dans votre portefeuille.
+`;
+          await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(chatId, `❌ ${result.message}`);
+        }
+      } else {
+        // Sinon, démarrer la conversation structurée pour la création de token
+        await handleMint(bot, msg);
+      }
+      break;
+      
+    case 'get_history':
+      const limit = intentResult.params.limit || 5;
+      await handleHistory(bot, { ...msg, text: `/history ${limit}` });
+      break;
+      
+    case 'create_topic':
+      if (intentResult.params.topicName) {
+        await bot.sendMessage(chatId, 'Création du topic HCS en cours...');
+        
+        const result = await createTopic(
+          userId, 
+          intentResult.params.topicName, 
+          intentResult.params.submitKey || false
+        );
+        
+        if (result.success) {
+          const message = `
+✅ Topic créé avec succès
+
+*Informations du topic :*
+Topic ID: \`${result.topicId}\`
+Mémo: ${result.memo || intentResult.params.topicName}
+
+[Voir dans l'explorateur](${result.explorerUrl})
+`;
+          await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(chatId, `❌ ${result.message}`);
+        }
+      } else {
+        await bot.sendMessage(
+          chatId,
+          'Pour créer un topic, veuillez fournir un nom. Exemple: "Créer un topic nommé MonTopic"'
+        );
+      }
+      break;
+      
+    case 'submit_message':
+      if (intentResult.params.topicId && intentResult.params.message) {
+        await bot.sendMessage(chatId, 'Envoi du message au topic HCS en cours...');
+        
+        const result = await submitTopicMessage(
+          userId, 
+          intentResult.params.topicId, 
+          intentResult.params.message
+        );
+        
+        if (result.success) {
+          const message = `
+✅ Message envoyé avec succès
+
+*Détails :*
+Topic ID: \`${result.topicId}\`
+Message: ${result.message.substring(0, 50)}${result.message.length > 50 ? '...' : ''}
+Sequence: ${result.sequence}
+
+[Voir dans l'explorateur](${result.explorerUrl})
+`;
+          await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(chatId, `❌ ${result.message}`);
+        }
+      } else {
+        await bot.sendMessage(
+          chatId,
+          'Pour envoyer un message à un topic, veuillez fournir un ID de topic et un message. Exemple: "Envoyer un message \'Bonjour\' au topic 0.0.12345"'
+        );
+      }
+      break;
+      
+    case 'get_topic_messages':
+      if (intentResult.params.topicId) {
+        await bot.sendMessage(chatId, 'Récupération des messages du topic HCS en cours...');
+        
+        const result = await getTopicMessages(
+          userId, 
+          intentResult.params.topicId
+        );
+        
+        if (result.success && result.messages && result.messages.length > 0) {
+          let message = `📨 *Messages du Topic*\n\nTopic ID: \`${result.topicId}\`\n\n`;
+          
+          result.messages.forEach((msg, index) => {
+            message += `*${index + 1}. Message*\n`;
+            message += `Date: ${new Date(msg.consensusTimestamp).toLocaleString()}\n`;
+            message += `Contenu: ${msg.message}\n`;
+            message += `Séquence: ${msg.sequenceNumber}\n\n`;
+          });
+          
+          await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } else if (result.success && (!result.messages || result.messages.length === 0)) {
+          await bot.sendMessage(
+            chatId,
+            `Aucun message trouvé pour le topic ${result.topicId}`
+          );
+        } else {
+          await bot.sendMessage(chatId, `❌ ${result.message}`);
+        }
+      } else {
+        await bot.sendMessage(
+          chatId,
+          'Pour voir les messages d\'un topic, veuillez fournir un ID de topic. Exemple: "Voir les messages du topic 0.0.12345"'
+        );
+      }
+      break;
+      
+    case 'transfer_token':
+      if (intentResult.params.recipientId && intentResult.params.tokenId && intentResult.params.amount) {
+        await bot.sendMessage(
+          chatId, 
+          `Envoi de ${intentResult.params.amount} tokens (${intentResult.params.tokenId}) à ${intentResult.params.recipientId} en cours...`
+        );
+        
+        const result = await sendToken(
+          userId, 
+          intentResult.params.recipientId,
+          intentResult.params.tokenId,
+          intentResult.params.amount
+        );
+        
+        if (result.success) {
+          const message = `
+✅ ${result.message}
+
+*Détails de la transaction :*
+Token ID: \`${result.tokenId}\`
+Transaction ID: \`${result.transactionId}\`
+
+[Voir dans l'explorateur](${result.explorerUrl})
+
+Utilisez /balance pour vérifier votre nouveau solde.
+`;
+          await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(chatId, `❌ ${result.message}`);
+        }
+      } else {
+        await bot.sendMessage(
+          chatId,
+          'Pour envoyer des tokens, veuillez fournir un ID de compte destinataire, un ID de token et un montant. Exemple: "Envoyer 100 tokens 0.0.12345 à 0.0.67890"'
+        );
+      }
+      break;
+      
+    case 'unknown':
+    default:
+      await bot.sendMessage(
+        chatId,
+        "Je ne suis pas sûr de comprendre votre demande. Essayez d'être plus précis ou utilisez les commandes avec /help pour voir les options disponibles."
+      );
+      break;
+  }
+}
+
+/**
  * Register all command handlers with the bot
  * @param {TelegramBot} bot - Telegram bot instance
  */
@@ -411,11 +691,8 @@ function registerCommands(bot) {
         // Si l'utilisateur est dans une conversation, continuer celle-ci
         handleSendConversation(bot, msg);
       } else {
-        // Sinon, informer l'utilisateur que seules les commandes sont supportées
-        bot.sendMessage(
-          msg.chat.id,
-          "Désolé, je ne comprends pas les messages en texte libre. Veuillez utiliser /help pour voir la liste des commandes disponibles."
-        );
+        // Sinon, utiliser OpenAI pour comprendre l'intention de l'utilisateur
+        handleNaturalLanguage(bot, msg);
       }
     }
   });
