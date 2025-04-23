@@ -6,7 +6,6 @@ const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
 const { processNaturalLanguageCommand } = require('../agent/nlp-processor');
-const { getAgent } = require('../agent');
 
 // State management for multi-step operations
 const userState = new Map();
@@ -412,7 +411,7 @@ async function handleNaturalLanguage(bot, msg) {
   await bot.sendMessage(chatId, "Je traite votre demande...");
   
   try {
-    // Traiter le message avec le processeur de langage naturel
+    // Traiter le message avec le processeur de langage naturel basé sur des règles
     const result = await processNaturalLanguageCommand(userId, text);
     
     if (result.success) {
