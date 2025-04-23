@@ -166,31 +166,17 @@ class HederaAgent {
    */
   async checkBalance(userId) {
     try {
-      // Utiliser l'intégration Hedera Agent Kit
-      const { checkHbarBalance, checkTokenBalances } = require('./hedera-agent-kit-integration');
+      // Utiliser directement l'API standard pour assurer la cohérence
+      const { getBalance } = require('../hedera/account');
       const { getUserTokens } = require('../hedera/tokens');
       
-      // Récupérer le solde HBAR via Agent Kit
-      const hbarResult = await checkHbarBalance(userId);
+      // Récupérer le solde complet (HBAR + tokens) via l'API standard
+      const balanceResult = await getBalance(userId);
       
-      // Si échec, utiliser l'implémentation standard
-      if (!hbarResult.success) {
-        const { getBalance } = require('../hedera/account');
-        return await getBalance(userId);
+      // Si échec, retourner directement l'erreur
+      if (!balanceResult.success) {
+        return balanceResult;
       }
-      
-      // Récupérer les soldes de tokens via Agent Kit ou notre implémentation
-      const tokensResult = await checkTokenBalances(userId);
-      
-      // Combiner les résultats
-      const result = {
-        success: true,
-        balance: {
-          hbars: hbarResult.balance?.hbars || "0",
-          tokens: tokensResult.success ? tokensResult.tokens : {}
-        },
-        accountId: hbarResult.accountId
-      };
       
       // Récupérer les informations des tokens pour l'affichage
       const userTokens = await getUserTokens(userId);
@@ -203,15 +189,17 @@ class HederaAgent {
         });
       }
       
+      // Formater la liste des tokens pour l'affichage
       let tokenList = "";
-      if (typeof result.balance.tokens === 'string') {
-        tokenList = result.balance.tokens;
-      } else if (result.balance.tokens) {
-        // Afficher les tokens avec leur nom et symbole si disponibles
-        tokenList = Object.entries(result.balance.tokens)
+      if (typeof balanceResult.balance.tokens === 'string') {
+        tokenList = balanceResult.balance.tokens;
+      } else if (balanceResult.balance.tokens) {
+        // Convertir les valeurs Long en nombres pour l'affichage
+        tokenList = Object.entries(balanceResult.balance.tokens)
           .map(([tokenId, amount]) => {
             const tokenName = tokenMap[tokenId] || tokenId;
-            return `${tokenName}: ${amount}`;
+            const tokenAmount = amount.low !== undefined ? amount.low : amount;
+            return `${tokenName}: ${tokenAmount}`;
           })
           .join('\n');
         
@@ -220,10 +208,10 @@ class HederaAgent {
       
       return {
         success: true,
-        message: `Votre solde est de ${result.balance.hbars} avec les tokens suivants:\n${tokenList}`,
+        message: `Votre solde est de ${balanceResult.balance.hbars} avec les tokens suivants:\n${tokenList}`,
         data: { 
-          balance: result.balance, 
-          accountId: result.accountId,
+          balance: balanceResult.balance, 
+          accountId: balanceResult.accountId,
           tokens: userTokens || []
         }
       };
