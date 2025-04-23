@@ -79,15 +79,19 @@ async function getHbarBalance(accountId) {
     }
     
     // Obtenir le solde HBAR
-    const hbarBalance = await kit.getHbarBalance(hederaAccountId);
+    const hbarBalanceResult = await kit.getHbarBalance(hederaAccountId);
+    // Le résultat peut être un objet avec une propriété balance
+    const hbarBalance = typeof hbarBalanceResult === 'object' 
+      ? (hbarBalanceResult.balance || hbarBalanceResult.amount || '0')
+      : hbarBalanceResult;
     
-    // Obtenir tous les soldes de tokens
-    const tokensBalances = await kit.getAllTokensBalances(kit.network, hederaAccountId);
+    // Pour les tokens, nous n'utilisons pas getAllTokensBalances car elle n'existe pas dans notre KitManager
+    // Nous pourrions implémenter cette fonctionnalité plus tard
     
     return {
       success: true,
       balance: `${hbarBalance} tℏ`, // Formater avec l'unité appropriée
-      tokens: tokensBalances || {},
+      tokens: {}, // Pas disponible pour l'instant
       accountId: hederaAccountId
     };
   } catch (error) {
@@ -232,7 +236,7 @@ async function transferToken(fromUserId, toAccountId, tokenId, amount) {
     const kit = await initializeOfficialKit();
     
     // Obtenir l'accountId à partir du userId
-    const { getWalletByUserId } = require('../wallet/wallet-storage');
+    const { getWalletByUserId } = require('../storage/userWallets');
     const wallet = await getWalletByUserId(fromUserId);
     if (!wallet) {
       return {
@@ -296,7 +300,7 @@ async function getTransactionHistory(userId, limit = 10) {
     // Nous devons utiliser l'API du mirror node
 
     // Obtenir l'accountId à partir du userId
-    const { getWalletByUserId } = require('../wallet/wallet-storage');
+    const { getWalletByUserId } = require('../storage/userWallets');
     const wallet = await getWalletByUserId(userId);
     if (!wallet) {
       return {
