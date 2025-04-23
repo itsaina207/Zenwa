@@ -21,9 +21,6 @@ async function getHederaAgentKit() {
   if (agentKit) return agentKit;
   
   try {
-    // Import dynamique du module (ESM)
-    const HederaAgentKitModule = await import('hedera-agent-kit');
-    
     // Récupération des identifiants de l'opérateur
     const accountId = config.HEDERA_AI_KIT_ACCOUNT_ID;
     const privateKey = config.HEDERA_AI_KIT_PRIVATE_KEY;
@@ -33,10 +30,12 @@ async function getHederaAgentKit() {
       throw new Error('Les identifiants de l\'opérateur sont manquants');
     }
     
-    // Création de l'instance du kit
-    const kit = new HederaAgentKitModule.default(accountId, privateKey, network);
+    // Utiliser notre implémentation de secours KitManager au lieu d'essayer d'importer hedera-agent-kit
+    // qui pose des problèmes de compatibilité ESM/CommonJS
+    const { KitManager } = require('./kit-manager');
+    const kit = new KitManager(accountId, privateKey, network);
     agentKit = kit;
-    console.log('✅ Hedera Agent Kit initialisé avec succès');
+    console.log('✅ Hedera Agent Kit initialisé avec succès (utilisant l\'implémentation interne)');
     return kit;
   } catch (error) {
     console.error(`❌ Échec de l'initialisation du Hedera Agent Kit: ${error.message}`);
@@ -267,13 +266,16 @@ async function getHederaAgentTools() {
   try {
     const kitModule = await import('hedera-agent-kit');
     
-    if (kitModule.createHederaTools) {
+    // Obtenir la fonction correcte, soit via default soit directement
+    const moduleExports = kitModule.default || kitModule;
+    
+    if (moduleExports.createHederaTools) {
       const accountId = config.HEDERA_AI_KIT_ACCOUNT_ID;
       const privateKey = config.HEDERA_AI_KIT_PRIVATE_KEY;
       
       const client = Client.forTestnet();
       
-      return kitModule.createHederaTools({
+      return moduleExports.createHederaTools({
         hederaClient: client,
         operatorId: accountId,
         operatorKey: privateKey
