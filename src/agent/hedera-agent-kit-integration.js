@@ -1,0 +1,300 @@
+/**
+ * Intégration du Hedera Agent Kit
+ * Ce module gère l'intégration entre notre système et le Hedera Agent Kit
+ */
+
+// Importation des dépendances
+const { createECDH } = require('crypto');
+const { AccountId, PrivateKey, Client, TokenId, TopicId } = require('@hashgraph/sdk');
+const { config } = require('../config');
+const { getWalletByUserId } = require('../storage/userWallets');
+const { storeTokenInfo } = require('../hedera/tokens');
+
+// Fonction pour initialiser le Hedera Agent Kit
+let agentKit = null;
+
+/**
+ * Récupère ou initialise le Hedera Agent Kit
+ * @returns {Promise<Object>} Instance du kit ou objet vide en cas d'échec
+ */
+async function getHederaAgentKit() {
+  if (agentKit) return agentKit;
+  
+  try {
+    // Import dynamique du module (ESM)
+    const HederaAgentKitModule = await import('hedera-agent-kit');
+    
+    // Récupération des identifiants de l'opérateur
+    const accountId = config.HEDERA_AI_KIT_ACCOUNT_ID;
+    const privateKey = config.HEDERA_AI_KIT_PRIVATE_KEY;
+    const network = config.HEDERA_NETWORK || 'testnet';
+    
+    if (!accountId || !privateKey) {
+      throw new Error('Les identifiants de l\'opérateur sont manquants');
+    }
+    
+    // Création de l'instance du kit
+    const kit = new HederaAgentKitModule.default(accountId, privateKey, network);
+    agentKit = kit;
+    console.log('✅ Hedera Agent Kit initialisé avec succès');
+    return kit;
+  } catch (error) {
+    console.error(`❌ Échec de l'initialisation du Hedera Agent Kit: ${error.message}`);
+    console.error(error.stack);
+    return {};
+  }
+}
+
+/**
+ * Vérifier le solde HBAR d'un compte
+ * @param {string} userId - ID Telegram de l'utilisateur
+ * @returns {Promise<Object>} Informations sur le solde
+ */
+async function checkHbarBalance(userId) {
+  try {
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) {
+      return { success: false, message: 'Portefeuille non trouvé' };
+    }
+    
+    const kit = await getHederaAgentKit();
+    
+    if (!kit.getHbarBalance) {
+      // Fallback vers notre implémentation existante
+      const { getBalance } = require('../hedera/account');
+      return await getBalance(userId);
+    }
+    
+    const result = await kit.getHbarBalance(wallet.account_id);
+    return {
+      success: true,
+      balance: { hbars: result.balance },
+      accountId: wallet.account_id
+    };
+  } catch (error) {
+    console.error(`Erreur lors de la vérification du solde HBAR: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * Vérifier les soldes de tokens d'un compte
+ * @param {string} userId - ID Telegram de l'utilisateur
+ * @returns {Promise<Object>} Informations sur les tokens
+ */
+async function checkTokenBalances(userId) {
+  try {
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) {
+      return { success: false, message: 'Portefeuille non trouvé' };
+    }
+    
+    const kit = await getHederaAgentKit();
+    
+    if (!kit.getAllTokensBalances) {
+      // Fallback vers notre implémentation existante
+      const { getBalance } = require('../hedera/account');
+      return await getBalance(userId);
+    }
+    
+    const result = await kit.getAllTokensBalances('testnet', wallet.account_id);
+    return {
+      success: true,
+      tokens: result,
+      accountId: wallet.account_id
+    };
+  } catch (error) {
+    console.error(`Erreur lors de la vérification des soldes de tokens: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * Envoyer des HBAR
+ * @param {string} userId - ID Telegram de l'expéditeur
+ * @param {string} recipientId - ID du compte destinataire
+ * @param {string|number} amount - Montant à envoyer
+ * @returns {Promise<Object>} Résultat de la transaction
+ */
+async function sendHbar(userId, recipientId, amount) {
+  try {
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) {
+      return { success: false, message: 'Portefeuille non trouvé' };
+    }
+    
+    const kit = await getHederaAgentKit();
+    
+    if (!kit.transferHbar) {
+      // Fallback vers notre implémentation existante
+      const { sendHbar } = require('../hedera/account');
+      return await sendHbar(userId, recipientId, amount);
+    }
+    
+    const result = await kit.transferHbar(recipientId, amount.toString());
+    return {
+      success: result.success,
+      transactionId: result.transactionId,
+      message: result.success ? 
+        `Transaction réussie ! ${amount} HBAR envoyés à ${recipientId}` : 
+        (result.error || 'Erreur lors du transfert')
+    };
+  } catch (error) {
+    console.error(`Erreur lors de l'envoi de HBAR: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * Créer un token fongible
+ * @param {string} userId - ID Telegram du créateur
+ * @param {Object} tokenInfo - Informations sur le token
+ * @returns {Promise<Object>} Résultat de la création
+ */
+async function createFungibleToken(userId, tokenInfo) {
+  try {
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) {
+      return { success: false, message: 'Portefeuille non trouvé' };
+    }
+    
+    const kit = await getHederaAgentKit();
+    
+    if (!kit.createFT) {
+      // Fallback vers notre implémentation existante
+      const { mintToken } = require('../hedera/tokens');
+      return await mintToken(userId, tokenInfo);
+    }
+    
+    const options = {
+      name: tokenInfo.name,
+      symbol: tokenInfo.symbol,
+      decimals: tokenInfo.decimals || 0,
+      initialSupply: tokenInfo.initialSupply || 1000,
+      maxSupply: tokenInfo.maxSupply || 0,
+      supplyType: tokenInfo.supplyType || "INFINITE",
+      memo: `Token créé par l'utilisateur ${userId}`
+    };
+    
+    const result = await kit.createFT(options);
+    
+    if (result.success && result.tokenId) {
+      // Stocker les informations du token dans notre base de données
+      await storeTokenInfo(userId, result.tokenId, tokenInfo.name, tokenInfo.symbol);
+    }
+    
+    return {
+      success: result.success,
+      tokenId: result.tokenId,
+      message: result.success ? 
+        `Token créé avec succès ! Nom: ${tokenInfo.name}, Symbole: ${tokenInfo.symbol}, ID: ${result.tokenId}` : 
+        (result.error || 'Erreur lors de la création du token')
+    };
+  } catch (error) {
+    console.error(`Erreur lors de la création du token: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * Transférer un token
+ * @param {string} userId - ID Telegram de l'expéditeur
+ * @param {string} recipientId - ID du compte destinataire
+ * @param {string} tokenId - ID du token à transférer
+ * @param {number} amount - Montant à transférer
+ * @returns {Promise<Object>} Résultat de la transaction
+ */
+async function transferToken(userId, recipientId, tokenId, amount) {
+  try {
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) {
+      return { success: false, message: 'Portefeuille non trouvé' };
+    }
+    
+    const kit = await getHederaAgentKit();
+    
+    if (!kit.transferToken) {
+      // Fallback vers notre implémentation existante
+      const { sendToken } = require('../hedera/tokens');
+      return await sendToken(userId, recipientId, tokenId, amount);
+    }
+    
+    // Vérifier si tokenId est un objet TokenId ou une chaîne
+    const tokenIdToUse = typeof tokenId === 'string' ? TokenId.fromString(tokenId) : tokenId;
+    
+    const result = await kit.transferToken(tokenIdToUse, recipientId, amount);
+    return {
+      success: result.success,
+      transactionId: result.transactionId,
+      message: result.success ? 
+        `Transaction réussie ! ${amount} tokens (${tokenId}) envoyés à ${recipientId}` : 
+        (result.error || 'Erreur lors du transfert de tokens')
+    };
+  } catch (error) {
+    console.error(`Erreur lors du transfert de tokens: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * Obtenir l'historique des transactions
+ * @param {string} userId - ID Telegram de l'utilisateur
+ * @param {number} limit - Nombre maximum de transactions à retourner
+ * @returns {Promise<Object>} Historique des transactions
+ */
+async function getTransactionHistory(userId, limit = 10) {
+  try {
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) {
+      return { success: false, message: 'Portefeuille non trouvé' };
+    }
+    
+    // Le Hedera Agent Kit n'a pas de fonction directe pour l'historique des transactions
+    // Nous utilisons donc notre implémentation existante
+    const { getTransactionHistory } = require('../hedera/transactions');
+    return await getTransactionHistory(userId, limit);
+  } catch (error) {
+    console.error(`Erreur lors de la récupération de l'historique: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * Récupérer les outils du Hedera Agent Kit pour l'intégration LangChain
+ * @returns {Promise<Array>} Liste des outils pour LangChain
+ */
+async function getHederaAgentTools() {
+  try {
+    const kitModule = await import('hedera-agent-kit');
+    
+    if (kitModule.createHederaTools) {
+      const accountId = config.HEDERA_AI_KIT_ACCOUNT_ID;
+      const privateKey = config.HEDERA_AI_KIT_PRIVATE_KEY;
+      
+      const client = Client.forTestnet();
+      
+      return kitModule.createHederaTools({
+        hederaClient: client,
+        operatorId: accountId,
+        operatorKey: privateKey
+      });
+    }
+    
+    // Si createHederaTools n'est pas disponible, retourner nos outils personnalisés
+    return [];
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des outils: ${error.message}`);
+    return [];
+  }
+}
+
+module.exports = {
+  getHederaAgentKit,
+  checkHbarBalance,
+  checkTokenBalances,
+  sendHbar,
+  createFungibleToken,
+  transferToken,
+  getTransactionHistory,
+  getHederaAgentTools
+};

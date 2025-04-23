@@ -141,55 +141,67 @@ class HederaAgent {
    */
   async checkBalance(userId) {
     try {
-      const { getBalance } = require('../hedera/account');
+      // Utiliser l'intégration Hedera Agent Kit
+      const { checkHbarBalance, checkTokenBalances } = require('./hedera-agent-kit-integration');
       const { getUserTokens } = require('../hedera/tokens');
-      const result = await getBalance(userId);
       
-      if (result.success) {
-        let hbarBalance = result.balance.hbars || "0";
-        let tokenList = "";
-        
-        // Récupérer les informations des tokens pour l'affichage
-        const userTokens = await getUserTokens(userId);
-        const tokenMap = {};
-        
-        // Créer un mapping des IDs de tokens vers leurs noms
-        if (userTokens && userTokens.length > 0) {
-          userTokens.forEach(token => {
-            tokenMap[token.token_id] = `${token.token_name} (${token.token_symbol})`;
-          });
-        }
-        
-        if (typeof result.balance.tokens === 'string') {
-          tokenList = result.balance.tokens;
-        } else if (result.balance.tokens) {
-          // Afficher les tokens avec leur nom et symbole si disponibles
-          tokenList = Object.entries(result.balance.tokens)
-            .map(([tokenId, amount]) => {
-              const tokenName = tokenMap[tokenId] || tokenId;
-              return `${tokenName}: ${amount}`;
-            })
-            .join('\n');
-          
-          if (!tokenList) tokenList = 'Aucun token';
-        }
-        
-        return {
-          success: true,
-          message: `Votre solde est de ${hbarBalance} avec les tokens suivants:\n${tokenList}`,
-          data: { 
-            balance: result.balance, 
-            accountId: result.accountId,
-            tokens: userTokens || []
-          }
-        };
-      } else {
-        return {
-          success: false,
-          message: result.message || "Erreur lors de la récupération du solde",
-          data: null
-        };
+      // Récupérer le solde HBAR via Agent Kit
+      const hbarResult = await checkHbarBalance(userId);
+      
+      // Si échec, utiliser l'implémentation standard
+      if (!hbarResult.success) {
+        const { getBalance } = require('../hedera/account');
+        return await getBalance(userId);
       }
+      
+      // Récupérer les soldes de tokens via Agent Kit ou notre implémentation
+      const tokensResult = await checkTokenBalances(userId);
+      
+      // Combiner les résultats
+      const result = {
+        success: true,
+        balance: {
+          hbars: hbarResult.balance?.hbars || "0",
+          tokens: tokensResult.success ? tokensResult.tokens : {}
+        },
+        accountId: hbarResult.accountId
+      };
+      
+      // Récupérer les informations des tokens pour l'affichage
+      const userTokens = await getUserTokens(userId);
+      const tokenMap = {};
+      
+      // Créer un mapping des IDs de tokens vers leurs noms
+      if (userTokens && userTokens.length > 0) {
+        userTokens.forEach(token => {
+          tokenMap[token.token_id] = `${token.token_name} (${token.token_symbol})`;
+        });
+      }
+      
+      let tokenList = "";
+      if (typeof result.balance.tokens === 'string') {
+        tokenList = result.balance.tokens;
+      } else if (result.balance.tokens) {
+        // Afficher les tokens avec leur nom et symbole si disponibles
+        tokenList = Object.entries(result.balance.tokens)
+          .map(([tokenId, amount]) => {
+            const tokenName = tokenMap[tokenId] || tokenId;
+            return `${tokenName}: ${amount}`;
+          })
+          .join('\n');
+        
+        if (!tokenList) tokenList = 'Aucun token';
+      }
+      
+      return {
+        success: true,
+        message: `Votre solde est de ${result.balance.hbars} avec les tokens suivants:\n${tokenList}`,
+        data: { 
+          balance: result.balance, 
+          accountId: result.accountId,
+          tokens: userTokens || []
+        }
+      };
     } catch (error) {
       console.error(`Error checking balance: ${error.message}`);
       return {
@@ -208,9 +220,11 @@ class HederaAgent {
    */
   async transferHBAR(userId, recipientId, amount) {
     try {
-      const { sendHbar } = require('../hedera/account');
-      const result = await sendHbar(userId, recipientId, amount.toString());
+      // Utiliser l'intégration Hedera Agent Kit
+      const { sendHbar } = require('./hedera-agent-kit-integration');
+      const result = await sendHbar(userId, recipientId, amount);
       
+      // Formater la réponse
       return {
         success: result.success,
         message: result.success ? 
@@ -239,7 +253,8 @@ class HederaAgent {
    */
   async getTransactionHistory(userId, limit = 10) {
     try {
-      const { getTransactionHistory } = require('../hedera/transactions');
+      // Utiliser l'intégration Hedera Agent Kit
+      const { getTransactionHistory } = require('./hedera-agent-kit-integration');
       const result = await getTransactionHistory(userId, limit);
       
       if (result.success) {
@@ -285,7 +300,8 @@ class HederaAgent {
    */
   async createToken(userId, name, symbol) {
     try {
-      const { mintToken } = require('../hedera/tokens');
+      // Utiliser l'intégration Hedera Agent Kit
+      const { createFungibleToken } = require('./hedera-agent-kit-integration');
       
       // Create token info object
       const tokenInfo = {
@@ -296,8 +312,9 @@ class HederaAgent {
         supplyType: "INFINITE"
       };
       
-      const result = await mintToken(userId, tokenInfo);
+      const result = await createFungibleToken(userId, tokenInfo);
       
+      // Formater la réponse
       return {
         success: result.success,
         message: result.success ? 
@@ -328,7 +345,9 @@ class HederaAgent {
    */
   async transferToken(userId, recipientId, tokenIdOrName, amount) {
     try {
-      const { sendToken, getTokenIdByNameOrSymbol } = require('../hedera/tokens');
+      // Utiliser l'intégration Hedera Agent Kit pour le transfert
+      const { transferToken } = require('./hedera-agent-kit-integration');
+      const { getTokenIdByNameOrSymbol } = require('../hedera/tokens');
       
       // Check if tokenIdOrName is a name or symbol instead of an ID
       let actualTokenId = tokenIdOrName;
@@ -347,8 +366,9 @@ class HederaAgent {
         }
       }
       
-      const result = await sendToken(userId, recipientId, actualTokenId, amount);
+      const result = await transferToken(userId, recipientId, actualTokenId, amount);
       
+      // Formater la réponse
       return {
         success: result.success,
         message: result.success ? 
