@@ -5,6 +5,8 @@
 const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
+const { processNaturalLanguageCommand } = require('../agent/nlp-processor');
+const { getAgent } = require('../agent');
 
 // State management for multi-step operations
 const userState = new Map();
@@ -39,10 +41,13 @@ Commandes disponibles :
 /mint - Créer un nouveau token
 /help - Afficher ce message d'aide
 
+✨ *NOUVEAU* : Je comprends maintenant le langage naturel ! 
+Vous pouvez me parler normalement pour gérer votre wallet !
+
 Commençons ! Utilisez /createwallet pour créer votre premier wallet.
   `;
   
-  await bot.sendMessage(chatId, message);
+  await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
 }
 
 /**
@@ -66,10 +71,15 @@ Commandes disponibles :
 /mint _<nom> <symbole> <offre>_ - Créer un nouveau token (tous les paramètres sont optionnels)
 /help - Afficher ce message d'aide
 
+*Nouveau : Commandes en langage naturel !*
+Vous pouvez maintenant interagir avec votre wallet en utilisant des phrases simples !
+
 *Exemples :*
-- Envoyer 5 HBAR : /send 0.0.1234 5
-- Envoyer 10 tokens : /sendtoken 0.0.1234 0.0.5678 10
-- Créer un token : /mint MonToken MTK 1000
+- "Quel est mon solde ?" ou "Montre-moi ma balance"
+- "Envoyer 5 HBAR à 0.0.1234" 
+- "Voir mon historique de transactions"
+- "Créer un token nommé MonToken avec symbole MTK"
+- "Envoyer 10 tokens 0.0.5678 à 0.0.1234"
 
 Ce wallet est custodial - vos clés privées sont stockées en toute sécurité sur notre serveur.
   `;
@@ -323,46 +333,47 @@ Utilisez /balance pour vérifier votre nouveau solde.
 async function handleSendConversation(bot, msg) {
   const userId = msg.from.id.toString();
   const userInfo = userState.get(userId);
-  
-  // Vérifier si l'utilisateur est en cours de processus d'envoi
-  if (!userInfo) return;
-  
-  const chatId = userInfo.chatId;
+  const chatId = msg.chat.id;
   const text = msg.text.trim();
   
-  // Gestion des différentes étapes de la conversation
-  switch (userInfo.state) {
-    case SEND_STATES.WAITING_FOR_ADDRESS:
-      // L'utilisateur a fourni l'adresse de destination
-      userInfo.toAccountId = text;
-      userInfo.state = SEND_STATES.WAITING_FOR_AMOUNT;
-      userState.set(userId, userInfo);
-      
-      // Demander le montant à envoyer
-      await bot.sendMessage(
-        chatId,
-        `Quelle quantité de HBAR souhaitez-vous envoyer à ${text}?`,
-        { reply_markup: { force_reply: true } }
-      );
-      break;
-      
-    case SEND_STATES.WAITING_FOR_AMOUNT:
-      // L'utilisateur a fourni le montant
-      const amount = text;
-      const toAccountId = userInfo.toAccountId;
-      
-      // Réinitialiser l'état
-      userState.set(userId, { ...userInfo, state: SEND_STATES.NONE });
-      
-      // Informer l'utilisateur que la transaction est en cours
-      await bot.sendMessage(chatId, `Envoi de ${amount} HBAR à ${toAccountId} en cours...`);
-      
-      // Effectuer la transaction
-      const result = await sendHbar(userId, toAccountId, amount);
-      
-      // Afficher le résultat
-      if (result.success) {
-        const message = `
+  // Vérifier si l'utilisateur est en cours de processus d'envoi
+  if (userInfo) {
+    // Traitement des étapes de la conversation en cours
+    const currentChatId = userInfo.chatId;
+    
+    // Gestion des différentes étapes de la conversation
+    switch (userInfo.state) {
+      case SEND_STATES.WAITING_FOR_ADDRESS:
+        // L'utilisateur a fourni l'adresse de destination
+        userInfo.toAccountId = text;
+        userInfo.state = SEND_STATES.WAITING_FOR_AMOUNT;
+        userState.set(userId, userInfo);
+        
+        // Demander le montant à envoyer
+        await bot.sendMessage(
+          currentChatId,
+          `Quelle quantité de HBAR souhaitez-vous envoyer à ${text}?`,
+          { reply_markup: { force_reply: true } }
+        );
+        return;
+        
+      case SEND_STATES.WAITING_FOR_AMOUNT:
+        // L'utilisateur a fourni le montant
+        const amount = text;
+        const toAccountId = userInfo.toAccountId;
+        
+        // Réinitialiser l'état
+        userState.set(userId, { ...userInfo, state: SEND_STATES.NONE });
+        
+        // Informer l'utilisateur que la transaction est en cours
+        await bot.sendMessage(currentChatId, `Envoi de ${amount} HBAR à ${toAccountId} en cours...`);
+        
+        // Effectuer la transaction
+        const result = await sendHbar(userId, toAccountId, amount);
+        
+        // Afficher le résultat
+        if (result.success) {
+          const message = `
 ✅ ${result.message}
 
 *Détails de la transaction :*
@@ -372,14 +383,76 @@ Transaction ID: \`${result.transactionId}\`
 
 Utilisez /balance pour vérifier votre nouveau solde.
 `;
-        await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-      } else {
-        await bot.sendMessage(chatId, `❌ ${result.message}`);
-      }
-      break;
+          await bot.sendMessage(currentChatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(currentChatId, `❌ ${result.message}`);
+        }
+        return;
+    }
+  }
+  
+  // Si l'utilisateur n'est pas dans une conversation ou a terminé, traiter le message comme une commande en langage naturel
+  await handleNaturalLanguage(bot, msg);
+}
+
+/**
+ * Traite les messages en langage naturel
+ * @param {TelegramBot} bot - Instance du bot Telegram
+ * @param {object} msg - Objet message de Telegram
+ */
+async function handleNaturalLanguage(bot, msg) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
+  const text = msg.text.trim();
+  
+  // Ignorer les messages vides
+  if (!text) return;
+  
+  // Informer l'utilisateur que sa demande est en cours de traitement
+  await bot.sendMessage(chatId, "Je traite votre demande...");
+  
+  try {
+    // Traiter le message avec le processeur de langage naturel
+    const result = await processNaturalLanguageCommand(userId, text);
+    
+    if (result.success) {
+      // Formater le message en fonction du type d'action
+      let message;
       
-    default:
-      break;
+      switch (result.action) {
+        case 'balance':
+          message = `💰 *Solde*\n\n${result.message}`;
+          break;
+        case 'history':
+          message = `📜 *Historique des transactions*\n\n${result.message}`;
+          break;
+        case 'send':
+          message = `✅ *Transfert HBAR*\n\n${result.message}`;
+          break;
+        case 'sendtoken':
+          message = `✅ *Transfert de token*\n\n${result.message}`;
+          break;
+        case 'mint':
+          message = `🪙 *Création de token*\n\n${result.message}`;
+          break;
+        default:
+          message = result.message;
+      }
+      
+      await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } else {
+      // En cas d'erreur ou de commande non reconnue
+      await bot.sendMessage(
+        chatId, 
+        `${result.message}\n\nVous pouvez utiliser /help pour voir la liste des commandes disponibles.`
+      );
+    }
+  } catch (error) {
+    console.error(`Error processing natural language: ${error.message}`);
+    await bot.sendMessage(
+      chatId,
+      "Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer ou utiliser les commandes spécifiques comme /balance, /send, etc."
+    );
   }
 }
 

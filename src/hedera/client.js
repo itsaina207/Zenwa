@@ -30,7 +30,20 @@ const initClient = () => {
 
   try {
     const operatorId = AccountId.fromString(ACCOUNT_ID);
-    const operatorKey = PrivateKey.fromStringECDSA(HEX_ENCODED_PRIVATE_KEY);
+    // Try to parse the private key in different formats
+    let operatorKey;
+    try {
+      // First try as ECDSA (hex)
+      operatorKey = PrivateKey.fromStringECDSA(HEX_ENCODED_PRIVATE_KEY);
+    } catch (e) {
+      try {
+        // Then try as DER
+        operatorKey = PrivateKey.fromString(HEX_ENCODED_PRIVATE_KEY);
+      } catch (e2) {
+        // Finally try as raw string
+        operatorKey = PrivateKey.fromString(HEX_ENCODED_PRIVATE_KEY);
+      }
+    }
 
     // Create client based on network setting
     switch (HEDERA_NETWORK.toLowerCase()) {
