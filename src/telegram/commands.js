@@ -319,7 +319,7 @@ Utilisez /balance pour vérifier votre nouveau solde.
 async function handleSendConversation(bot, msg) {
   const userId = msg.from.id.toString();
   const userInfo = userState.get(userId);
-  const chatId = msg.chat.id;
+  const msgChatId = msg.chat.id;
   const text = msg.text.trim();
   
   // Vérifier si l'utilisateur est en cours de processus d'envoi
@@ -377,70 +377,11 @@ Utilisez /balance pour vérifier votre nouveau solde.
     }
   }
   
-  // Si l'utilisateur n'est pas dans une conversation ou a terminé, traiter le message comme une commande en langage naturel
-  await handleNaturalLanguage(bot, msg);
-}
-
-/**
- * Traite les messages en langage naturel
- * @param {TelegramBot} bot - Instance du bot Telegram
- * @param {object} msg - Objet message de Telegram
- */
-async function handleNaturalLanguage(bot, msg) {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id.toString();
-  const text = msg.text.trim();
-  
-  // Ignorer les messages vides
-  if (!text) return;
-  
-  // Informer l'utilisateur que sa demande est en cours de traitement
-  await bot.sendMessage(chatId, "Je traite votre demande avec intelligence artificielle...");
-  
-  try {
-    // Utiliser l'agent Hedera avec le LLM pour traiter la commande
-    const agent = getAgent();
-    const result = await agent.executeCommand(userId, text);
-    
-    if (result.success) {
-      // Formater le message en fonction du type d'action
-      let message;
-      
-      switch (result.action) {
-        case 'balance':
-          message = `💰 *Solde*\n\n${result.message}`;
-          break;
-        case 'history':
-          message = `📜 *Historique des transactions*\n\n${result.message}`;
-          break;
-        case 'send_hbar':
-          message = `✅ *Transfert HBAR*\n\n${result.message}`;
-          break;
-        case 'send_token':
-          message = `✅ *Transfert de token*\n\n${result.message}`;
-          break;
-        case 'mint_token':
-          message = `🪙 *Création de token*\n\n${result.message}`;
-          break;
-        default:
-          message = result.message;
-      }
-      
-      await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-    } else {
-      // En cas d'erreur ou de commande non reconnue
-      await bot.sendMessage(
-        chatId, 
-        `${result.message}\n\nVous pouvez utiliser /help pour voir la liste des commandes disponibles.`
-      );
-    }
-  } catch (error) {
-    console.error(`Error processing natural language: ${error.message}`);
-    await bot.sendMessage(
-      chatId,
-      "Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer ou utiliser les commandes spécifiques comme /balance, /send, etc."
-    );
-  }
+  // Si l'utilisateur n'est pas dans une conversation, afficher un message d'aide
+  await bot.sendMessage(
+    msg.chat.id,
+    "Désolé, je ne comprends pas cette commande. Utilisez /help pour voir la liste des commandes disponibles."
+  );
 }
 
 /**
@@ -458,11 +399,11 @@ function registerCommands(bot) {
   bot.onText(/\/history(.*)/, msg => handleHistory(bot, msg));
   bot.onText(/\/mint(.*)/, msg => handleMint(bot, msg));
   
-  // Handler for conversation flow and natural language
+  // Handler pour les messages normaux
   bot.on('message', msg => {
     // Ignorer les commandes (qui commencent par '/')
     if (msg.text && !msg.text.startsWith('/')) {
-      // Vérifier d'abord si nous sommes au milieu d'une conversation structurée
+      // Vérifier si nous sommes au milieu d'une conversation structurée
       const userId = msg.from.id.toString();
       const userInfo = userState.get(userId);
       
@@ -470,8 +411,11 @@ function registerCommands(bot) {
         // Si l'utilisateur est dans une conversation, continuer celle-ci
         handleSendConversation(bot, msg);
       } else {
-        // Sinon, traiter comme langage naturel
-        handleNaturalLanguage(bot, msg);
+        // Sinon, informer l'utilisateur que seules les commandes sont supportées
+        bot.sendMessage(
+          msg.chat.id,
+          "Désolé, je ne comprends pas les messages en texte libre. Veuillez utiliser /help pour voir la liste des commandes disponibles."
+        );
       }
     }
   });
