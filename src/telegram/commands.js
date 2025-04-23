@@ -472,11 +472,21 @@ function registerCommands(bot) {
   bot.onText(/\/history(.*)/, msg => handleHistory(bot, msg));
   bot.onText(/\/mint(.*)/, msg => handleMint(bot, msg));
   
-  // Handler for conversation flow
+  // Handler for conversation flow and natural language
   bot.on('message', msg => {
     // Ignorer les commandes (qui commencent par '/')
     if (msg.text && !msg.text.startsWith('/')) {
-      handleSendConversation(bot, msg);
+      // Vérifier d'abord si nous sommes au milieu d'une conversation structurée
+      const userId = msg.from.id.toString();
+      const userInfo = userState.get(userId);
+      
+      if (userInfo && userInfo.state !== SEND_STATES.NONE) {
+        // Si l'utilisateur est dans une conversation, continuer celle-ci
+        handleSendConversation(bot, msg);
+      } else {
+        // Sinon, traiter comme langage naturel
+        handleNaturalLanguage(bot, msg);
+      }
     }
   });
   
