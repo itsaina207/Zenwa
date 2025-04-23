@@ -11,6 +11,7 @@ const { associateToken, dissociateToken } = require('./hedera/token-management')
 const { createTopic, submitTopicMessage, getTopicMessages } = require('./hedera/topic-management');
 const { getAgent } = require('./agent/hedera-agent');
 const { analyzeIntent } = require('./services/llm-service');
+const { initializeAgentKit, getAgentKit } = require('./agent/hedera-agent-kit-adapter');
 
 const router = express.Router();
 
