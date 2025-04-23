@@ -849,6 +849,40 @@ Utilisez /balance pour vérifier votre nouveau solde.
  * @param {TelegramBot} bot - Telegram bot instance
  */
 /**
+ * Définit la langue directement sans passer par les callbacks
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} newLang - Code de langue ('fr' ou 'en')
+ * @param {TelegramBot} bot - Instance du bot Telegram
+ * @param {number} chatId - ID du chat
+ */
+async function setLanguageDirectly(userId, newLang, bot, chatId) {
+  const success = setUserLanguage(userId, newLang);
+  
+  if (success) {
+    // Envoyer un message de confirmation
+    await bot.sendMessage(
+      chatId,
+      translate(userId, 'language_changed'),
+      { parse_mode: 'Markdown' }
+    );
+    
+    // Envoyer un message d'aide dans la nouvelle langue
+    setTimeout(async () => {
+      await bot.sendMessage(
+        chatId,
+        translate(userId, 'help'),
+        { parse_mode: 'Markdown' }
+      );
+    }, 500);
+  } else {
+    await bot.sendMessage(
+      chatId,
+      "Erreur lors du changement de langue. Veuillez réessayer."
+    );
+  }
+}
+
+/**
  * Handles the /language command to change the user's language preference
  * @param {TelegramBot} bot - Telegram bot instance
  * @param {object} msg - Telegram message object
@@ -856,23 +890,28 @@ Utilisez /balance pour vérifier votre nouveau solde.
 async function handleLanguage(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
+  const args = msg.text.split(' ').slice(1);
   
-  // Création d'un clavier avec les options de langue
-  const keyboard = {
-    inline_keyboard: [
-      [
-        { text: '🇫🇷 Français', callback_data: `lang:${LANGUAGES.FR}` },
-        { text: '🇬🇧 English', callback_data: `lang:${LANGUAGES.EN}` }
-      ]
-    ]
-  };
+  // Si un argument est fourni (comme "en" ou "fr"), utiliser directement
+  if (args.length > 0) {
+    const langArg = args[0].toLowerCase();
+    
+    if (langArg === 'en' || langArg === 'english' || langArg === 'anglais') {
+      return setLanguageDirectly(userId, LANGUAGES.EN, bot, chatId);
+    } else if (langArg === 'fr' || langArg === 'french' || langArg === 'français') {
+      return setLanguageDirectly(userId, LANGUAGES.FR, bot, chatId);
+    }
+  }
   
-  // Envoi du message avec le clavier
-  await bot.sendMessage(
-    chatId,
-    translate(userId, 'language_selection'),
-    { reply_markup: keyboard }
-  );
+  // Sinon, afficher un message avec des options simples (pas de inline keyboard)
+  const message = `
+${translate(userId, 'language_selection')}
+
+Pour choisir le français: /language fr
+To choose English: /language en
+  `;
+  
+  await bot.sendMessage(chatId, message);
 }
 
 function registerCommands(bot) {
@@ -887,35 +926,7 @@ function registerCommands(bot) {
   bot.onText(/\/mint(.*)/, msg => handleMint(bot, msg));
   bot.onText(/\/(language|langue)(.*)/, msg => handleLanguage(bot, msg));
   
-  // Gestionnaire pour les callbacks de boutons inline (utilisé pour la sélection de langue)
-  bot.on('callback_query', async (callbackQuery) => {
-    const msg = callbackQuery.message;
-    const data = callbackQuery.data;
-    const userId = callbackQuery.from.id.toString();
-    
-    // Si c'est une sélection de langue
-    if (data.startsWith('lang:')) {
-      const lang = data.split(':')[1];
-      const success = setUserLanguage(userId, lang);
-      
-      if (success) {
-        // Afficher un message de confirmation dans la langue sélectionnée
-        await bot.answerCallbackQuery(callbackQuery.id, { 
-          text: translate(userId, 'language_changed')
-        });
-        
-        // Mettre à jour le message avec la confirmation
-        await bot.editMessageText(
-          translate(userId, 'language_changed'), 
-          {
-            chat_id: msg.chat.id,
-            message_id: msg.message_id,
-            reply_markup: { remove_keyboard: true }
-          }
-        );
-      }
-    }
-  });
+  // Nous avons supprimé le gestionnaire de callbacks pour simplifier
   
   // Handler pour les messages normaux
   bot.on('message', msg => {
