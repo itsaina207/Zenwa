@@ -12,6 +12,7 @@ const { createTopic, submitTopicMessage, getTopicMessages } = require('./hedera/
 const { getAgent } = require('./agent/hedera-agent');
 const { analyzeIntent } = require('./services/llm-service');
 const { initializeAgentKit, getAgentKit } = require('./agent/hedera-agent-kit-adapter');
+const { getWalletByUserId } = require('./storage/userWallets');
 
 const router = express.Router();
 
@@ -349,6 +350,259 @@ router.post('/nlp/analyze', async (req, res) => {
     res.status(500).json({
       success: false,
       message: `Failed to analyze natural language: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * API routes pour utiliser directement le Hedera Agent Kit sans NLP
+ * Ces endpoints permettent d'accéder aux fonctionnalités du kit sans traitement du langage naturel
+ */
+
+/**
+ * Vérifier le solde HBAR avec l'Agent Kit
+ * GET /api/kit/balance/hbar/:userId
+ */
+router.get('/kit/balance/hbar/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: userId',
+      });
+    }
+    
+    // Initialiser le kit agent si nécessaire
+    const kit = initializeAgentKit();
+    const wallet = await getWalletByUserId(userId);
+    
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Wallet not found',
+      });
+    }
+    
+    // Utiliser directement la fonction getHbarBalance du kit
+    const result = await kit.getHbarBalance(wallet.accountId);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Get HBAR Balance: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get HBAR balance with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Transférer des HBAR avec l'Agent Kit
+ * POST /api/kit/transfer/hbar
+ */
+router.post('/kit/transfer/hbar', async (req, res) => {
+  try {
+    const { fromUserId, toAccountId, amount } = req.body;
+    
+    if (!fromUserId || !toAccountId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: fromUserId, toAccountId, amount',
+      });
+    }
+    
+    // Initialiser le kit agent
+    const kit = initializeAgentKit();
+    const wallet = await getWalletByUserId(fromUserId);
+    
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Wallet not found',
+      });
+    }
+    
+    // Utiliser directement la fonction transferHbar du kit
+    const result = await kit.transferHbar(toAccountId, amount);
+    
+    // Ajouter des liens d'explorateur pour la transaction
+    const { getExplorerUrl } = require('./utils/explorer');
+    if (result.success && result.transactionId) {
+      result.explorerUrls = {
+        hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
+        hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
+      };
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Transfer HBAR: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to transfer HBAR with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Créer un token fongible avec l'Agent Kit
+ * POST /api/kit/token/create
+ */
+router.post('/kit/token/create', async (req, res) => {
+  try {
+    const { userId, name, symbol, initialSupply = 1000, decimals = 0 } = req.body;
+    
+    if (!userId || !name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, name',
+      });
+    }
+    
+    // Générer un symbole si non fourni
+    let tokenSymbol = symbol;
+    if (!tokenSymbol) {
+      if (name.includes(' ')) {
+        // Nom composé, utiliser les initiales
+        tokenSymbol = name.split(' ')
+          .map(word => word.charAt(0).toUpperCase())
+          .join('');
+        
+        // Limiter à 5 caractères maximum
+        tokenSymbol = tokenSymbol.substring(0, 5);
+      } else {
+        // Nom simple, prendre les 3-4 premières lettres
+        tokenSymbol = name.substring(0, 4).toUpperCase();
+      }
+    }
+    
+    // Initialiser le kit agent
+    const kit = initializeAgentKit();
+    const wallet = await getWalletByUserId(userId);
+    
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Wallet not found',
+      });
+    }
+    
+    // Options du token
+    const tokenOptions = {
+      name: name,
+      symbol: tokenSymbol,
+      decimals: decimals,
+      initialSupply: initialSupply,
+      supplyType: "INFINITE"
+    };
+    
+    // Utiliser directement la fonction createFT du kit
+    const result = await kit.createFT(tokenOptions);
+    
+    // Ajouter des liens d'explorateur pour le token
+    const { getExplorerUrl } = require('./utils/explorer');
+    if (result.success && result.tokenId) {
+      result.explorerUrls = {
+        hederaExplorer: getExplorerUrl('token', result.tokenId, 'testnet', 'hedera'),
+        hashScan: getExplorerUrl('token', result.tokenId, 'testnet', 'hashscan')
+      };
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Create Token: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to create token with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Transférer des tokens avec l'Agent Kit
+ * POST /api/kit/transfer/token
+ */
+router.post('/kit/transfer/token', async (req, res) => {
+  try {
+    const { fromUserId, toAccountId, tokenId, amount } = req.body;
+    
+    if (!fromUserId || !toAccountId || !tokenId || amount === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: fromUserId, toAccountId, tokenId, amount',
+      });
+    }
+    
+    // Initialiser le kit agent
+    const kit = initializeAgentKit();
+    const wallet = await getWalletByUserId(fromUserId);
+    
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Wallet not found',
+      });
+    }
+    
+    // Utiliser directement la fonction transferToken du kit
+    const result = await kit.transferToken(tokenId, toAccountId, amount);
+    
+    // Ajouter des liens d'explorateur pour la transaction
+    const { getExplorerUrl } = require('./utils/explorer');
+    if (result.success && result.transactionId) {
+      result.explorerUrls = {
+        hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
+        hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
+      };
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Transfer Token: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to transfer token with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Récupérer l'historique des transactions avec l'Agent Kit
+ * GET /api/kit/history/:userId
+ */
+router.get('/kit/history/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: userId',
+      });
+    }
+    
+    // Initialiser le kit agent
+    const kit = initializeAgentKit();
+    const wallet = await getWalletByUserId(userId);
+    
+    if (!wallet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Wallet not found',
+      });
+    }
+    
+    // Utiliser directement la fonction getTransactionHistory du kit
+    const result = await kit.getTransactionHistory(wallet.accountId);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Get History: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get transaction history with Agent Kit: ${error.message}`,
     });
   }
 });
