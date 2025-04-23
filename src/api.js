@@ -453,19 +453,11 @@ router.post('/kit/token/create', async (req, res) => {
       }
     }
     
-    // Initialiser le kit agent
-    const kit = initializeAgentKit();
-    const wallet = await getWalletByUserId(userId);
-    
-    if (!wallet) {
-      return res.status(404).json({
-        success: false,
-        message: 'Wallet not found',
-      });
-    }
+    // Utiliser le nouvel adaptateur officiel
+    const { createFungibleToken } = require('./agent/official-kit-adapter');
     
     // Options du token
-    const tokenOptions = {
+    const tokenInfo = {
       name: name,
       symbol: tokenSymbol,
       decimals: decimals,
@@ -473,18 +465,8 @@ router.post('/kit/token/create', async (req, res) => {
       supplyType: "INFINITE"
     };
     
-    // Utiliser directement la fonction mintToken au lieu de createFT
-    const { mintToken } = require('./hedera/tokens');
-    const result = await mintToken(userId, tokenOptions);
-    
-    // Ajouter des liens d'explorateur pour le token
-    const { getExplorerUrl } = require('./utils/explorer');
-    if (result.success && result.tokenId) {
-      result.explorerUrls = {
-        hederaExplorer: getExplorerUrl('token', result.tokenId, 'testnet', 'hedera'),
-        hashScan: getExplorerUrl('token', result.tokenId, 'testnet', 'hashscan')
-      };
-    }
+    // Créer le token avec l'adaptateur officiel
+    const result = await createFungibleToken(userId, tokenInfo);
     
     res.json(result);
   } catch (error) {
@@ -511,29 +493,11 @@ router.post('/kit/transfer/token', async (req, res) => {
       });
     }
     
-    // Initialiser le kit agent
-    const kit = initializeAgentKit();
-    const wallet = await getWalletByUserId(fromUserId);
+    // Utiliser le nouvel adaptateur officiel
+    const { transferToken } = require('./agent/official-kit-adapter');
     
-    if (!wallet) {
-      return res.status(404).json({
-        success: false,
-        message: 'Wallet not found',
-      });
-    }
-    
-    // Utiliser directement la fonction sendToken au lieu de transferToken du kit
-    const { sendToken } = require('./hedera/tokens');
-    const result = await sendToken(fromUserId, toAccountId, tokenId, amount);
-    
-    // Ajouter des liens d'explorateur pour la transaction
-    const { getExplorerUrl } = require('./utils/explorer');
-    if (result.success && result.transactionId) {
-      result.explorerUrls = {
-        hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
-        hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
-      };
-    }
+    // Effectuer le transfert
+    const result = await transferToken(fromUserId, toAccountId, tokenId, parseInt(amount, 10));
     
     res.json(result);
   } catch (error) {
@@ -552,6 +516,7 @@ router.post('/kit/transfer/token', async (req, res) => {
 router.get('/kit/history/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+    const limit = parseInt(req.query.limit || 10, 10);
     
     if (!userId) {
       return res.status(400).json({
@@ -560,20 +525,11 @@ router.get('/kit/history/:userId', async (req, res) => {
       });
     }
     
-    // Initialiser le kit agent
-    const kit = initializeAgentKit();
-    const wallet = await getWalletByUserId(userId);
+    // Utiliser le nouvel adaptateur officiel
+    const { getTransactionHistory } = require('./agent/official-kit-adapter');
     
-    if (!wallet) {
-      return res.status(404).json({
-        success: false,
-        message: 'Wallet not found',
-      });
-    }
-    
-    // Utiliser directement la fonction getTransactionHistory
-    const { getTransactionHistory } = require('./hedera/transactions');
-    const result = await getTransactionHistory(userId);
+    // Récupérer l'historique
+    const result = await getTransactionHistory(userId, limit);
     
     res.json(result);
   } catch (error) {
@@ -581,6 +537,194 @@ router.get('/kit/history/:userId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: `Failed to get transaction history with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Créer un topic HCS (Hedera Consensus Service) avec l'Agent Kit
+ * POST /api/kit/topic/create
+ */
+router.post('/kit/topic/create', async (req, res) => {
+  try {
+    const { userId, topicMemo, isSubmitKey = false } = req.body;
+    
+    if (!userId || !topicMemo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, topicMemo',
+      });
+    }
+    
+    // Utiliser le nouvel adaptateur officiel
+    const { createTopic } = require('./agent/official-kit-adapter');
+    
+    // Créer le topic
+    const result = await createTopic(userId, topicMemo, isSubmitKey);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Create Topic: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to create topic with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Soumettre un message à un topic HCS avec l'Agent Kit
+ * POST /api/kit/topic/message
+ */
+router.post('/kit/topic/message', async (req, res) => {
+  try {
+    const { userId, topicId, message } = req.body;
+    
+    if (!userId || !topicId || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, topicId, message',
+      });
+    }
+    
+    // Utiliser le nouvel adaptateur officiel
+    const { submitTopicMessage } = require('./agent/official-kit-adapter');
+    
+    // Soumettre le message
+    const result = await submitTopicMessage(userId, topicId, message);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Submit Topic Message: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to submit topic message with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Récupérer les messages d'un topic HCS avec l'Agent Kit
+ * GET /api/kit/topic/messages/:topicId
+ */
+router.get('/kit/topic/messages/:topicId', async (req, res) => {
+  try {
+    const { topicId } = req.params;
+    const limit = parseInt(req.query.limit || 10, 10);
+    
+    if (!topicId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: topicId',
+      });
+    }
+    
+    // Utiliser le nouvel adaptateur officiel
+    const { getTopicMessages } = require('./agent/official-kit-adapter');
+    
+    // Récupérer les messages
+    const result = await getTopicMessages(topicId, limit);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Get Topic Messages: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get topic messages with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Récupérer les informations d'un topic HCS avec l'Agent Kit
+ * GET /api/kit/topic/info/:topicId
+ */
+router.get('/kit/topic/info/:topicId', async (req, res) => {
+  try {
+    const { topicId } = req.params;
+    
+    if (!topicId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: topicId',
+      });
+    }
+    
+    // Utiliser le nouvel adaptateur officiel
+    const { getTopicInfo } = require('./agent/official-kit-adapter');
+    
+    // Récupérer les informations
+    const result = await getTopicInfo(topicId);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Get Topic Info: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get topic info with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Récupérer les détails d'un token avec l'Agent Kit
+ * GET /api/kit/token/details/:tokenId
+ */
+router.get('/kit/token/details/:tokenId', async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    
+    if (!tokenId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: tokenId',
+      });
+    }
+    
+    // Utiliser le nouvel adaptateur officiel
+    const { getTokenDetails } = require('./agent/official-kit-adapter');
+    
+    // Récupérer les détails
+    const result = await getTokenDetails(tokenId);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Get Token Details: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get token details with Agent Kit: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Récupérer les détenteurs d'un token avec l'Agent Kit
+ * GET /api/kit/token/holders/:tokenId
+ */
+router.get('/kit/token/holders/:tokenId', async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    const threshold = parseInt(req.query.threshold || 1, 10);
+    
+    if (!tokenId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: tokenId',
+      });
+    }
+    
+    // Utiliser le nouvel adaptateur officiel
+    const { getTokenHolders } = require('./agent/official-kit-adapter');
+    
+    // Récupérer les détenteurs
+    const result = await getTokenHolders(tokenId, threshold);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Kit Get Token Holders: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get token holders with Agent Kit: ${error.message}`,
     });
   }
 });

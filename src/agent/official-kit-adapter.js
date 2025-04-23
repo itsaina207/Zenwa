@@ -18,22 +18,14 @@ let kitInstance = null;
 
 /**
  * Importer dynamiquement le module Hedera Agent Kit (ESM)
- * @returns {Promise<Object>} Le module HederaAgentKit importé
+ * Note: Cette approche ne fonctionne pas actuellement, car nous sommes en environnement CommonJS
  */
-async function importHederaAgentKit() {
-  try {
-    // Utilisation d'import() dynamique pour charger le module ESM
-    // Note: cela peut nécessiter une configuration supplémentaire selon l'environnement
-    return await import('hedera-agent-kit');
-  } catch (error) {
-    console.error(`Erreur lors de l'import du Hedera Agent Kit: ${error.message}`);
-    throw new Error(`Impossible de charger le Hedera Agent Kit: ${error.message}`);
-  }
-}
+// Nous n'utilisons pas cette fonction car elle ne fonctionne pas dans CommonJS
+// Nous allons plutôt utiliser notre implémentation existante
 
 /**
- * Initialiser le Hedera Agent Kit officiel
- * @returns {Promise<Object>} Instance du Hedera Agent Kit
+ * Initialiser le Hedera Agent Kit (en utilisant notre propre implémentation)
+ * @returns {Object} Instance du Hedera Agent Kit
  */
 async function initializeOfficialKit() {
   if (kitInstance) {
@@ -50,17 +42,14 @@ async function initializeOfficialKit() {
       throw new Error("Les informations d'identification (accountId ou privateKey) sont manquantes");
     }
 
-    // Importer le module Hedera Agent Kit
-    const HederaAgentKitModule = await importHederaAgentKit();
+    // Utiliser notre implémentation existante de KitManager
+    const KitManager = require('./kit-manager');
+    kitInstance = new KitManager(accountId, privateKey, network);
     
-    // Créer une instance du kit
-    const HederaAgentKit = HederaAgentKitModule.default;
-    kitInstance = new HederaAgentKit(accountId, privateKey, null, network);
-    
-    console.log('Kit Hedera Agent officiel initialisé avec succès');
+    console.log('Kit Hedera Agent initialisé avec succès (via KitManager)');
     return kitInstance;
   } catch (error) {
-    console.error(`Échec de l'initialisation du Hedera Agent Kit officiel: ${error.message}`);
+    console.error(`Échec de l'initialisation du Hedera Agent Kit: ${error.message}`);
     throw error;
   }
 }
@@ -78,7 +67,7 @@ async function getHbarBalance(accountId) {
     let hederaAccountId = accountId;
     if (!accountId.includes('.')) {
       // C'est probablement un userId, il faut le convertir
-      const { getWalletByUserId } = require('../wallet/wallet-storage');
+      const { getWalletByUserId } = require('../storage/userWallets');
       const wallet = await getWalletByUserId(accountId);
       if (!wallet) {
         return {
