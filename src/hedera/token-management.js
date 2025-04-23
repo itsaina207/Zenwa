@@ -3,7 +3,7 @@
  * Implémentations des fonctionnalités supplémentaires du Hedera Agent Kit
  */
 
-const { TokenId, TokenAssociateTransaction, TokenDissociateTransaction, PrivateKey } = require('@hashgraph/sdk');
+const { TokenId, TokenAssociateTransaction, TokenDissociateTransaction, PrivateKey, AccountId } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
 const { getWalletByUserId } = require('../storage/userWallets');
 const { getHederaAgentKit } = require('../agent/hedera-agent-kit-integration');
@@ -17,13 +17,17 @@ const { getHederaAgentKit } = require('../agent/hedera-agent-kit-integration');
 async function associateToken(userId, tokenId) {
   try {
     const wallet = await getWalletByUserId(userId);
-    console.log('Wallet info:', JSON.stringify(wallet, null, 2));
+    console.log('Wallet info:', JSON.stringify({
+      userId: wallet?.userId,
+      accountId: wallet?.accountId,
+      privateKeyLength: wallet?.privateKey?.length || 0
+    }, null, 2));
     
     if (!wallet) {
       return { success: false, message: 'Portefeuille non trouvé. Veuillez créer un wallet avec /createwallet' };
     }
 
-    if (!wallet.account_id || !wallet.private_key) {
+    if (!wallet.accountId || !wallet.privateKey) {
       return { 
         success: false, 
         message: 'Données de wallet incomplètes. Veuillez recréer votre wallet avec /createwallet'
@@ -31,34 +35,36 @@ async function associateToken(userId, tokenId) {
     }
 
     // Implémentation directe avec l'API Hedera SDK
-    console.log(`Associating token ${tokenId} to account ${wallet.account_id}`);
+    console.log(`Associating token ${tokenId} to account ${wallet.accountId}`);
     
-    // Convertir le tokenId en objet TokenId si nécessaire
-    const tokenIdObj = typeof tokenId === 'string' 
-      ? TokenId.fromString(tokenId) 
-      : tokenId;
+    // Convertir le tokenId en objet TokenId
+    const tokenIdObj = TokenId.fromString(tokenId);
+    const accountId = AccountId.fromString(wallet.accountId);
     
     const client = getClient();
     
     // Créer la transaction d'association
     const transaction = new TokenAssociateTransaction()
-      .setAccountId(wallet.account_id)
+      .setAccountId(accountId)
       .setTokenIds([tokenIdObj]);
       
     // Signer la transaction avec la clé du compte
-    const privateKey = PrivateKey.fromString(wallet.private_key);
-    const signedTx = await transaction.freezeWith(client).sign(privateKey);
+    const privateKey = PrivateKey.fromString(wallet.privateKey);
+    
+    // Faire l'opération en plusieurs étapes plutôt qu'en chaîne
+    const frozenTx = await transaction.freezeWith(client);
+    const signedTx = await frozenTx.sign(privateKey);
     
     // Exécuter la transaction et attendre le reçu
     const txResponse = await signedTx.execute(client);
     const receipt = await txResponse.getReceipt(client);
     
-    const success = receipt.status._code === 22; // 22 = SUCCESS in Hedera SDK
+    const success = receipt.status.toString() === 'SUCCESS';
     
     return {
       success: success,
       message: success
-        ? `Token ${tokenId} associé avec succès au compte ${wallet.account_id}`
+        ? `Token ${tokenId} associé avec succès au compte ${wallet.accountId}`
         : `Erreur lors de l'association du token: ${receipt.status.toString()}`,
       transactionId: txResponse.transactionId.toString()
     };
@@ -81,39 +87,47 @@ async function dissociateToken(userId, tokenId) {
   try {
     const wallet = await getWalletByUserId(userId);
     if (!wallet) {
-      return { success: false, message: 'Portefeuille non trouvé' };
+      return { success: false, message: 'Portefeuille non trouvé. Veuillez créer un wallet avec /createwallet' };
+    }
+
+    if (!wallet.accountId || !wallet.privateKey) {
+      return { 
+        success: false, 
+        message: 'Données de wallet incomplètes. Veuillez recréer votre wallet avec /createwallet'
+      };
     }
 
     // Implémentation directe avec l'API Hedera SDK
-    console.log(`Dissociating token ${tokenId} from account ${wallet.account_id}`);
+    console.log(`Dissociating token ${tokenId} from account ${wallet.accountId}`);
     
-    // Convertir le tokenId en objet TokenId si nécessaire
-    const tokenIdObj = typeof tokenId === 'string' 
-      ? TokenId.fromString(tokenId) 
-      : tokenId;
+    // Convertir le tokenId en objet TokenId
+    const tokenIdObj = TokenId.fromString(tokenId);
+    const accountId = AccountId.fromString(wallet.accountId);
     
     const client = getClient();
     
     // Créer la transaction de dissociation
     const transaction = new TokenDissociateTransaction()
-      .setAccountId(wallet.account_id)
+      .setAccountId(accountId)
       .setTokenIds([tokenIdObj]);
       
     // Signer la transaction avec la clé du compte
-    const signedTx = await transaction.freezeWith(client).sign(
-      PrivateKey.fromString(wallet.private_key)
-    );
+    const privateKey = PrivateKey.fromString(wallet.privateKey);
+    
+    // Faire l'opération en plusieurs étapes plutôt qu'en chaîne
+    const frozenTx = await transaction.freezeWith(client);
+    const signedTx = await frozenTx.sign(privateKey);
     
     // Exécuter la transaction et attendre le reçu
     const txResponse = await signedTx.execute(client);
     const receipt = await txResponse.getReceipt(client);
     
-    const success = receipt.status._code === 22; // 22 = SUCCESS in Hedera SDK
+    const success = receipt.status.toString() === 'SUCCESS';
     
     return {
       success: success,
       message: success
-        ? `Token ${tokenId} dissocié avec succès du compte ${wallet.account_id}`
+        ? `Token ${tokenId} dissocié avec succès du compte ${wallet.accountId}`
         : `Erreur lors de la dissociation du token: ${receipt.status.toString()}`,
       transactionId: txResponse.transactionId.toString()
     };

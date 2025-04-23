@@ -83,6 +83,14 @@ async function analyzeIntent(userId, message) {
     Exemple 4: "Créer un token nommé StarToken avec symbole STR"
     Réponse: {"action":"mint_token","params":{"name":"StarToken","symbol":"STR"}}
     
+    Exemple 4b: "Créer un nouveau token appelé MoonCoin"
+    Réponse: {"action":"mint_token","params":{"name":"MoonCoin","symbol":"MOON"}}
+    
+    Exemple 4c: "Mint un token qui s'appelle GameCredit"
+    Réponse: {"action":"mint_token","params":{"name":"GameCredit","symbol":"GAME"}}
+    
+    Remarque importante pour mint_token: Si le symbole n'est pas explicitement mentionné, VOUS DEVEZ en créer un en prenant les premières lettres du nom du token (3-5 lettres max). Ne jamais laisser le champ symbol vide. Par exemple, pour "Digital Asset Token", utilisez "DAT" comme symbole.
+    
     Exemple 5: "Envoyer 100 MoonCoins au compte 0.0.67890"
     Réponse: {"action":"send_token","params":{"recipient":"0.0.67890","tokenId":"MoonCoins","amount":100}}
     
