@@ -247,18 +247,35 @@ class HederaAgent {
     try {
       // Utiliser l'intégration Hedera Agent Kit
       const { sendHbar } = require('./hedera-agent-kit-integration');
+      const { getExplorerUrl } = require('../utils/explorer');
       const result = await sendHbar(userId, recipientId, amount);
+      
+      // Générer les URLs des explorateurs pour la transaction
+      let explorerUrls = {};
+      if (result.success && result.transactionId) {
+        try {
+          explorerUrls = {
+            hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
+            hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
+          };
+        } catch (error) {
+          console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+        }
+      }
       
       // Formater la réponse
       return {
         success: result.success,
         message: result.success ? 
-          `Transaction réussie ! Vous avez envoyé ${amount} HBAR à ${recipientId}. ID de transaction: ${result.transactionId}` : 
+          `Transaction réussie ! Vous avez envoyé ${amount} HBAR à ${recipientId}.\n` +
+          `ID de transaction: ${result.transactionId}\n` +
+          `Voir sur: ${explorerUrls.hederaExplorer}` : 
           (result.message || "Erreur lors de l'envoi de HBAR"),
         data: result.success ? { 
           transactionId: result.transactionId,
           amount,
-          recipient: recipientId
+          recipient: recipientId,
+          explorerUrls
         } : null
       };
     } catch (error) {
@@ -411,6 +428,7 @@ class HederaAgent {
       // Utiliser l'intégration Hedera Agent Kit pour le transfert
       const { transferToken } = require('./hedera-agent-kit-integration');
       const { getTokenIdByNameOrSymbol } = require('../hedera/tokens');
+      const { getExplorerUrl } = require('../utils/explorer');
       
       // Check if tokenIdOrName is a name or symbol instead of an ID
       let actualTokenId = tokenIdOrName;
@@ -431,18 +449,34 @@ class HederaAgent {
       
       const result = await transferToken(userId, recipientId, actualTokenId, amount);
       
+      // Générer les URLs des explorateurs pour la transaction
+      let explorerUrls = {};
+      if (result.success && result.transactionId) {
+        try {
+          explorerUrls = {
+            hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
+            hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
+          };
+        } catch (error) {
+          console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+        }
+      }
+      
       // Formater la réponse
       return {
         success: result.success,
         message: result.success ? 
-          `Transaction réussie ! Vous avez envoyé ${amount} tokens ${tokenName} (${actualTokenId}) à ${recipientId}. ID de transaction: ${result.transactionId}` : 
+          `Transaction réussie ! Vous avez envoyé ${amount} tokens ${tokenName} (${actualTokenId}) à ${recipientId}.\n` +
+          `ID de transaction: ${result.transactionId}\n` +
+          `Voir sur: ${explorerUrls.hederaExplorer}` : 
           (result.message || "Erreur lors de l'envoi des tokens"),
         data: result.success ? { 
           transactionId: result.transactionId,
           amount,
           tokenId: actualTokenId,
           tokenName,
-          recipient: recipientId
+          recipient: recipientId,
+          explorerUrls
         } : null
       };
     } catch (error) {
@@ -463,16 +497,33 @@ class HederaAgent {
   async associateToken(userId, tokenId) {
     try {
       const { associateToken } = require('../hedera/token-management');
+      const { getExplorerUrl } = require('../utils/explorer');
       const result = await associateToken(userId, tokenId);
+      
+      // Générer les URLs des explorateurs pour la transaction
+      let explorerUrls = {};
+      if (result.success && result.transactionId) {
+        try {
+          explorerUrls = {
+            hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
+            hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
+          };
+        } catch (error) {
+          console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+        }
+      }
       
       return {
         success: result.success,
         message: result.success 
-          ? `Token ${tokenId} associé avec succès à votre compte.` 
+          ? `Token ${tokenId} associé avec succès à votre compte.\n` +
+            `Transaction: ${result.transactionId}\n` +
+            `Voir sur: ${explorerUrls.hederaExplorer}` 
           : (result.message || "Erreur lors de l'association du token"),
         data: result.success ? { 
           transactionId: result.transactionId,
-          tokenId: tokenId
+          tokenId: tokenId,
+          explorerUrls
         } : null
       };
     } catch (error) {
@@ -493,16 +544,33 @@ class HederaAgent {
   async dissociateToken(userId, tokenId) {
     try {
       const { dissociateToken } = require('../hedera/token-management');
+      const { getExplorerUrl } = require('../utils/explorer');
       const result = await dissociateToken(userId, tokenId);
+      
+      // Générer les URLs des explorateurs pour la transaction
+      let explorerUrls = {};
+      if (result.success && result.transactionId) {
+        try {
+          explorerUrls = {
+            hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
+            hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
+          };
+        } catch (error) {
+          console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+        }
+      }
       
       return {
         success: result.success,
         message: result.success 
-          ? `Token ${tokenId} dissocié avec succès de votre compte.` 
+          ? `Token ${tokenId} dissocié avec succès de votre compte.\n` +
+            `Transaction: ${result.transactionId}\n` +
+            `Voir sur: ${explorerUrls.hederaExplorer}` 
           : (result.message || "Erreur lors de la dissociation du token"),
         data: result.success ? { 
           transactionId: result.transactionId,
-          tokenId: tokenId
+          tokenId: tokenId,
+          explorerUrls
         } : null
       };
     } catch (error) {
