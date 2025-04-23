@@ -186,13 +186,30 @@ async function createFungibleToken(userId, tokenInfo) {
   try {
     const kit = await initializeOfficialKit();
     
+    // Extraire les valeurs avec des valeurs par défaut
+    let initialSupply = tokenInfo.initialSupply || 1000;
+    
+    // Appliquer la limite maximale pour l'offre initiale
+    const MAX_SUPPLY = 100000000; // 100 millions
+    if (initialSupply > MAX_SUPPLY) {
+      console.warn(`Supply limit exceeded (${initialSupply}), capping to ${MAX_SUPPLY}`);
+      initialSupply = MAX_SUPPLY;
+    }
+    
+    // Déterminer la maxSupply (si non spécifiée, utiliser la même que initialSupply)
+    let maxSupply = tokenInfo.maxSupply;
+    if (maxSupply && maxSupply > MAX_SUPPLY) {
+      console.warn(`Max supply limit exceeded (${maxSupply}), capping to ${MAX_SUPPLY}`);
+      maxSupply = MAX_SUPPLY;
+    }
+    
     // Préparer les options de création de token
     const options = {
       name: tokenInfo.name,
       symbol: tokenInfo.symbol,
       decimals: tokenInfo.decimals || 0,
-      initialSupply: tokenInfo.initialSupply || 1000,
-      maxSupply: tokenInfo.maxSupply,
+      initialSupply: initialSupply,
+      maxSupply: maxSupply,
       memo: tokenInfo.memo || `Token created by Hedera Agent via Telegram Bot`
     };
     
