@@ -65,8 +65,9 @@ class HederaAgent {
         };
       }
 
-      // Determine intent from natural language command
-      const intent = this.determineIntent(command);
+      // Determine intent from natural language command using LLM
+      const intent = await this.determineIntent(userId, command);
+      console.log('Detected intent:', intent);
       
       // Execute the appropriate action based on intent
       switch (intent.action) {
@@ -77,7 +78,7 @@ class HederaAgent {
           return await this.transferHBAR(userId, intent.params.recipient, intent.params.amount);
           
         case 'history':
-          return await this.getTransactionHistory(userId, intent.params.limit);
+          return await this.getTransactionHistory(userId, intent.params.limit || 10);
           
         case 'mint_token':
           return await this.createToken(userId, intent.params.name, intent.params.symbol);
@@ -108,70 +109,29 @@ class HederaAgent {
 
   /**
    * Determine the intent from a natural language command
+   * @param {string} userId - Telegram user ID
    * @param {string} command - Natural language command
-   * @returns {object} Intent object with action and parameters
+   * @returns {Promise<object>} Intent object with action and parameters
    */
-  determineIntent(command) {
-    // Convert command to lowercase for easier matching
-    const text = command.toLowerCase().trim();
-    
-    // Check for balance intent
-    if (text.includes('solde') || text.includes('balance') || text.includes('combien') || 
-        text.match(/montrer(?:\s+mon)?\s+solde/) || text.match(/voir(?:\s+mon)?\s+solde/)) {
-      return { action: 'balance', params: {} };
+  async determineIntent(userId, command) {
+    try {
+      // Utiliser le service LLM pour analyser la commande
+      const { analyzeIntent } = require('../services/llm-service');
+      const result = await analyzeIntent(userId, command);
+      
+      if (result.success) {
+        return {
+          action: result.action,
+          params: result.params
+        };
+      } else {
+        console.error(`Erreur lors de l'analyse LLM: ${result.error}`);
+        return { action: 'unknown', params: {} };
+      }
+    } catch (error) {
+      console.error(`Erreur dans determineIntent: ${error.message}`);
+      return { action: 'unknown', params: {} };
     }
-    
-    // Check for transaction history intent
-    if (text.includes('historique') || text.includes('history') || text.includes('transactions') ||
-        text.match(/voir(?:\s+mes)?\s+transactions/) || text.match(/montrer(?:\s+mon)?\s+historique/)) {
-      // Extract limit if specified
-      const limitMatch = text.match(/dernières?\s+(\d+)/i) || text.match(/derniers?\s+(\d+)/i);
-      const limit = limitMatch ? parseInt(limitMatch[1], 10) : 10;
-      return { action: 'history', params: { limit } };
-    }
-    
-    // Check for send HBAR intent
-    const sendHbarPattern = /(?:envoyer|envoie|transférer|transfert)\s+(\d+(?:\.\d+)?)\s+(?:hbar|hedera)\s+(?:à|a|vers|to)\s+(\S+)/i;
-    const sendMatch = text.match(sendHbarPattern);
-    if (sendMatch) {
-      return { 
-        action: 'send_hbar', 
-        params: { 
-          amount: sendMatch[1],
-          recipient: sendMatch[2]
-        }
-      };
-    }
-    
-    // Check for token creation/minting intent
-    const mintTokenPattern = /(?:créer|creer|minter|créez|mint)\s+(?:un|new|token)\s+token\s+(?:nommé|nomme|named|appelé|appele)\s+([^\s,]+)\s+(?:avec|with)\s+(?:symbole|symbol)\s+([^\s,]+)/i;
-    const mintMatch = text.match(mintTokenPattern);
-    if (mintMatch) {
-      return { 
-        action: 'mint_token', 
-        params: { 
-          name: mintMatch[1],
-          symbol: mintMatch[2]
-        }
-      };
-    }
-    
-    // Check for token transfer intent
-    const sendTokenPattern = /(?:envoyer|envoie|transférer|transfert)\s+(\d+)\s+tokens?\s+(?:de|from)?\s+(\S+)\s+(?:à|a|vers|to)\s+(\S+)/i;
-    const tokenMatch = text.match(sendTokenPattern);
-    if (tokenMatch) {
-      return { 
-        action: 'send_token', 
-        params: { 
-          amount: parseInt(tokenMatch[1], 10),
-          tokenId: tokenMatch[2],
-          recipient: tokenMatch[3]
-        }
-      };
-    }
-    
-    // Default unknown intent
-    return { action: 'unknown', params: {} };
   }
 
   /**

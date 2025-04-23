@@ -6,6 +6,7 @@ const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
 const { processNaturalLanguageCommand } = require('../agent/nlp-processor');
+const { getAgent } = require('../agent/hedera-agent');
 
 // State management for multi-step operations
 const userState = new Map();
@@ -408,11 +409,12 @@ async function handleNaturalLanguage(bot, msg) {
   if (!text) return;
   
   // Informer l'utilisateur que sa demande est en cours de traitement
-  await bot.sendMessage(chatId, "Je traite votre demande...");
+  await bot.sendMessage(chatId, "Je traite votre demande avec intelligence artificielle...");
   
   try {
-    // Traiter le message avec le processeur de langage naturel basé sur des règles
-    const result = await processNaturalLanguageCommand(userId, text);
+    // Utiliser l'agent Hedera avec le LLM pour traiter la commande
+    const agent = getAgent();
+    const result = await agent.executeCommand(userId, text);
     
     if (result.success) {
       // Formater le message en fonction du type d'action
@@ -425,13 +427,13 @@ async function handleNaturalLanguage(bot, msg) {
         case 'history':
           message = `📜 *Historique des transactions*\n\n${result.message}`;
           break;
-        case 'send':
+        case 'send_hbar':
           message = `✅ *Transfert HBAR*\n\n${result.message}`;
           break;
-        case 'sendtoken':
+        case 'send_token':
           message = `✅ *Transfert de token*\n\n${result.message}`;
           break;
-        case 'mint':
+        case 'mint_token':
           message = `🪙 *Création de token*\n\n${result.message}`;
           break;
         default:
