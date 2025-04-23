@@ -327,6 +327,7 @@ class HederaAgent {
     try {
       // Utiliser l'intégration Hedera Agent Kit
       const { createFungibleToken } = require('./hedera-agent-kit-integration');
+      const { getExplorerUrl } = require('../utils/explorer');
       
       const trimmedName = name.trim();
       let trimmedSymbol = symbol ? symbol.trim().toUpperCase() : '';
@@ -361,16 +362,31 @@ class HederaAgent {
       
       const result = await createFungibleToken(userId, tokenInfo);
       
+      // Générer les URLs des explorateurs (Hedera Explorer et HashScan)
+      let explorerUrls = {};
+      if (result.success && result.tokenId) {
+        try {
+          explorerUrls = {
+            hederaExplorer: getExplorerUrl('token', result.tokenId, 'testnet', 'hedera'),
+            hashScan: getExplorerUrl('token', result.tokenId, 'testnet', 'hashscan')
+          };
+        } catch (error) {
+          console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+        }
+      }
+      
       // Formater la réponse
       return {
         success: result.success,
         message: result.success ? 
-          `Token créé avec succès ! Nom: ${tokenInfo.name}, Symbole: ${tokenInfo.symbol}, ID: ${result.tokenId}` : 
+          `Token créé avec succès ! Nom: ${tokenInfo.name}, Symbole: ${tokenInfo.symbol}, ID: ${result.tokenId}\n` + 
+          `Voir sur: ${explorerUrls.hederaExplorer}` : 
           (result.message || "Erreur lors de la création du token"),
         data: result.success ? { 
           tokenId: result.tokenId,
           name: tokenInfo.name,
-          symbol: tokenInfo.symbol
+          symbol: tokenInfo.symbol,
+          explorerUrls: explorerUrls
         } : null
       };
     } catch (error) {
@@ -508,17 +524,33 @@ class HederaAgent {
   async createTopic(userId, topicName, submitKey = false) {
     try {
       const { createTopic } = require('../hedera/topic-management');
+      const { getExplorerUrl } = require('../utils/explorer');
       const result = await createTopic(userId, topicName, submitKey);
+      
+      // Générer les URLs des explorateurs pour le topic
+      let explorerUrls = {};
+      if (result.success && result.topicId) {
+        try {
+          explorerUrls = {
+            hederaExplorer: getExplorerUrl('topic', result.topicId, 'testnet', 'hedera'),
+            hashScan: getExplorerUrl('topic', result.topicId, 'testnet', 'hashscan')
+          };
+        } catch (error) {
+          console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+        }
+      }
       
       return {
         success: result.success,
         message: result.success 
-          ? `Topic "${topicName}" créé avec succès, ID: ${result.topicId}` 
+          ? `Topic "${topicName}" créé avec succès, ID: ${result.topicId}\n` +
+            `Voir sur: ${explorerUrls.hederaExplorer}` 
           : (result.message || "Erreur lors de la création du topic"),
         data: result.success ? { 
           transactionId: result.transactionId,
           topicId: result.topicId,
-          topicName: topicName
+          topicName: topicName,
+          explorerUrls: explorerUrls
         } : null
       };
     } catch (error) {
@@ -540,16 +572,33 @@ class HederaAgent {
   async submitTopicMessage(userId, topicId, message) {
     try {
       const { submitTopicMessage } = require('../hedera/topic-management');
+      const { getExplorerUrl } = require('../utils/explorer');
       const result = await submitTopicMessage(userId, topicId, message);
+      
+      // Générer les URLs des explorateurs pour la transaction
+      let explorerUrls = {};
+      if (result.success && result.transactionId) {
+        try {
+          explorerUrls = {
+            hederaExplorer: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hedera'),
+            hashScan: getExplorerUrl('transaction', result.transactionId, 'testnet', 'hashscan')
+          };
+        } catch (error) {
+          console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+        }
+      }
       
       return {
         success: result.success,
         message: result.success 
-          ? `Message soumis avec succès au topic ${topicId}` 
+          ? `Message soumis avec succès au topic ${topicId}\n` +
+            `Transaction: ${result.transactionId}\n` +
+            `Voir sur: ${explorerUrls.hederaExplorer}` 
           : (result.message || "Erreur lors de la soumission du message"),
         data: result.success ? { 
           transactionId: result.transactionId,
-          topicId: topicId
+          topicId: topicId,
+          explorerUrls: explorerUrls
         } : null
       };
     } catch (error) {
