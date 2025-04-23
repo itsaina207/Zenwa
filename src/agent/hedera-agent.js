@@ -144,13 +144,32 @@ class HederaAgent {
       const { getBalance } = require('../hedera/account');
       const result = await getBalance(userId);
       
-      return {
-        success: result.success,
-        message: result.success ? 
-          `Votre solde est de ${result.balance} HBAR` : 
-          (result.message || "Erreur lors de la récupération du solde"),
-        data: result.success ? { balance: result.balance } : null
-      };
+      if (result.success) {
+        let hbarBalance = result.balance.hbars || "0";
+        let tokenList = "";
+        
+        if (typeof result.balance.tokens === 'string') {
+          tokenList = result.balance.tokens;
+        } else if (result.balance.tokens) {
+          tokenList = Object.entries(result.balance.tokens)
+            .map(([tokenId, amount]) => `${tokenId}: ${amount}`)
+            .join('\n');
+          
+          if (!tokenList) tokenList = 'Aucun token';
+        }
+        
+        return {
+          success: true,
+          message: `Votre solde est de ${hbarBalance} avec les tokens suivants: ${tokenList}`,
+          data: { balance: result.balance, accountId: result.accountId }
+        };
+      } else {
+        return {
+          success: false,
+          message: result.message || "Erreur lors de la récupération du solde",
+          data: null
+        };
+      }
     } catch (error) {
       console.error(`Error checking balance: ${error.message}`);
       return {
