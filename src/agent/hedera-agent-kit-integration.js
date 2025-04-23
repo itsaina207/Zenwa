@@ -6,7 +6,7 @@
 // Importation des dépendances
 const { createECDH } = require('crypto');
 const { AccountId, PrivateKey, Client, TokenId, TopicId } = require('@hashgraph/sdk');
-const { config } = require('../config');
+const config = require('../config');
 const { getWalletByUserId } = require('../storage/userWallets');
 const { storeTokenInfo } = require('../hedera/tokens');
 
