@@ -81,16 +81,27 @@ async function getHbarBalance(accountId) {
     // Obtenir le solde HBAR
     const hbarBalanceResult = await kit.getHbarBalance(hederaAccountId);
     // Le résultat peut être un objet avec une propriété balance
-    const hbarBalance = typeof hbarBalanceResult === 'object' 
-      ? (hbarBalanceResult.balance || hbarBalanceResult.amount || '0')
-      : hbarBalanceResult;
+    let hbarBalance = '0';
+    if (typeof hbarBalanceResult === 'object') {
+      hbarBalance = hbarBalanceResult.balance || hbarBalanceResult.amount || '0';
+    } else if (typeof hbarBalanceResult === 'string') {
+      // Si c'est déjà une chaîne, on la prend telle quelle
+      hbarBalance = hbarBalanceResult;
+    } else if (typeof hbarBalanceResult === 'number') {
+      // Si c'est un nombre, on le convertit en chaîne
+      hbarBalance = hbarBalanceResult.toString();
+    }
+    
+    // On vérifie si le solde contient déjà l'unité "tℏ"
+    const formattedBalance = hbarBalance.includes('tℏ') 
+      ? hbarBalance 
+      : `${hbarBalance} tℏ`;
     
     // Pour les tokens, nous n'utilisons pas getAllTokensBalances car elle n'existe pas dans notre KitManager
-    // Nous pourrions implémenter cette fonctionnalité plus tard
     
     return {
       success: true,
-      balance: `${hbarBalance} tℏ`, // Formater avec l'unité appropriée
+      balance: formattedBalance,
       tokens: {}, // Pas disponible pour l'instant
       accountId: hederaAccountId
     };
