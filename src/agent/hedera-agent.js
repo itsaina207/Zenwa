@@ -19,7 +19,11 @@ class HederaAgent {
       'transfer HBAR',
       'get transaction history',
       'create token',
-      'transfer token'
+      'transfer token',
+      'associate token',
+      'dissociate token',
+      'create topic',
+      'submit message to topic'
     ];
   }
 
@@ -89,6 +93,27 @@ class HederaAgent {
             intent.params.recipient, 
             intent.params.tokenId, 
             intent.params.amount
+          );
+        
+        // Nouvelles fonctionnalités du Hedera Agent Kit
+        case 'associate_token':
+          return await this.associateToken(userId, intent.params.tokenId);
+          
+        case 'dissociate_token':
+          return await this.dissociateToken(userId, intent.params.tokenId);
+          
+        case 'create_topic':
+          return await this.createTopic(
+            userId, 
+            intent.params.topicName, 
+            intent.params.submitKey === true
+          );
+          
+        case 'submit_message':
+          return await this.submitTopicMessage(
+            userId,
+            intent.params.topicId,
+            intent.params.message
           );
           
         default:
@@ -387,6 +412,129 @@ class HederaAgent {
       return {
         success: false,
         message: `Erreur lors du transfert des tokens: ${error.message}`
+      };
+    }
+  }
+  
+  /**
+   * Associate a token with a user account
+   * @param {string} userId - User's Telegram ID
+   * @param {string} tokenId - Token ID to associate
+   * @returns {Promise<object>} Operation result
+   */
+  async associateToken(userId, tokenId) {
+    try {
+      const { associateToken } = require('../hedera/token-management');
+      const result = await associateToken(userId, tokenId);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `Token ${tokenId} associé avec succès à votre compte.` 
+          : (result.message || "Erreur lors de l'association du token"),
+        data: result.success ? { 
+          transactionId: result.transactionId,
+          tokenId: tokenId
+        } : null
+      };
+    } catch (error) {
+      console.error(`Error associating token: ${error.message}`);
+      return {
+        success: false,
+        message: `Erreur lors de l'association du token: ${error.message}`
+      };
+    }
+  }
+  
+  /**
+   * Dissociate a token from a user account
+   * @param {string} userId - User's Telegram ID
+   * @param {string} tokenId - Token ID to dissociate
+   * @returns {Promise<object>} Operation result
+   */
+  async dissociateToken(userId, tokenId) {
+    try {
+      const { dissociateToken } = require('../hedera/token-management');
+      const result = await dissociateToken(userId, tokenId);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `Token ${tokenId} dissocié avec succès de votre compte.` 
+          : (result.message || "Erreur lors de la dissociation du token"),
+        data: result.success ? { 
+          transactionId: result.transactionId,
+          tokenId: tokenId
+        } : null
+      };
+    } catch (error) {
+      console.error(`Error dissociating token: ${error.message}`);
+      return {
+        success: false,
+        message: `Erreur lors de la dissociation du token: ${error.message}`
+      };
+    }
+  }
+  
+  /**
+   * Create a new HCS topic
+   * @param {string} userId - User's Telegram ID
+   * @param {string} topicName - Name for the new topic
+   * @param {boolean} submitKey - Whether to use a submit key for the topic
+   * @returns {Promise<object>} Operation result
+   */
+  async createTopic(userId, topicName, submitKey = false) {
+    try {
+      const { createTopic } = require('../hedera/topic-management');
+      const result = await createTopic(userId, topicName, submitKey);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `Topic "${topicName}" créé avec succès, ID: ${result.topicId}` 
+          : (result.message || "Erreur lors de la création du topic"),
+        data: result.success ? { 
+          transactionId: result.transactionId,
+          topicId: result.topicId,
+          topicName: topicName
+        } : null
+      };
+    } catch (error) {
+      console.error(`Error creating topic: ${error.message}`);
+      return {
+        success: false,
+        message: `Erreur lors de la création du topic: ${error.message}`
+      };
+    }
+  }
+  
+  /**
+   * Submit message to an HCS topic
+   * @param {string} userId - User's Telegram ID
+   * @param {string} topicId - Topic ID to submit to
+   * @param {string} message - Message content
+   * @returns {Promise<object>} Operation result
+   */
+  async submitTopicMessage(userId, topicId, message) {
+    try {
+      const { submitTopicMessage } = require('../hedera/topic-management');
+      const result = await submitTopicMessage(userId, topicId, message);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `Message soumis avec succès au topic ${topicId}` 
+          : (result.message || "Erreur lors de la soumission du message"),
+        data: result.success ? { 
+          transactionId: result.transactionId,
+          topicId: topicId
+        } : null
+      };
+    } catch (error) {
+      console.error(`Error submitting message: ${error.message}`);
+      return {
+        success: false,
+        message: `Erreur lors de la soumission du message: ${error.message}`
       };
     }
   }
