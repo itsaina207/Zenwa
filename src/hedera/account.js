@@ -100,24 +100,35 @@ async function createAccount(userId) {
 
 /**
  * Get account balance for a user's Hedera account
- * @param {string} userId - Telegram user ID
+ * @param {string} userIdOrAccountId - Telegram user ID or Hedera account ID
  * @returns {Promise<object>} Balance information
  */
-async function getBalance(userId) {
+async function getBalance(userIdOrAccountId) {
   try {
     const client = getClient();
-    const wallet = await getWalletByUserId(userId);
+    let accountId;
     
-    if (!wallet) {
-      return {
-        success: false,
-        message: 'Aucun wallet trouvé. Créez-en un d\'abord avec /createwallet',
-      };
+    // Déterminer si l'entrée est un ID de compte Hedera (0.0.xxxx) ou un ID utilisateur
+    if (userIdOrAccountId.match(/^\d+\.\d+\.\d+$/)) {
+      // C'est un ID de compte Hedera, utiliser directement
+      accountId = userIdOrAccountId;
+    } else {
+      // C'est un ID utilisateur, récupérer le wallet
+      const wallet = await getWalletByUserId(userIdOrAccountId);
+      
+      if (!wallet) {
+        return {
+          success: false,
+          message: 'Aucun wallet trouvé. Créez-en un d\'abord avec /createwallet',
+        };
+      }
+      
+      accountId = wallet.accountId;
     }
 
     // Query the account balance
     const query = new AccountBalanceQuery()
-      .setAccountId(wallet.accountId);
+      .setAccountId(accountId);
 
     const accountBalance = await query.execute(client);
 
@@ -129,7 +140,7 @@ async function getBalance(userId) {
                ? Object.fromEntries(accountBalance.tokens._map) 
                : 'Aucun token',
       },
-      accountId: wallet.accountId,
+      accountId: accountId,
     };
   } catch (error) {
     console.error(`Error getting balance: ${error.message}`);

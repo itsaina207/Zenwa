@@ -31,12 +31,26 @@ class KitManager {
   async getHbarBalance(accountId = this.accountId) {
     try {
       const result = await getBalance(accountId);
+      
+      // Si la fonction getBalance ne renvoie pas directement l'ID de compte
+      // C'est probablement parce que nous avons passé un userId à la place de l'accountId
+      const userId = accountId;
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.message || "Échec de la récupération du solde"
+        };
+      }
+      
       return {
         success: true,
-        balance: result.balance.hbars,
-        accountId: result.accountId
+        balance: result.balance.hbars, // Inclut déjà l'unité (tℏ)
+        tokens: result.balance.tokens,
+        accountId: result.accountId || accountId
       };
     } catch (error) {
+      console.error("Erreur dans getHbarBalance:", error.message);
       return {
         success: false,
         error: error.message

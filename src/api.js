@@ -498,8 +498,9 @@ router.post('/kit/token/create', async (req, res) => {
       supplyType: "INFINITE"
     };
     
-    // Utiliser directement la fonction createFT du kit
-    const result = await kit.createFT(tokenOptions);
+    // Utiliser directement la fonction mintToken au lieu de createFT
+    const { mintToken } = require('./hedera/tokens');
+    const result = await mintToken(userId, tokenOptions);
     
     // Ajouter des liens d'explorateur pour le token
     const { getExplorerUrl } = require('./utils/explorer');
