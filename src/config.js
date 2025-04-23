@@ -13,6 +13,9 @@ module.exports = {
   // Telegram configuration
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
   
+  // OpenAI configuration pour le traitement du langage naturel
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  
   // Hedera configuration
   HEDERA_NETWORK: process.env.HEDERA_NETWORK || 'testnet',
   
