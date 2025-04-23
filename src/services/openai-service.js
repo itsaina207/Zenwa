@@ -144,8 +144,33 @@ function isHistoryCheck(message) {
   return false;
 }
 
+/**
+ * Détecter si un message est une demande simple de création de token
+ * @param {string} message - Message utilisateur
+ * @returns {boolean} True si c'est une demande de création de token
+ */
+function isCreateTokenRequest(message) {
+  const lowerMessage = message.toLowerCase();
+  
+  // Patterns for token creation requests
+  if (
+    // Common direct requests
+    (lowerMessage.includes('crée') || lowerMessage.includes('cree') || 
+     lowerMessage.includes('créer') || lowerMessage.includes('creer') ||
+     lowerMessage.includes('faire') || lowerMessage.includes('create')) &&
+    (lowerMessage.includes('token') || lowerMessage.includes('jeton')) &&
+    // Check that it doesn't have all details already
+    !(lowerMessage.includes('symbole') && lowerMessage.includes('supply'))
+  ) {
+    return true;
+  }
+  
+  return false;
+}
+
 module.exports = {
   analyzeIntent,
   isBalanceCheck,
-  isHistoryCheck
+  isHistoryCheck,
+  isCreateTokenRequest
 };

@@ -87,7 +87,7 @@ async function mintToken(userId, tokenInfo) {
       tokenId,
       tokenName: name,
       tokenSymbol: symbol,
-      initialSupply,
+      initialSupply: initialSupply || 1000, // Assurer qu'initialSupply n'est jamais undefined ou NaN
       transactionId: txId,
       explorerUrl: `https://hashscan.io/${HEDERA_NETWORK}/tx/${txId}`,
     };

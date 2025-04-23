@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="560px" preserveAspectRatio="none" style="width:860px;height:560px;background:#FFFFFF;" version="1.1" viewBox="0 0 860 560" width="860px" zoomAndPan="magnify">
+  <defs>
+    <filter height="300%" id="f18m5u5qrqpz35" width="300%" x="-1" y="-1">
+      <feGaussianBlur result="blurOut" stdDeviation="2.0"/>
+      <feColorMatrix in="blurOut" result="blurOut2" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .4 0"/>
+      <feOffset dx="4.0" dy="4.0" in="blurOut2" result="blurOut3"/>
+      <feBlend in="SourceGraphic" in2="blurOut3" mode="normal"/>
+    </filter>
+  </defs>
+  <g>
+    <rect fill="#DDDDDD" filter="url(#f18m5u5qrqpz35)" height="486.4063" style="stroke:#A80036;stroke-width:1.0;" width="824" x="10" y="54.5938"/>
+    <rect fill="#FFFFFF" filter="url(#f18m5u5qrqpz35)" height="389.9375" style="stroke:#A80036;stroke-width:1.0;" width="804" x="20" y="141.0625"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:5.0,5.0;" x1="102" x2="102" y1="141.0625" y2="549"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:5.0,5.0;" x1="291" x2="291" y1="141.0625" y2="549"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:5.0,5.0;" x1="466" x2="466" y1="141.0625" y2="549"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:5.0,5.0;" x1="655" x2="655" y1="141.0625" y2="549"/>
+    <rect fill="#FEFECE" filter="url(#f18m5u5qrqpz35)" height="30.2969" style="stroke:#A80036;stroke-width:1.5;" width="154" x="23" y="105.7656"/>
+    <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="140" x="30" y="125.7607">User via Telegram Bot</text>
+    <rect fill="#FEFECE" filter="url(#f18m5u5qrqpz35)" height="30.2969" style="stroke:#A80036;stroke-width:1.5;" width="182" x="198" y="105.7656"/>
+    <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="168" x="205" y="125.7607">Hedera Agent Kit Adapter</text>
+    <rect fill="#FEFECE" filter="url(#f18m5u5qrqpz35)" height="30.2969" style="stroke:#A80036;stroke-width:1.5;" width="140" x="394" y="105.7656"/>
+    <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="126" x="401" y="125.7607">Hedera Agent Kit</text>
+    <rect fill="#FEFECE" filter="url(#f18m5u5qrqpz35)" height="30.2969" style="stroke:#A80036;stroke-width:1.5;" width="140" x="583" y="105.7656"/>
+    <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="126" x="590" y="125.7607">Hedera Network</text>
+    <polygon fill="#A80036" points="279.5,168.0625,289.5,172.0625,279.5,176.0625,283.5,172.0625" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;" x1="102" x2="285.5" y1="172.0625" y2="172.0625"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="165" x="109" y="167.1294">Create token command</text>
+    <polygon fill="#A80036" points="454,197.1953,464,201.1953,454,205.1953,458,201.1953" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;" x1="291" x2="460" y1="201.1953" y2="201.1953"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="151" x="298" y="196.2622">Initialize Kit Manager</text>
+    <polygon fill="#A80036" points="302,226.3281,292,230.3281,302,234.3281,298,230.3281" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="296" x2="465" y1="230.3281" y2="230.3281"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="151" x="308" y="225.395">Manager initialized</text>
+    <polygon fill="#A80036" points="643,255.4609,653,259.4609,643,263.4609,647,259.4609" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;" x1="466" x2="649" y1="259.4609" y2="259.4609"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="165" x="473" y="254.5278">Verify client connection</text>
+    <polygon fill="#A80036" points="477,284.5938,467,288.5938,477,292.5938,473,288.5938" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="471" x2="654" y1="288.5938" y2="288.5938"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="101" x="483" y="283.6606">Client verified</text>
+    <polygon fill="#A80036" points="454,313.7266,464,317.7266,454,321.7266,458,317.7266" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;" x1="291" x2="460" y1="317.7266" y2="317.7266"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="148" x="298" y="312.7935">createFT(tokenInfo)</text>
+    <polygon fill="#A80036" points="643,342.8594,653,346.8594,643,350.8594,647,346.8594" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;" x1="466" x2="649" y1="346.8594" y2="346.8594"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="165" x="473" y="341.9263">TokenCreateTransaction</text>
+    <polygon fill="#A80036" points="477,371.9922,467,375.9922,477,379.9922,473,375.9922" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="471" x2="654" y1="375.9922" y2="375.9922"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="93" x="483" y="371.0591">Token details</text>
+    <polygon fill="#A80036" points="302,401.125,292,405.125,302,409.125,298,405.125" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="296" x2="465" y1="405.125" y2="405.125"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="93" x="308" y="400.1919">Token details</text>
+    <polygon fill="#A80036" points="113,430.2578,103,434.2578,113,438.2578,109,434.2578" style="stroke:#A80036;stroke-width:1.0;"/>
+    <line style="stroke:#A80036;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="107" x2="290" y1="434.2578" y2="434.2578"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="165" x="119" y="429.3247">Token creation success</text>
+    <rect fill="none" height="27.2656" rx="5" ry="5" style="stroke:#00FF00;stroke-width:1.0;" width="314" x="24" y="464.5234"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="292" x="35" y="481.5903">Token successfully created via Agent Kit</text>
+    <rect fill="none" height="27.2656" rx="5" ry="5" style="stroke:#000000;stroke-width:1.0;" width="406" x="24" y="511.7344"/>
+    <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="384" x="35" y="528.8013">Success response with token ID and blockchain links</text>
+    <text fill="#000000" font-family="sans-serif" font-size="13" font-style="italic" lengthAdjust="spacing" textLength="246" x="304" y="84.2964">Hedera Agent Kit Integration Flow</text>
+    <text fill="#000000" font-family="sans-serif" font-size="14" font-style="italic" lengthAdjust="spacing" textLength="130" x="357" y="27.2969">Application Layer</text>
+  </g>
+</svg>
