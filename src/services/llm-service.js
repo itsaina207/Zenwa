@@ -41,10 +41,29 @@ async function analyzeIntent(userId, message) {
     - history: { limit?: number } (optionnel, nombre de transactions à afficher)
     - send_hbar: { recipient: string, amount: string } (obligatoire)
     - send_token: { recipient: string, tokenId: string, amount: number } (obligatoire)
+      * Important pour send_token: le tokenId peut être soit un ID au format Hedera (0.0.xxx) soit un nom ou symbole de token comme "MoonCoin" ou "MOON"
+      * Analysez soigneusement le message pour extraire le nom du token et le placer dans le paramètre tokenId
     - mint_token: { name: string, symbol: string } (obligatoire)
     - unknown: {} (aucun paramètre)
     
     Si des informations essentielles sont manquantes, identifiez l'action mais laissez les paramètres manquants vides.
+    
+    Exemples d'entrées et de réponses attendues:
+    
+    Exemple 1: "Quel est mon solde?"
+    Réponse: {"action":"balance","params":{}}
+    
+    Exemple 2: "Envoyer 50 HBAR au compte 0.0.12345"
+    Réponse: {"action":"send_hbar","params":{"recipient":"0.0.12345","amount":"50"}}
+    
+    Exemple 3: "Montrer mes 5 dernières transactions"
+    Réponse: {"action":"history","params":{"limit":5}}
+    
+    Exemple 4: "Créer un token nommé StarToken avec symbole STR"
+    Réponse: {"action":"mint_token","params":{"name":"StarToken","symbol":"STR"}}
+    
+    Exemple 5: "Envoyer 100 MoonCoins au compte 0.0.67890"
+    Réponse: {"action":"send_token","params":{"recipient":"0.0.67890","tokenId":"MoonCoins","amount":100}}
     `;
 
     // Appeler l'API OpenAI pour analyser le message
