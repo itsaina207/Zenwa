@@ -6,7 +6,7 @@ const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera/topic-management');
-const { analyzeIntent, isBalanceCheck, isHistoryCheck } = require('../services/openai-service');
+const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest } = require('../services/openai-service');
 
 // State management for multi-step operations
 const userState = new Map();
@@ -15,6 +15,15 @@ const userState = new Map();
 const SEND_STATES = {
   WAITING_FOR_ADDRESS: 'WAITING_FOR_ADDRESS',
   WAITING_FOR_AMOUNT: 'WAITING_FOR_AMOUNT',
+  NONE: 'NONE'
+};
+
+// Possible states for the /mint command
+const MINT_STATES = {
+  WAITING_FOR_TYPE: 'WAITING_FOR_TYPE',
+  WAITING_FOR_NAME: 'WAITING_FOR_NAME',
+  WAITING_FOR_SYMBOL: 'WAITING_FOR_SYMBOL',
+  WAITING_FOR_SUPPLY: 'WAITING_FOR_SUPPLY',
   NONE: 'NONE'
 };
 
@@ -248,27 +257,29 @@ async function handleMint(bot, msg) {
   const userId = msg.from.id.toString();
   const args = msg.text.split(' ').slice(1);
   
-  const tokenInfo = {};
-  
-  if (args.length >= 1) tokenInfo.name = args[0];
-  if (args.length >= 2) tokenInfo.symbol = args[1];
-  if (args.length >= 3) {
-    const supply = parseInt(args[2], 10);
-    const MAX_SUPPLY = 100000000; // 100 millions
-    if (supply > MAX_SUPPLY) {
-      await bot.sendMessage(chatId, `⚠️ La supply maximale autorisée est de ${MAX_SUPPLY}. Votre valeur (${supply}) sera limitée à ce maximum.`);
-      tokenInfo.initialSupply = MAX_SUPPLY;
-    } else {
-      tokenInfo.initialSupply = supply;
+  // Si des arguments sont fournis, utiliser l'ancienne méthode directe
+  if (args.length > 0) {
+    const tokenInfo = {};
+    
+    if (args.length >= 1) tokenInfo.name = args[0];
+    if (args.length >= 2) tokenInfo.symbol = args[1];
+    if (args.length >= 3) {
+      const supply = parseInt(args[2], 10);
+      const MAX_SUPPLY = 100000000; // 100 millions
+      if (supply > MAX_SUPPLY) {
+        await bot.sendMessage(chatId, `⚠️ La supply maximale autorisée est de ${MAX_SUPPLY}. Votre valeur (${supply}) sera limitée à ce maximum.`);
+        tokenInfo.initialSupply = MAX_SUPPLY;
+      } else {
+        tokenInfo.initialSupply = supply;
+      }
     }
-  }
-  
-  await bot.sendMessage(chatId, 'Création de votre token en cours... Cela peut prendre un moment.');
-  
-  const result = await mintToken(userId, tokenInfo);
-  
-  if (result.success) {
-    const message = `
+    
+    await bot.sendMessage(chatId, 'Création de votre token en cours... Cela peut prendre un moment.');
+    
+    const result = await mintToken(userId, tokenInfo);
+    
+    if (result.success) {
+      const message = `
 ✅ ${result.message}
 
 *Informations du token :*
@@ -281,9 +292,188 @@ Offre initiale: ${result.initialSupply}
 
 Utilisez /balance pour voir votre nouveau token dans votre portefeuille.
 `;
-    await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-  } else {
-    await bot.sendMessage(chatId, `❌ ${result.message}`);
+      await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } else {
+      await bot.sendMessage(chatId, `❌ ${result.message}`);
+    }
+    return;
+  }
+  
+  // Sinon, démarrer le processus interactif de création de token
+  // Réinitialiser l'état pour commencer une nouvelle création de token
+  userState.set(userId, {
+    state: MINT_STATES.WAITING_FOR_TYPE,
+    chatId: chatId,
+    tokenInfo: {
+      type: null,
+      name: null,
+      symbol: null,
+      initialSupply: null
+    }
+  });
+  
+  // Demander le type de token
+  await bot.sendMessage(
+    chatId, 
+    "Quel type de token souhaitez-vous créer?\n\n1️⃣ - Token Fongible (comme une monnaie, divisible)\n2️⃣ - Token Non-Fongible (NFT, unique)",
+    { 
+      reply_markup: {
+        keyboard: [['1️⃣ Fongible', '2️⃣ Non-Fongible']],
+        one_time_keyboard: true,
+        resize_keyboard: true
+      }
+    }
+  );
+}
+
+/**
+ * Handle conversation steps for creating a token
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ */
+async function handleMintConversation(bot, msg) {
+  const userId = msg.from.id.toString();
+  const userInfo = userState.get(userId);
+  const msgChatId = msg.chat.id;
+  const text = msg.text.trim();
+  
+  // Vérifier si l'utilisateur est en cours de processus de création de token
+  if (userInfo && userInfo.tokenInfo) {
+    // Traitement des étapes de la conversation en cours
+    const currentChatId = userInfo.chatId;
+    
+    // Gestion des différentes étapes de la conversation
+    switch (userInfo.state) {
+      case MINT_STATES.WAITING_FOR_TYPE:
+        // L'utilisateur a choisi le type de token
+        let tokenType = '';
+        if (text.includes('1') || text.toLowerCase().includes('fongible')) {
+          tokenType = 'FUNGIBLE';
+        } else if (text.includes('2') || text.toLowerCase().includes('non-fongible') || text.toLowerCase().includes('nft')) {
+          tokenType = 'NON_FUNGIBLE';
+          await bot.sendMessage(
+            currentChatId,
+            "Les tokens non-fongibles (NFT) ne sont pas encore supportés. Nous allons créer un token fongible à la place."
+          );
+          tokenType = 'FUNGIBLE'; // Par défaut pour l'instant
+        } else {
+          await bot.sendMessage(
+            currentChatId,
+            "Je n'ai pas compris votre choix. Veuillez choisir 1 pour Fongible ou 2 pour Non-Fongible."
+          );
+          return;
+        }
+        
+        userInfo.tokenInfo.type = tokenType;
+        userInfo.state = MINT_STATES.WAITING_FOR_NAME;
+        userState.set(userId, userInfo);
+        
+        // Demander le nom du token
+        await bot.sendMessage(
+          currentChatId,
+          "Quel nom souhaitez-vous donner à votre token?",
+          { reply_markup: { force_reply: true, remove_keyboard: true } }
+        );
+        return;
+        
+      case MINT_STATES.WAITING_FOR_NAME:
+        // L'utilisateur a fourni le nom du token
+        userInfo.tokenInfo.name = text;
+        userInfo.state = MINT_STATES.WAITING_FOR_SYMBOL;
+        userState.set(userId, userInfo);
+        
+        // Générer un symbole par défaut
+        let suggestedSymbol = '';
+        if (text.includes(' ')) {
+          // Nom composé, utiliser les initiales
+          suggestedSymbol = text.split(' ')
+            .map(word => word.charAt(0).toUpperCase())
+            .join('');
+          
+          // Limiter à 5 caractères maximum
+          suggestedSymbol = suggestedSymbol.substring(0, 5);
+        } else {
+          // Nom simple, prendre les 3-4 premières lettres
+          suggestedSymbol = text.substring(0, 4).toUpperCase();
+        }
+        
+        // Demander le symbole du token
+        await bot.sendMessage(
+          currentChatId,
+          `Quel symbole souhaitez-vous utiliser pour votre token?\n(Suggestion: ${suggestedSymbol})`,
+          { reply_markup: { force_reply: true } }
+        );
+        return;
+        
+      case MINT_STATES.WAITING_FOR_SYMBOL:
+        // L'utilisateur a fourni le symbole du token
+        userInfo.tokenInfo.symbol = text;
+        userInfo.state = MINT_STATES.WAITING_FOR_SUPPLY;
+        userState.set(userId, userInfo);
+        
+        // Demander la supply initiale
+        await bot.sendMessage(
+          currentChatId,
+          "Quelle quantité initiale de tokens souhaitez-vous créer?\n(Maximum: 100 000 000, par défaut: 1000)",
+          { reply_markup: { force_reply: true } }
+        );
+        return;
+        
+      case MINT_STATES.WAITING_FOR_SUPPLY:
+        // L'utilisateur a fourni la supply
+        let supply = parseInt(text, 10);
+        const MAX_SUPPLY = 100000000; // 100 millions
+        
+        // Valider la supply
+        if (isNaN(supply)) {
+          supply = 1000; // Valeur par défaut si la conversion échoue
+        } else if (supply > MAX_SUPPLY) {
+          await bot.sendMessage(
+            currentChatId, 
+            `⚠️ La supply maximale autorisée est de ${MAX_SUPPLY}. Votre valeur (${supply}) sera limitée à ce maximum.`
+          );
+          supply = MAX_SUPPLY;
+        } else if (supply <= 0) {
+          supply = 1000; // Valeur par défaut si négative ou zéro
+          await bot.sendMessage(
+            currentChatId,
+            "La supply doit être positive. Nous utiliserons la valeur par défaut de 1000."
+          );
+        }
+        
+        userInfo.tokenInfo.initialSupply = supply;
+        
+        // Réinitialiser l'état
+        userState.set(userId, { ...userInfo, state: MINT_STATES.NONE });
+        
+        // Créer le token
+        await bot.sendMessage(
+          currentChatId,
+          `Création de votre token en cours...\n\nNom: ${userInfo.tokenInfo.name}\nSymbole: ${userInfo.tokenInfo.symbol}\nOffre initiale: ${userInfo.tokenInfo.initialSupply}\n\nCela peut prendre un moment.`
+        );
+        
+        const result = await mintToken(userId, userInfo.tokenInfo);
+        
+        if (result.success) {
+          const message = `
+✅ ${result.message}
+
+*Informations du token :*
+Token ID: \`${result.tokenId}\`
+Nom: ${result.tokenName}
+Symbole: ${result.tokenSymbol}
+Offre initiale: ${userInfo.tokenInfo.initialSupply}
+
+[Voir dans l'explorateur](${result.explorerUrl})
+
+Utilisez /balance pour voir votre nouveau token dans votre portefeuille.
+`;
+          await bot.sendMessage(currentChatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(currentChatId, `❌ ${result.message}`);
+        }
+        return;
+    }
   }
 }
 
@@ -430,6 +620,13 @@ async function handleNaturalLanguage(bot, msg) {
     return;
   }
   
+  // Vérifier si c'est une demande simple de création de token
+  if (isCreateTokenRequest(text)) {
+    // Simuler l'appel à la commande mint sans arguments
+    await handleMint(bot, { ...msg, text: '/mint' });
+    return;
+  }
+  
   // Pour les autres requêtes, utiliser OpenAI pour comprendre l'intention
   await bot.sendMessage(chatId, "Traitement de votre demande...");
   
@@ -483,12 +680,14 @@ Utilisez /balance pour vérifier votre nouveau solde.
       break;
       
     case 'create_token':
-      // Si tous les paramètres sont présents, créer directement le token
-      if (intentResult.params.name && intentResult.params.symbol) {
+      // Pour tout message de création de token, démarrer le processus interactif
+      // (sauf si tous les paramètres sont déjà fournis)
+      if (intentResult.params.name && intentResult.params.symbol && intentResult.params.initialSupply) {
+        // Si tous les paramètres sont complets, créer directement le token
         const tokenInfo = {
           name: intentResult.params.name,
           symbol: intentResult.params.symbol,
-          initialSupply: intentResult.params.initialSupply || 1000
+          initialSupply: intentResult.params.initialSupply
         };
         
         await bot.sendMessage(chatId, 'Création de votre token en cours... Cela peut prendre un moment.');
@@ -503,7 +702,7 @@ Utilisez /balance pour vérifier votre nouveau solde.
 Token ID: \`${result.tokenId}\`
 Nom: ${result.tokenName}
 Symbole: ${result.tokenSymbol}
-Offre initiale: ${result.initialSupply}
+Offre initiale: ${result.initialSupply || 1000}
 
 [Voir dans l'explorateur](${result.explorerUrl})
 
@@ -515,7 +714,8 @@ Utilisez /balance pour voir votre nouveau token dans votre portefeuille.
         }
       } else {
         // Sinon, démarrer la conversation structurée pour la création de token
-        await handleMint(bot, msg);
+        // Simuler une commande /mint sans arguments
+        await handleMint(bot, { ...msg, text: '/mint' });
       }
       break;
       
@@ -696,13 +896,25 @@ function registerCommands(bot) {
       const userId = msg.from.id.toString();
       const userInfo = userState.get(userId);
       
-      if (userInfo && userInfo.state !== SEND_STATES.NONE) {
-        // Si l'utilisateur est dans une conversation, continuer celle-ci
-        handleSendConversation(bot, msg);
-      } else {
-        // Sinon, utiliser OpenAI pour comprendre l'intention de l'utilisateur
-        handleNaturalLanguage(bot, msg);
+      if (userInfo) {
+        // Vérifier si nous sommes dans une conversation d'envoi HBAR
+        if (userInfo.state && [SEND_STATES.WAITING_FOR_ADDRESS, SEND_STATES.WAITING_FOR_AMOUNT].includes(userInfo.state)) {
+          // Si l'utilisateur est dans une conversation d'envoi, continuer celle-ci
+          handleSendConversation(bot, msg);
+          return;
+        }
+        
+        // Vérifier si nous sommes dans une conversation de création de token
+        if (userInfo.tokenInfo && [MINT_STATES.WAITING_FOR_TYPE, MINT_STATES.WAITING_FOR_NAME, 
+                                   MINT_STATES.WAITING_FOR_SYMBOL, MINT_STATES.WAITING_FOR_SUPPLY].includes(userInfo.state)) {
+          // Si l'utilisateur est dans une conversation de création de token, continuer celle-ci
+          handleMintConversation(bot, msg);
+          return;
+        }
       }
+      
+      // Si l'utilisateur n'est pas dans une conversation, utiliser OpenAI pour comprendre l'intention
+      handleNaturalLanguage(bot, msg);
     }
   });
   
