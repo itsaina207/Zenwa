@@ -6,7 +6,8 @@ const TelegramBot = require('node-telegram-bot-api');
 const { TELEGRAM_BOT_TOKEN } = require('../config');
 const { registerCommands } = require('./commands');
 const { setupMiddleware } = require('./middleware');
-const { initializeLanguageHandler } = require('./language-handler');
+// Utiliser le nouveau gestionnaire de langue plus simple
+const { initializeLanguageHandler } = require('./language/handler');
 
 let bot = null;
 
