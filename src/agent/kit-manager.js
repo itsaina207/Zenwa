@@ -163,18 +163,15 @@ class KitManager {
     try {
       // Import necessary modules
       const { 
-        TopicCreateTransaction, 
-        PrivateKey, 
-        TopicId 
+        TopicCreateTransaction,
+        PrivateKey
       } = require('@hashgraph/sdk');
       
-      // Create a new topic
+      // Create a basic topic without keys to simplify for now
       let transaction = new TopicCreateTransaction()
-        .setTopicMemo(topicMemo)
-        .setSubmitKey(isSubmitKey ? PrivateKey.generateED25519().publicKey : null)
-        .setAdminKey(PrivateKey.fromString(this.privateKey).publicKey);
+        .setTopicMemo(topicMemo);
       
-      // Submit the transaction
+      // Submit the transaction with the existing client which has operator key set
       const txResponse = await transaction.execute(this.client);
       
       // Get the receipt
@@ -184,10 +181,10 @@ class KitManager {
       const topicId = receipt.topicId;
       
       return {
-        topicId: topicId,
+        topicId: topicId.toString(),
         memo: topicMemo,
         txHash: txResponse.transactionId.toString(),
-        isSubmitKey: isSubmitKey
+        isSubmitKey: false
       };
     } catch (error) {
       console.error("Erreur dans createTopic:", error.message);
@@ -215,10 +212,9 @@ class KitManager {
         : topicId;
       
       // Create the transaction
-      const transaction = new TopicMessageSubmitTransaction({
-        topicId: topicIdObj,
-        message: message
-      });
+      const transaction = new TopicMessageSubmitTransaction()
+        .setTopicId(topicIdObj)
+        .setMessage(message);
       
       // Submit the transaction
       const txResponse = await transaction.execute(this.client);
