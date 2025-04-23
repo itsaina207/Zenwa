@@ -5,8 +5,7 @@
 const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
-const { processNaturalLanguageCommand } = require('../agent/nlp-processor');
-const { getAgent } = require('../agent/hedera-agent');
+// Les imports NLP ont été supprimés
 
 // State management for multi-step operations
 const userState = new Map();
@@ -41,9 +40,6 @@ Commandes disponibles :
 /mint - Créer un nouveau token
 /help - Afficher ce message d'aide
 
-✨ *NOUVEAU* : Je comprends maintenant le langage naturel ! 
-Vous pouvez me parler normalement pour gérer votre wallet !
-
 Commençons ! Utilisez /createwallet pour créer votre premier wallet.
   `;
   
@@ -70,16 +66,6 @@ Commandes disponibles :
 /history - Consulter l'historique de vos transactions
 /mint _<nom> <symbole> <offre>_ - Créer un nouveau token (tous les paramètres sont optionnels)
 /help - Afficher ce message d'aide
-
-*Nouveau : Commandes en langage naturel !*
-Vous pouvez maintenant interagir avec votre wallet en utilisant des phrases simples !
-
-*Exemples :*
-- "Quel est mon solde ?" ou "Montre-moi ma balance"
-- "Envoyer 5 HBAR à 0.0.1234" 
-- "Voir mon historique de transactions"
-- "Créer un token nommé MonToken avec symbole MTK"
-- "Envoyer 10 tokens 0.0.5678 à 0.0.1234"
 
 Ce wallet est custodial - vos clés privées sont stockées en toute sécurité sur notre serveur.
   `;
