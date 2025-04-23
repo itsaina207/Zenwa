@@ -424,8 +424,9 @@ router.post('/kit/transfer/hbar', async (req, res) => {
       });
     }
     
-    // Utiliser directement la fonction transferHbar du kit
-    const result = await kit.transferHbar(toAccountId, amount);
+    // Utiliser directement la fonction sendHbar au lieu de transferHbar du kit
+    const { sendHbar } = require('./hedera/account');
+    const result = await sendHbar(fromUserId, toAccountId, amount);
     
     // Ajouter des liens d'explorateur pour la transaction
     const { getExplorerUrl } = require('./utils/explorer');
@@ -547,8 +548,9 @@ router.post('/kit/transfer/token', async (req, res) => {
       });
     }
     
-    // Utiliser directement la fonction transferToken du kit
-    const result = await kit.transferToken(tokenId, toAccountId, amount);
+    // Utiliser directement la fonction sendToken au lieu de transferToken du kit
+    const { sendToken } = require('./hedera/tokens');
+    const result = await sendToken(fromUserId, toAccountId, tokenId, amount);
     
     // Ajouter des liens d'explorateur pour la transaction
     const { getExplorerUrl } = require('./utils/explorer');
@@ -595,8 +597,9 @@ router.get('/kit/history/:userId', async (req, res) => {
       });
     }
     
-    // Utiliser directement la fonction getTransactionHistory du kit
-    const result = await kit.getTransactionHistory(wallet.accountId);
+    // Utiliser directement la fonction getTransactionHistory
+    const { getTransactionHistory } = require('./hedera/transactions');
+    const result = await getTransactionHistory(userId);
     
     res.json(result);
   } catch (error) {
