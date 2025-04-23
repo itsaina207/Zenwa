@@ -328,10 +328,32 @@ class HederaAgent {
       // Utiliser l'intégration Hedera Agent Kit
       const { createFungibleToken } = require('./hedera-agent-kit-integration');
       
+      const trimmedName = name.trim();
+      let trimmedSymbol = symbol ? symbol.trim().toUpperCase() : '';
+      
+      // Si le symbole n'est pas fourni, générer un symbole à partir du nom
+      if (!trimmedSymbol) {
+        // Générer un symbole à partir du nom (les 3-4 premières lettres ou les initiales si c'est un nom composé)
+        if (trimmedName.includes(' ')) {
+          // Nom composé, utiliser les initiales
+          trimmedSymbol = trimmedName.split(' ')
+            .map(word => word.charAt(0).toUpperCase())
+            .join('');
+          
+          // Limiter à 5 caractères maximum
+          trimmedSymbol = trimmedSymbol.substring(0, 5);
+        } else {
+          // Nom simple, prendre les 3-4 premières lettres
+          trimmedSymbol = trimmedName.substring(0, 4).toUpperCase();
+        }
+        
+        console.log(`Symbole généré automatiquement: ${trimmedSymbol} pour le token: ${trimmedName}`);
+      }
+      
       // Create token info object
       const tokenInfo = {
-        name: name.trim(),
-        symbol: symbol.trim().toUpperCase(),
+        name: trimmedName,
+        symbol: trimmedSymbol,
         decimals: 0,
         initialSupply: 1000,
         supplyType: "INFINITE"
