@@ -9,8 +9,7 @@ const { getTransactionHistory } = require('./hedera/transactions');
 const { mintToken, sendToken } = require('./hedera/tokens');
 const { associateToken, dissociateToken } = require('./hedera/token-management');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('./hedera/topic-management');
-const { getAgent } = require('./agent/hedera-agent');
-const { analyzeIntent } = require('./services/llm-service');
+// Les imports NLP ont été supprimés
 const { initializeAgentKit, getAgentKit } = require('./agent/hedera-agent-kit-adapter');
 const { getWalletByUserId } = require('./storage/userWallets');
 
@@ -280,79 +279,7 @@ router.get('/hcs/messages/:topicId', async (req, res) => {
   }
 });
 
-/**
- * Process natural language commands
- * POST /api/nlp/process
- */
-router.post('/nlp/process', async (req, res) => {
-  try {
-    const { userId, message } = req.body;
-    
-    if (!userId || !message) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required parameters: userId, message',
-      });
-    }
-    
-    console.log(`Processing natural language command from ${userId}: "${message}"`);
-    
-    // Analyser l'intention avec le service LLM
-    const intentResult = await analyzeIntent(userId, message);
-    
-    if (!intentResult.success) {
-      return res.status(500).json({
-        success: false,
-        message: `Failed to analyze intent: ${intentResult.error}`,
-      });
-    }
-    
-    // Exécuter la commande via l'agent Hedera
-    const agent = getAgent();
-    const result = await agent.executeCommand(userId, message);
-    
-    res.json({
-      success: result.success,
-      message: result.message,
-      action: result.action || intentResult.action,
-      data: result.data || {}
-    });
-  } catch (error) {
-    console.error(`API Error - Process NLP: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: `Failed to process natural language command: ${error.message}`,
-    });
-  }
-});
-
-/**
- * Test natural language intent analysis only
- * POST /api/nlp/analyze
- */
-router.post('/nlp/analyze', async (req, res) => {
-  try {
-    const { userId, message } = req.body;
-    
-    if (!userId || !message) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required parameters: userId, message',
-      });
-    }
-    
-    // Analyser l'intention avec le service LLM
-    const result = await analyzeIntent(userId, message);
-    
-    res.json(result);
-  } catch (error) {
-    console.error(`API Error - Analyze NLP: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: `Failed to analyze natural language: ${error.message}`,
-    });
-  }
-});
+// Les endpoints de traitement du langage naturel ont été supprimés comme demandé
 
 /**
  * API routes pour utiliser directement le Hedera Agent Kit sans NLP
