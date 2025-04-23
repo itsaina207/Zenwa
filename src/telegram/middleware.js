@@ -48,13 +48,24 @@ function setupMiddleware(bot) {
   bot.on('message', msg => {
     const knownCommands = [
       '/start', '/help', '/createwallet', '/balance', 
-      '/send', '/history', '/mint',
+      '/send', '/history', '/mint', '/language', '/langue',
+      '/sendtoken'
     ];
     
     const text = msg.text || '';
     if (text.startsWith('/')) {
-      const command = text.split(' ')[0];
-      if (!knownCommands.includes(command)) {
+      const command = text.split(' ')[0].toLowerCase();
+      
+      // Vérifier si c'est une commande connue ou commence par une commande connue
+      const isKnown = knownCommands.some(cmd => command === cmd || command.startsWith(`${cmd}@`));
+      
+      // Vérifier si c'est une commande language (avec potentiellement des arguments)
+      const isLanguageCommand = command === '/language' || command === '/langue' || 
+                              command.startsWith('/language ') || command.startsWith('/langue ');
+      
+      console.log(`Command: ${command}, isKnown: ${isKnown}, isLanguageCommand: ${isLanguageCommand}`);
+      
+      if (!isKnown && !isLanguageCommand) {
         handleUnknownCommand(bot, msg);
       }
     }
