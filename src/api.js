@@ -1,11 +1,14 @@
 /**
  * API endpoints for testing the Hedera wallet functionality
+ * Including Hedera Agent Kit integrations for advanced operations
  */
 
 const express = require('express');
 const { createAccount, getBalance, sendHbar } = require('./hedera/account');
 const { getTransactionHistory } = require('./hedera/transactions');
 const { mintToken, sendToken } = require('./hedera/tokens');
+const { associateToken, dissociateToken } = require('./hedera/token-management');
+const { createTopic, submitTopicMessage, getTopicMessages } = require('./hedera/topic-management');
 const { getAgent } = require('./agent/hedera-agent');
 const { analyzeIntent } = require('./services/llm-service');
 
@@ -140,6 +143,137 @@ router.post('/wallet/sendtoken', async (req, res) => {
     res.status(500).json({
       success: false,
       message: `Failed to send token: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Associate a token with a user account
+ * POST /api/wallet/associate
+ */
+router.post('/wallet/associate', async (req, res) => {
+  try {
+    const { userId, tokenId } = req.body;
+    
+    if (!userId || !tokenId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, tokenId',
+      });
+    }
+    
+    const result = await associateToken(userId, tokenId);
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Associate Token: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to associate token: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Dissociate a token from a user account
+ * POST /api/wallet/dissociate
+ */
+router.post('/wallet/dissociate', async (req, res) => {
+  try {
+    const { userId, tokenId } = req.body;
+    
+    if (!userId || !tokenId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, tokenId',
+      });
+    }
+    
+    const result = await dissociateToken(userId, tokenId);
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Dissociate Token: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to dissociate token: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Create a new HCS topic
+ * POST /api/hcs/topic
+ */
+router.post('/hcs/topic', async (req, res) => {
+  try {
+    const { userId, topicName, submitKey = false } = req.body;
+    
+    if (!userId || !topicName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, topicName',
+      });
+    }
+    
+    const result = await createTopic(userId, topicName, submitKey);
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Create Topic: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to create topic: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Submit a message to an HCS topic
+ * POST /api/hcs/message
+ */
+router.post('/hcs/message', async (req, res) => {
+  try {
+    const { userId, topicId, message } = req.body;
+    
+    if (!userId || !topicId || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, topicId, message',
+      });
+    }
+    
+    const result = await submitTopicMessage(userId, topicId, message);
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Submit Topic Message: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to submit message to topic: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Get messages from an HCS topic
+ * GET /api/hcs/messages/:topicId
+ */
+router.get('/hcs/messages/:topicId', async (req, res) => {
+  try {
+    const { topicId } = req.params;
+    const { userId, network = 'testnet' } = req.query;
+    
+    if (!userId || !topicId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, topicId',
+      });
+    }
+    
+    const result = await getTopicMessages(userId, topicId, network);
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Get Topic Messages: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get topic messages: ${error.message}`,
     });
   }
 });

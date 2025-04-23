@@ -3,7 +3,7 @@
  * Implémentations des fonctionnalités supplémentaires du Hedera Agent Kit
  */
 
-const { TokenId } = require('@hashgraph/sdk');
+const { TokenId, TokenAssociateTransaction, TokenDissociateTransaction, PrivateKey } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
 const { getWalletByUserId } = require('../storage/userWallets');
 const { getHederaAgentKit } = require('../agent/hedera-agent-kit-integration');
