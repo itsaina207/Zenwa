@@ -427,12 +427,18 @@ router.post('/kit/transfer/hbar', async (req, res) => {
  */
 router.post('/kit/token/create', async (req, res) => {
   try {
-    const { userId, name, symbol, initialSupply = 1000, decimals = 0 } = req.body;
+    // Supporter à la fois la structure simple et la structure imbriquée
+    const tokenInfoFromBody = req.body.tokenInfo || {};
+    const userId = req.body.userId;
+    const name = req.body.name || tokenInfoFromBody.name;
+    const symbol = req.body.symbol || tokenInfoFromBody.symbol;
+    const initialSupply = req.body.initialSupply || tokenInfoFromBody.initialSupply || 1000;
+    const decimals = req.body.decimals || tokenInfoFromBody.decimals || 0;
     
     if (!userId || !name) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required parameters: userId, name',
+        message: 'Missing required parameters: userId, name (or tokenInfo.name)',
       });
     }
     
