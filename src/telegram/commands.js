@@ -967,10 +967,27 @@ function registerCommands(bot) {
   
   // Handler pour les messages normaux
   bot.on('message', msg => {
-    // Ignorer les commandes (qui commencent par '/')
-    if (msg.text && !msg.text.startsWith('/')) {
+    // On ne traite que les messages textuels
+    if (!msg.text) return;
+    
+    const userId = msg.from.id.toString();
+    const isCommand = msg.text.startsWith('/');
+    
+    // Si c'est une commande, vérifier si c'est une commande language connue
+    if (isCommand) {
+      // Vérifier si c'est une commande language
+      const isLanguageCommand = msg.text.match(/^\/(language|langue)(\s+.*)?$/i);
+      
+      // Si c'est bien une commande language, ne rien faire car le gestionnaire spécifique s'en occupera
+      if (isLanguageCommand) {
+        console.log(`Skipping natural language processing for language command from user ${userId}`);
+        return;
+      }
+    }
+    
+    // Si ce n'est pas une commande, traiter comme un message normal
+    if (!isCommand) {
       // Vérifier si nous sommes au milieu d'une conversation structurée
-      const userId = msg.from.id.toString();
       const userInfo = userState.get(userId);
       
       if (userInfo) {
@@ -983,7 +1000,7 @@ function registerCommands(bot) {
         
         // Vérifier si nous sommes dans une conversation de création de token
         if (userInfo.tokenInfo && [MINT_STATES.WAITING_FOR_TYPE, MINT_STATES.WAITING_FOR_NAME, 
-                                   MINT_STATES.WAITING_FOR_SYMBOL, MINT_STATES.WAITING_FOR_SUPPLY].includes(userInfo.state)) {
+                                  MINT_STATES.WAITING_FOR_SYMBOL, MINT_STATES.WAITING_FOR_SUPPLY].includes(userInfo.state)) {
           // Si l'utilisateur est dans une conversation de création de token, continuer celle-ci
           handleMintConversation(bot, msg);
           return;
