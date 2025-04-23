@@ -7,6 +7,7 @@ const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera/topic-management');
 const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest } = require('../services/openai-service');
+const { LANGUAGES, translate, setUserLanguage, getUserLanguage } = require('../utils/localizations');
 
 // State management for multi-step operations
 const userState = new Map();
@@ -34,23 +35,14 @@ const MINT_STATES = {
  */
 async function handleStart(bot, msg) {
   const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
   const firstName = msg.from.first_name || 'l\'ami';
   
-  const message = `
+  const message = translate(userId, 'welcome') + `
+
 Bonjour ${firstName} ! 👋
 
-Bienvenue sur le Bot de Wallet Custodial Hedera. Je peux vous aider à gérer vos HBAR et vos tokens sur le réseau Hedera.
-
-Commandes disponibles :
-/createwallet - Créer un nouveau wallet
-/balance - Vérifier le solde de votre wallet
-/send - Envoyer des HBAR à un autre compte
-/sendtoken - Envoyer des tokens à un autre compte
-/history - Consulter l'historique de vos transactions
-/mint - Créer un nouveau token
-/help - Afficher ce message d'aide
-
-Vous pouvez aussi me parler directement en langage naturel ! Par exemple, essayez "Quel est mon solde ?" ou "Crée un nouveau wallet pour moi".
+${translate(userId, 'help')}
 
 Commençons ! Utilisez /createwallet pour créer votre premier wallet.
   `;
@@ -65,30 +57,9 @@ Commençons ! Utilisez /createwallet pour créer votre premier wallet.
  */
 async function handleHelp(bot, msg) {
   const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
   
-  const message = `
-*Aide du Bot de Wallet Custodial Hedera*
-
-Commandes disponibles :
-
-/createwallet - Créer un nouveau compte Hedera
-/balance - Vérifier le solde de votre wallet
-/send _<accountId> <montant>_ - Envoyer des HBAR à un autre compte
-/sendtoken _<accountId> <tokenId> <montant>_ - Envoyer des tokens à un autre compte
-/history - Consulter l'historique de vos transactions
-/mint _<nom> <symbole> <offre>_ - Créer un nouveau token (tous les paramètres sont optionnels)
-/help - Afficher ce message d'aide
-
-*Commandes en langage naturel :*
-Vous pouvez également me parler directement en langage naturel. Par exemple :
-• "Quel est mon solde ?"
-• "Envoie 10 HBAR à 0.0.12345"
-• "Crée un token Test avec le symbole TST"
-• "Affiche mon historique de transactions"
-• "Crée un topic nommé MonTopic"
-
-Ce wallet est custodial - vos clés privées sont stockées en toute sécurité sur notre serveur.
-  `;
+  const message = translate(userId, 'help');
   
   await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
 }
@@ -877,6 +848,33 @@ Utilisez /balance pour vérifier votre nouveau solde.
  * Register all command handlers with the bot
  * @param {TelegramBot} bot - Telegram bot instance
  */
+/**
+ * Handles the /language command to change the user's language preference
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ */
+async function handleLanguage(bot, msg) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
+  
+  // Création d'un clavier avec les options de langue
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: '🇫🇷 Français', callback_data: `lang:${LANGUAGES.FR}` },
+        { text: '🇬🇧 English', callback_data: `lang:${LANGUAGES.EN}` }
+      ]
+    ]
+  };
+  
+  // Envoi du message avec le clavier
+  await bot.sendMessage(
+    chatId,
+    translate(userId, 'language_selection'),
+    { reply_markup: keyboard }
+  );
+}
+
 function registerCommands(bot) {
   // Define command handlers
   bot.onText(/\/start/, msg => handleStart(bot, msg));
@@ -887,6 +885,37 @@ function registerCommands(bot) {
   bot.onText(/\/sendtoken(.*)/, msg => handleSendToken(bot, msg));
   bot.onText(/\/history(.*)/, msg => handleHistory(bot, msg));
   bot.onText(/\/mint(.*)/, msg => handleMint(bot, msg));
+  bot.onText(/\/(language|langue)(.*)/, msg => handleLanguage(bot, msg));
+  
+  // Gestionnaire pour les callbacks de boutons inline (utilisé pour la sélection de langue)
+  bot.on('callback_query', async (callbackQuery) => {
+    const msg = callbackQuery.message;
+    const data = callbackQuery.data;
+    const userId = callbackQuery.from.id.toString();
+    
+    // Si c'est une sélection de langue
+    if (data.startsWith('lang:')) {
+      const lang = data.split(':')[1];
+      const success = setUserLanguage(userId, lang);
+      
+      if (success) {
+        // Afficher un message de confirmation dans la langue sélectionnée
+        await bot.answerCallbackQuery(callbackQuery.id, { 
+          text: translate(userId, 'language_changed')
+        });
+        
+        // Mettre à jour le message avec la confirmation
+        await bot.editMessageText(
+          translate(userId, 'language_changed'), 
+          {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id,
+            reply_markup: { remove_keyboard: true }
+          }
+        );
+      }
+    }
+  });
   
   // Handler pour les messages normaux
   bot.on('message', msg => {
@@ -926,6 +955,7 @@ function registerCommands(bot) {
     { command: "sendtoken", description: "Envoyer des tokens à un autre compte" },
     { command: "history", description: "Consulter l'historique de vos transactions" },
     { command: "mint", description: "Créer un nouveau token" },
+    { command: "language", description: "Changer la langue (FR/EN)" },
     { command: "help", description: "Afficher de l'aide" },
   ]);
 }
