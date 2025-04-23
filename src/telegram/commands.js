@@ -974,12 +974,12 @@ function registerCommands(bot) {
     const userId = msg.from.id.toString();
     const isCommand = msg.text.startsWith('/');
     
-    // Si c'est une commande, vérifier si c'est une commande language connue
+    // Si c'est une commande, vérifier si c'est une commande setlang connue
     if (isCommand) {
-      // Vérifier si c'est une commande language
-      const isLanguageCommand = msg.text.match(/^\/(language|langue)(\s+.*)?$/i);
+      // Vérifier si c'est une commande setlang
+      const isLanguageCommand = msg.text.match(/^\/(setlang|language|langue)(\s+.*)?$/i);
       
-      // Si c'est bien une commande language, ne rien faire car le gestionnaire spécifique s'en occupera
+      // Si c'est bien une commande langue, ne rien faire car le gestionnaire spécifique s'en occupera
       if (isLanguageCommand) {
         console.log(`Skipping natural language processing for language command from user ${userId}`);
         return;
@@ -1021,7 +1021,7 @@ function registerCommands(bot) {
     { command: "sendtoken", description: "Envoyer des tokens à un autre compte" },
     { command: "history", description: "Consulter l'historique de vos transactions" },
     { command: "mint", description: "Créer un nouveau token" },
-    { command: "language", description: "Changer la langue (FR/EN)" },
+    { command: "setlang", description: "Changer la langue (FR/EN)" },
     { command: "help", description: "Afficher de l'aide" },
   ]);
 }
