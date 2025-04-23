@@ -13,10 +13,11 @@ function initializeLanguageHandler(bot) {
   console.log('Initializing separate language handler');
   
   // Version simplifiée - les réponses sont envoyées comme des messages directs
-  bot.onText(/^\/(?:language|langue)\s*(\w*)$/, async (msg, match) => {
+  // Pattern plus large pour capturer toutes les variantes possibles de la commande
+  bot.onText(/^\/(language|langue)(?:\s+(.*))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
-    const langArg = match[1] ? match[1].toLowerCase() : '';
+    const langArg = match[2] ? match[2].toLowerCase() : '';
     
     console.log(`DIRECT Language handler: User ${userId}, arg: "${langArg}"`);
     
