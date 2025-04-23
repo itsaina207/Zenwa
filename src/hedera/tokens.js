@@ -33,12 +33,19 @@ async function mintToken(userId, tokenInfo) {
     }
 
     // Default token values if not provided
-    const {
+    let {
       name = `Token-${Date.now()}`,
       symbol = `TKN${Math.floor(Math.random() * 1000)}`,
       decimals = 0,
       initialSupply = 1000,
     } = tokenInfo || {};
+    
+    // Appliquer la limite maximale pour l'offre initiale
+    const MAX_SUPPLY = 100000000; // 100 millions
+    if (initialSupply > MAX_SUPPLY) {
+      console.warn(`Supply limit exceeded (${initialSupply}), capping to ${MAX_SUPPLY}`);
+      initialSupply = MAX_SUPPLY;
+    }
 
     // Create the token transaction
     const transaction = await new TokenCreateTransaction()

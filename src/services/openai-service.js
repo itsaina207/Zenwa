@@ -57,7 +57,8 @@ async function analyzeIntent(userId, message) {
       Voici les actions possibles et leurs paramètres :
       - check_balance : vérifier le solde (pas de paramètre requis)
       - transfer_hbar : envoyer des HBAR (paramètres: recipientId, amount)
-      - create_token : créer un token (paramètres: name, symbol, initialSupply)
+      - create_token : créer un token (paramètres: name, symbol, initialSupply) 
+          Note: initialSupply est optionnel et est limité à 100 000 000 maximum
       - transfer_token : envoyer des tokens (paramètres: recipientId, tokenId, amount)
       - get_history : consulter l'historique des transactions (paramètre optionnel: limit)
       - create_topic : créer un topic HCS (paramètres: topicName, submitKey)

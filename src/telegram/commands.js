@@ -252,7 +252,16 @@ async function handleMint(bot, msg) {
   
   if (args.length >= 1) tokenInfo.name = args[0];
   if (args.length >= 2) tokenInfo.symbol = args[1];
-  if (args.length >= 3) tokenInfo.initialSupply = parseInt(args[2], 10);
+  if (args.length >= 3) {
+    const supply = parseInt(args[2], 10);
+    const MAX_SUPPLY = 100000000; // 100 millions
+    if (supply > MAX_SUPPLY) {
+      await bot.sendMessage(chatId, `⚠️ La supply maximale autorisée est de ${MAX_SUPPLY}. Votre valeur (${supply}) sera limitée à ce maximum.`);
+      tokenInfo.initialSupply = MAX_SUPPLY;
+    } else {
+      tokenInfo.initialSupply = supply;
+    }
+  }
   
   await bot.sendMessage(chatId, 'Création de votre token en cours... Cela peut prendre un moment.');
   
