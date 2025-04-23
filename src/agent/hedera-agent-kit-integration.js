@@ -32,7 +32,7 @@ async function getHederaAgentKit() {
     
     // Utiliser notre implémentation de secours KitManager au lieu d'essayer d'importer hedera-agent-kit
     // qui pose des problèmes de compatibilité ESM/CommonJS
-    const { KitManager } = require('./kit-manager');
+    const KitManager = require('./kit-manager');
     const kit = new KitManager(accountId, privateKey, network);
     agentKit = kit;
     console.log('✅ Hedera Agent Kit initialisé avec succès (utilisant l\'implémentation interne)');
@@ -264,25 +264,24 @@ async function getTransactionHistory(userId, limit = 10) {
  */
 async function getHederaAgentTools() {
   try {
-    const kitModule = await import('hedera-agent-kit');
+    // Utiliser notre implémentation de createHederaTools directement
+    const KitManager = require('./kit-manager');
+    const createHederaTools = KitManager.createHederaTools;
     
-    // Obtenir la fonction correcte, soit via default soit directement
-    const moduleExports = kitModule.default || kitModule;
-    
-    if (moduleExports.createHederaTools) {
+    if (createHederaTools) {
       const accountId = config.HEDERA_AI_KIT_ACCOUNT_ID;
       const privateKey = config.HEDERA_AI_KIT_PRIVATE_KEY;
       
       const client = Client.forTestnet();
       
-      return moduleExports.createHederaTools({
+      return createHederaTools({
         hederaClient: client,
         operatorId: accountId,
         operatorKey: privateKey
       });
     }
     
-    // Si createHederaTools n'est pas disponible, retourner nos outils personnalisés
+    // Si createHederaTools n'est pas disponible, retourner un tableau vide
     return [];
   } catch (error) {
     console.error(`Erreur lors de la récupération des outils: ${error.message}`);
