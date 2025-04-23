@@ -70,6 +70,9 @@ async function mintToken(userId, tokenInfo) {
 
     const tokenId = receipt.tokenId.toString();
     const txId = txResponse.transactionId.toString();
+    
+    // Store token information in the database
+    await storeTokenInfo(userId, tokenId, name, symbol);
 
     return {
       success: true,
@@ -182,7 +185,96 @@ async function sendToken(fromUserId, toAccountId, tokenId, amount) {
   }
 }
 
+/**
+ * Store token information in the database
+ * @param {string} userId - Telegram user ID
+ * @param {string} tokenId - Token ID
+ * @param {string} name - Token name
+ * @param {string} symbol - Token symbol
+ * @returns {Promise<boolean>} Success status
+ */
+async function storeTokenInfo(userId, tokenId, name, symbol) {
+  try {
+    const { query } = require('../storage/db');
+    
+    // Check if the table exists and create it if not
+    await query(`
+      CREATE TABLE IF NOT EXISTS user_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token_id TEXT NOT NULL,
+        token_name TEXT NOT NULL,
+        token_symbol TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, token_id)
+      )
+    `);
+    
+    // Insert the token info
+    await query(
+      'INSERT INTO user_tokens (user_id, token_id, token_name, token_symbol) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, token_id) DO UPDATE SET token_name = $3, token_symbol = $4',
+      [userId, tokenId, name, symbol]
+    );
+    
+    return true;
+  } catch (error) {
+    console.error(`Error storing token info: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * Get token ID by name
+ * @param {string} userId - Telegram user ID
+ * @param {string} nameOrSymbol - Token name or symbol
+ * @returns {Promise<string|null>} Token ID or null if not found
+ */
+async function getTokenIdByNameOrSymbol(userId, nameOrSymbol) {
+  try {
+    const { query } = require('../storage/db');
+    
+    // Query tokens by name or symbol
+    const result = await query(
+      'SELECT token_id FROM user_tokens WHERE user_id = $1 AND (LOWER(token_name) = LOWER($2) OR LOWER(token_symbol) = LOWER($2))',
+      [userId, nameOrSymbol]
+    );
+    
+    if (result.rows.length > 0) {
+      return result.rows[0].token_id;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Error getting token ID by name: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Get list of user's tokens
+ * @param {string} userId - Telegram user ID
+ * @returns {Promise<Array<object>|null>} List of tokens or null if error
+ */
+async function getUserTokens(userId) {
+  try {
+    const { query } = require('../storage/db');
+    
+    const result = await query(
+      'SELECT token_id, token_name, token_symbol FROM user_tokens WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    
+    return result.rows;
+  } catch (error) {
+    console.error(`Error getting user tokens: ${error.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   mintToken,
   sendToken,
+  storeTokenInfo,
+  getTokenIdByNameOrSymbol,
+  getUserTokens
 };

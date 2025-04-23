@@ -302,24 +302,43 @@ class HederaAgent {
    * Transfer tokens to another account
    * @param {string} userId - Sender's Telegram user ID
    * @param {string} recipientId - Recipient's account ID
-   * @param {string} tokenId - ID of the token to transfer
+   * @param {string} tokenIdOrName - ID or name of the token to transfer
    * @param {number} amount - Amount of tokens to transfer
    * @returns {Promise<object>} Transaction result
    */
-  async transferToken(userId, recipientId, tokenId, amount) {
+  async transferToken(userId, recipientId, tokenIdOrName, amount) {
     try {
-      const { sendToken } = require('../hedera/tokens');
-      const result = await sendToken(userId, recipientId, tokenId, amount);
+      const { sendToken, getTokenIdByNameOrSymbol } = require('../hedera/tokens');
+      
+      // Check if tokenIdOrName is a name or symbol instead of an ID
+      let actualTokenId = tokenIdOrName;
+      let tokenName = tokenIdOrName;
+      
+      // If it doesn't look like a Hedera token ID (0.0.xxx format), try to get the ID by name
+      if (!tokenIdOrName.match(/^\d+\.\d+\.\d+$/)) {
+        const tokenId = await getTokenIdByNameOrSymbol(userId, tokenIdOrName);
+        if (tokenId) {
+          actualTokenId = tokenId;
+        } else {
+          return {
+            success: false,
+            message: `Token "${tokenIdOrName}" non trouvé. Veuillez utiliser un ID de token valide ou créer d'abord ce token.`
+          };
+        }
+      }
+      
+      const result = await sendToken(userId, recipientId, actualTokenId, amount);
       
       return {
         success: result.success,
         message: result.success ? 
-          `Transaction réussie ! Vous avez envoyé ${amount} tokens ${tokenId} à ${recipientId}. ID de transaction: ${result.transactionId}` : 
+          `Transaction réussie ! Vous avez envoyé ${amount} tokens ${tokenName} (${actualTokenId}) à ${recipientId}. ID de transaction: ${result.transactionId}` : 
           (result.message || "Erreur lors de l'envoi des tokens"),
         data: result.success ? { 
           transactionId: result.transactionId,
           amount,
-          tokenId,
+          tokenId: actualTokenId,
+          tokenName,
           recipient: recipientId
         } : null
       };
