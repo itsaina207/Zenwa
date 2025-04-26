@@ -37,6 +37,12 @@ const {
 // State management for multi-step operations
 const userState = new Map();
 
+// State for phone number collection during start
+const START_STATES = {
+  WAITING_FOR_PHONE: 'WAITING_FOR_PHONE',
+  NONE: 'NONE'
+};
+
 // Possible states for the /send command
 const SEND_STATES = {
   WAITING_FOR_ADDRESS: 'WAITING_FOR_ADDRESS',
