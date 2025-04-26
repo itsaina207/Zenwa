@@ -12,6 +12,51 @@ const {
 const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
 const { getExplorerUrls } = require('../utils/explorer');
+const { getWalletByUserId } = require('../storage/userWallets');
+
+/**
+ * Convertit un ID Telegram ou un ID de compte Hedera en ID de compte Hedera
+ * @param {string} identifier - ID Telegram ou ID de compte Hedera
+ * @returns {Promise<string|null>} ID de compte Hedera ou null si non trouvé
+ */
+async function resolveToAccountId(identifier) {
+  try {
+    // Vérifier si c'est déjà un ID de compte Hedera (format: 0.0.X)
+    if (/^\d+\.\d+\.\d+$/.test(identifier)) {
+      return identifier;
+    }
+    
+    // Sinon, considérer comme un ID Telegram et chercher le compte associé
+    const wallet = await getWalletByUserId(identifier);
+    if (wallet) {
+      return wallet.accountId;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Erreur lors de la résolution de l\'ID:', error);
+    return null;
+  }
+}
+
+/**
+ * Résout une liste d'identifiants en IDs de compte Hedera
+ * @param {string} identifiersList - Liste d'identifiants séparés par des virgules
+ * @returns {Promise<Array<{id: string, accountId: string|null}>>} Liste des IDs originaux et des IDs de compte résolus
+ */
+async function resolveIdentifiersList(identifiersList) {
+  // Diviser la chaîne par virgules et supprimer les espaces
+  const identifiers = identifiersList.split(',').map(id => id.trim()).filter(id => id.length > 0);
+  
+  // Résoudre chaque identifiant
+  const results = [];
+  for (const id of identifiers) {
+    const accountId = await resolveToAccountId(id);
+    results.push({ id, accountId });
+  }
+  
+  return results;
+}
 
 /**
  * Créer un airdrop de tokens pour plusieurs destinataires
@@ -108,6 +153,26 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
 }
 
 /**
+ * Vérifier les airdrops disponibles pour un utilisateur
+ * @param {string} userId - ID Telegram de l'utilisateur
+ * @returns {Promise<Array<Object>>} Liste des airdrops disponibles
+ */
+async function getAvailableAirdrops(userId) {
+  try {
+    // Cette fonction est un emplacement pour une future implémentation
+    // qui permettrait de récupérer les airdrops disponibles pour un utilisateur
+    // à partir de l'API Hedera ou d'une autre source de données.
+    
+    // Pour l'instant, nous retournons une liste vide car Hedera n'expose pas
+    // directement une API pour lister les airdrops disponibles.
+    return [];
+  } catch (error) {
+    console.error('Erreur lors de la récupération des airdrops disponibles:', error);
+    return [];
+  }
+}
+
+/**
  * Réclamer un airdrop de tokens
  * @param {string} userId - ID Telegram de l'utilisateur qui réclame l'airdrop
  * @param {string} pendingAirdropId - ID de l'airdrop en attente
@@ -184,5 +249,8 @@ async function claimTokenAirdrop(userId, pendingAirdropId) {
 
 module.exports = {
   createTokenAirdrop,
-  claimTokenAirdrop
+  claimTokenAirdrop,
+  resolveToAccountId,
+  resolveIdentifiersList,
+  getAvailableAirdrops
 };
