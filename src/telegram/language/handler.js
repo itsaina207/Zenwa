@@ -73,6 +73,11 @@ You can use these buttons below or type commands manually:
 /sendtoken - Send tokens to another account
 /history - View your transaction history
 /mint - Create a new token
+/airdrop - Create a token airdrop
+/campaign - Create a token campaign
+/claim - Claim tokens from a campaign
+/claimairdrop - Claim tokens from an airdrop
+/mycampaigns - View your campaigns
 /setlang - Change the language (EN/FR)
 /help - Show this help message
 
@@ -95,7 +100,50 @@ You can also ask me natural language questions like:
     mintLabel: "✨ Create Token",
     languageLabel: "🌐 Language",
     helpLabel: "❓ Help",
-    fullHelpLabel: "📚 Full Help"
+    fullHelpLabel: "📚 Full Help",
+    
+    // Airdrop translations
+    airdropIntro: "Welcome to the token airdrop creation wizard! I'll guide you through creating an airdrop of tokens to multiple recipients.",
+    airdropTokenIdPrompt: "Please enter the Token ID you want to distribute (format: 0.0.xxx):",
+    airdropRecipientsPrompt: "Please enter the account IDs of the recipients, separated by commas (e.g., 0.0.12345,0.0.67890):",
+    airdropInvalidRecipients: "❌ Invalid recipient list. Please enter at least one valid account ID.",
+    airdropAmountPrompt: "How many tokens do you want to send to each recipient?",
+    airdropInvalidAmount: "❌ Invalid amount. Please enter a positive number.",
+    airdropConfirmationHeader: "📤 *Token Airdrop Summary*",
+    airdropConfirmationPrompt: "Do you want to proceed with this airdrop?",
+    airdropProcessing: "⏳ Processing your airdrop request... This may take a moment.",
+    airdropCancelled: "❌ Airdrop cancelled.",
+    
+    // Campaign translations
+    campaignIntro: "Welcome to the token campaign creation wizard! A campaign allows users to claim tokens from a pool you create.",
+    campaignNamePrompt: "Please enter a name for your campaign:",
+    campaignDescriptionPrompt: "Please provide a short description for your campaign:",
+    campaignTokenIdPrompt: "Please enter the Token ID you want to use for this campaign (format: 0.0.xxx):",
+    campaignTotalAmountPrompt: "What is the total amount of tokens you want to allocate for this campaign?",
+    campaignAmountPerClaimPrompt: "How many tokens should each user receive per claim?",
+    campaignMaxClaimsPrompt: "What's the maximum number of claims allowed? (Enter 0 for unlimited):",
+    campaignInvalidAmount: "❌ Invalid amount. Please enter a positive number.",
+    campaignInvalidMaxClaims: "❌ Invalid maximum claims. Please enter a non-negative number or 'unlimited'.",
+    campaignAmountTooLarge: "❌ The amount per claim cannot be larger than the total amount.",
+    campaignConfirmationHeader: "📣 *Campaign Summary*",
+    campaignConfirmationPrompt: "Do you want to create this campaign?",
+    campaignCreating: "⏳ Creating your campaign... This may take a moment.",
+    campaignCancelled: "❌ Campaign creation cancelled.",
+    
+    // Claim translations
+    activeCampaignsHeader: "📢 *Active Campaigns*",
+    noActiveCampaigns: "There are no active campaigns available right now.",
+    campaignIdPrompt: "Please enter the number of the campaign you want to claim from or paste its ID:",
+    airdropIdPrompt: "Please enter the Airdrop ID you want to claim from:",
+    
+    // Campaign management
+    noUserCampaigns: "You haven't created any campaigns yet.",
+    userCampaignsHeader: "🏆 *Your Campaigns*",
+    campaignManagementHelp: "Use /campaigninfo <campaign_id> to see details about a specific campaign.",
+    campaignIdMissing: "Please specify a campaign ID: /campaigninfo <campaign_id>",
+    campaignNotFound: "❌ Campaign not found.",
+    campaignManagementOptions: "To update this campaign status use:\n/campaignstatus <campaign_id> <new_status>\n\nValid statuses: active, paused, completed, cancelled",
+    campaignStatusUsage: "Usage: /campaignstatus <campaign_id> <new_status>\n\nValid statuses: active, paused, completed, cancelled"
   },
   fr: {
     languageChanged: '✅ Langue changée en Français',
@@ -110,6 +158,11 @@ Vous pouvez utiliser les boutons ci-dessous ou taper les commandes manuellement 
 /sendtoken - Envoyer des tokens à un autre compte
 /history - Consulter l'historique de vos transactions
 /mint - Créer un nouveau token
+/airdrop - Créer un airdrop de tokens
+/campaign - Créer une campagne de distribution
+/claim - Réclamer des tokens d'une campagne
+/claimairdrop - Réclamer des tokens d'un airdrop
+/mycampaigns - Afficher vos campagnes
 /setlang - Changer la langue (FR/EN)
 /help - Afficher ce message d'aide
 
@@ -132,7 +185,50 @@ Vous pouvez également me poser des questions en langage naturel comme :
     mintLabel: "✨ Créer Token",
     languageLabel: "🌐 Langue",
     helpLabel: "❓ Aide",
-    fullHelpLabel: "📚 Aide complète"
+    fullHelpLabel: "📚 Aide complète",
+    
+    // Airdrop translations
+    airdropIntro: "Bienvenue dans l'assistant de création d'airdrop de tokens ! Je vais vous guider pour distribuer des tokens à plusieurs destinataires.",
+    airdropTokenIdPrompt: "Veuillez entrer l'ID du token que vous souhaitez distribuer (format : 0.0.xxx) :",
+    airdropRecipientsPrompt: "Veuillez entrer les IDs des comptes destinataires, séparés par des virgules (ex : 0.0.12345,0.0.67890) :",
+    airdropInvalidRecipients: "❌ Liste de destinataires invalide. Veuillez entrer au moins un ID de compte valide.",
+    airdropAmountPrompt: "Combien de tokens souhaitez-vous envoyer à chaque destinataire ?",
+    airdropInvalidAmount: "❌ Montant invalide. Veuillez entrer un nombre positif.",
+    airdropConfirmationHeader: "📤 *Résumé de l'Airdrop*",
+    airdropConfirmationPrompt: "Voulez-vous procéder à cet airdrop ?",
+    airdropProcessing: "⏳ Traitement de votre demande d'airdrop... Cela peut prendre un moment.",
+    airdropCancelled: "❌ Airdrop annulé.",
+    
+    // Campaign translations
+    campaignIntro: "Bienvenue dans l'assistant de création de campagne ! Une campagne permet aux utilisateurs de réclamer des tokens à partir d'un pool que vous créez.",
+    campaignNamePrompt: "Veuillez entrer un nom pour votre campagne :",
+    campaignDescriptionPrompt: "Veuillez fournir une brève description pour votre campagne :",
+    campaignTokenIdPrompt: "Veuillez entrer l'ID du token que vous souhaitez utiliser pour cette campagne (format : 0.0.xxx) :",
+    campaignTotalAmountPrompt: "Quel est le montant total de tokens que vous souhaitez allouer à cette campagne ?",
+    campaignAmountPerClaimPrompt: "Combien de tokens chaque utilisateur doit-il recevoir par réclamation ?",
+    campaignMaxClaimsPrompt: "Quel est le nombre maximum de réclamations autorisées ? (Entrez 0 pour illimité) :",
+    campaignInvalidAmount: "❌ Montant invalide. Veuillez entrer un nombre positif.",
+    campaignInvalidMaxClaims: "❌ Nombre maximum de réclamations invalide. Veuillez entrer un nombre non négatif ou 'illimité'.",
+    campaignAmountTooLarge: "❌ Le montant par réclamation ne peut pas être supérieur au montant total.",
+    campaignConfirmationHeader: "📣 *Résumé de la Campagne*",
+    campaignConfirmationPrompt: "Voulez-vous créer cette campagne ?",
+    campaignCreating: "⏳ Création de votre campagne... Cela peut prendre un moment.",
+    campaignCancelled: "❌ Création de la campagne annulée.",
+    
+    // Claim translations
+    activeCampaignsHeader: "📢 *Campagnes Actives*",
+    noActiveCampaigns: "Il n'y a pas de campagnes actives disponibles pour le moment.",
+    campaignIdPrompt: "Veuillez entrer le numéro de la campagne dont vous souhaitez réclamer des tokens ou coller son ID :",
+    airdropIdPrompt: "Veuillez entrer l'ID de l'Airdrop dont vous souhaitez réclamer les tokens :",
+    
+    // Campaign management
+    noUserCampaigns: "Vous n'avez pas encore créé de campagnes.",
+    userCampaignsHeader: "🏆 *Vos Campagnes*",
+    campaignManagementHelp: "Utilisez /campaigninfo <campaign_id> pour voir les détails d'une campagne spécifique.",
+    campaignIdMissing: "Veuillez spécifier un ID de campagne : /campaigninfo <campaign_id>",
+    campaignNotFound: "❌ Campagne non trouvée.",
+    campaignManagementOptions: "Pour mettre à jour le statut de cette campagne, utilisez :\n/campaignstatus <campaign_id> <nouveau_statut>\n\nStatuts valides : active, paused, completed, cancelled",
+    campaignStatusUsage: "Utilisation : /campaignstatus <campaign_id> <nouveau_statut>\n\nStatuts valides : active, paused, completed, cancelled"
   }
 };
 
