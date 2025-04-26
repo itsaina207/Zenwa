@@ -335,8 +335,8 @@ const initializeLanguageHandler = (bot) => {
     
     // Message d'accueil personnalisé qui sera affiché au-dessus des boutons
     const welcomeMessage = lang === 'fr' 
-      ? `👋 Bonjour ${firstName} ! Bienvenue sur le Bot Hedera Wallet.`
-      : `👋 Hello ${firstName}! Welcome to the Hedera Wallet Bot.`;
+      ? `👋 Bonjour ${firstName} ! Bienvenue sur le Bot Hedera Wallet.\n\n⚠️ Important : Pour commencer à utiliser ce bot, vous devez d'abord créer un portefeuille Hedera en utilisant le bouton "💼 Créer Wallet" ci-dessous.`
+      : `👋 Hello ${firstName}! Welcome to the Hedera Wallet Bot.\n\n⚠️ Important: To start using this bot, you must first create a Hedera wallet using the "💼 Create Wallet" button below.`;
       
     await sendHelpWithButtons(bot, userId, chatId, welcomeMessage);
   });
