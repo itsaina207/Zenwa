@@ -59,9 +59,9 @@ async function handleHelp(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
   
-  const message = translate(userId, 'help');
-  
-  await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+  // Utiliser la fonction sendHelpWithButtons du gestionnaire de langue
+  const { sendHelpWithButtons } = require('./language/handler');
+  await sendHelpWithButtons(bot, userId, chatId);
 }
 
 /**
