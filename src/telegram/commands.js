@@ -1091,6 +1091,13 @@ function registerCommands(bot) {
       const userInfo = userState.get(userId);
       
       if (userInfo) {
+        // Vérifier si nous sommes dans une conversation téléphonique lors du démarrage
+        if (userInfo.state === START_STATES.WAITING_FOR_PHONE) {
+          // Si l'utilisateur est dans une conversation de collecte de numéro de téléphone, continuer celle-ci
+          handlePhoneNumberConversation(bot, msg);
+          return;
+        }
+        
         // Vérifier si nous sommes dans une conversation d'envoi HBAR
         if (userInfo.state && [SEND_STATES.WAITING_FOR_ADDRESS, SEND_STATES.WAITING_FOR_AMOUNT].includes(userInfo.state)) {
           // Si l'utilisateur est dans une conversation d'envoi, continuer celle-ci
@@ -1139,6 +1146,115 @@ function registerCommands(bot) {
   ]);
 }
 
+/**
+ * Handle phone number collection conversation
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ */
+async function handlePhoneNumberConversation(bot, msg) {
+  const userId = msg.from.id.toString();
+  const userInfo = userState.get(userId);
+  const msgChatId = msg.chat.id;
+  const text = msg.text.trim();
+  const firstName = msg.from.first_name || 'l\'ami';
+  
+  // Vérifier que l'état est bien celui attendu
+  if (userInfo && userInfo.state === START_STATES.WAITING_FOR_PHONE) {
+    // Valider le format du numéro de téléphone (format simple: commence par 0 ou +)
+    const phoneNumberPattern = /^[0+][0-9\s\-\(\)\.]{5,20}$/;
+    
+    if (!phoneNumberPattern.test(text)) {
+      await bot.sendMessage(
+        msgChatId,
+        "Le format du numéro de téléphone n'est pas valide. Veuillez réessayer avec un format comme 0XXXXXXXXX ou +336XXXXXXXX:",
+        { reply_markup: { force_reply: true } }
+      );
+      return;
+    }
+    
+    const phoneNumber = text.trim();
+    console.log(`Numéro de téléphone reçu de ${userId}: ${phoneNumber}`);
+    
+    // Vérifier si l'utilisateur est déjà dans notre base avec un portefeuille
+    const userData = userInfo.userData || {};
+    
+    if (userData.accountId) {
+      // Utilisateur existant, mettre à jour son numéro de téléphone
+      try {
+        const { query } = require('../storage/db');
+        await query(
+          'UPDATE user_wallets SET phone_number = $1 WHERE user_id = $2',
+          [phoneNumber, userId]
+        );
+        
+        await bot.sendMessage(
+          msgChatId,
+          `Merci ${firstName} ! Votre numéro de téléphone a été enregistré.`
+        );
+        
+        // Réinitialiser l'état et afficher le menu d'aide
+        userState.set(userId, { state: START_STATES.NONE });
+        
+        // Afficher les boutons d'aide
+        const { sendHelpWithButtons } = require('./language/handler');
+        await sendHelpWithButtons(bot, userId, msgChatId);
+      } catch (error) {
+        console.error(`Erreur lors de la mise à jour du numéro de téléphone: ${error.message}`);
+        await bot.sendMessage(
+          msgChatId,
+          "Une erreur s'est produite lors de l'enregistrement de votre numéro. Veuillez réessayer plus tard."
+        );
+      }
+    } else {
+      // Nouvel utilisateur, créer un portefeuille avec le numéro de téléphone
+      await bot.sendMessage(
+        msgChatId,
+        "Merci ! Création de votre portefeuille Hedera en cours... Cela peut prendre un moment."
+      );
+      
+      try {
+        const username = msg.from.username || null;
+        const result = await createAccount(userId, username, phoneNumber);
+        
+        if (result.success) {
+          const message = `
+✅ ${result.message}
+
+*Vos informations de compte Hedera :*
+
+Account ID: \`${result.accountId}\`
+EVM Address: \`${result.evmAddress}\`
+
+*Clés du compte :*
+Private Key: \`${result.privateKey}\`
+Public Key: \`${result.publicKey}\`
+
+*Transaction :*
+Transaction ID: \`${result.transactionId}\`
+[Voir dans l'explorateur](${result.explorerUrl})
+
+IMPORTANT : Conservez ces informations en lieu sûr, surtout la clé privée.
+Utilisez /balance pour vérifier votre solde.
+`;
+          
+          await bot.sendMessage(msgChatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(msgChatId, `❌ ${result.message}`);
+        }
+        
+        // Réinitialiser l'état
+        userState.set(userId, { state: START_STATES.NONE });
+      } catch (error) {
+        console.error(`Erreur lors de la création du portefeuille: ${error.message}`);
+        await bot.sendMessage(
+          msgChatId,
+          "Une erreur s'est produite lors de la création de votre portefeuille. Veuillez réessayer plus tard."
+        );
+      }
+    }
+  }
+}
+
 module.exports = {
   registerCommands,
   handleStart,
@@ -1152,11 +1268,18 @@ module.exports = {
   handleMintConversation,
   handleSendConversation,
   handleNaturalLanguage,
+  handlePhoneNumberConversation,
   // Exporter les fonctions d'airdrop pour qu'elles soient disponibles ailleurs
   handleAirdrop,
   handleClaimAirdrop,
   handleAirdropConversation,
+  // Exporter les états pour qu'ils soient disponibles ailleurs
+  START_STATES,
+  SEND_STATES,
+  MINT_STATES,
   AIRDROP_STATES,
   CAMPAIGN_STATES,
-  CLAIM_STATES
+  CLAIM_STATES,
+  // Exporter l'état utilisateur pour le partager
+  userState
 };
