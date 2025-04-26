@@ -6,8 +6,32 @@ const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera/topic-management');
+const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
+const { 
+  createCampaign, 
+  getCampaign, 
+  getActiveCampaigns, 
+  getUserCampaigns,
+  claimFromCampaign,
+  updateCampaignStatus
+} = require('../hedera/campaigns');
 const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest } = require('../services/openai-service');
 const { LANGUAGES, translate, setUserLanguage, getUserLanguage } = require('../utils/localizations');
+
+// Importer les gestionnaires des commandes d'airdrop et de campagne
+const { 
+  handleAirdrop, 
+  handleCampaign, 
+  handleClaim, 
+  handleMyCampaigns, 
+  handleCampaignInfo, 
+  handleCampaignStatus, 
+  handleClaimAirdrop, 
+  handleAirdropConversation, 
+  AIRDROP_STATES, 
+  CAMPAIGN_STATES, 
+  CLAIM_STATES 
+} = require('./airdrop-commands');
 
 // State management for multi-step operations
 const userState = new Map();
@@ -961,6 +985,15 @@ function registerCommands(bot) {
   bot.onText(/\/sendtoken(.*)/, msg => handleSendToken(bot, msg));
   bot.onText(/\/history(.*)/, msg => handleHistory(bot, msg));
   bot.onText(/\/mint(.*)/, msg => handleMint(bot, msg));
+  
+  // Nouvelles commandes pour les airdrops et campagnes
+  bot.onText(/\/airdrop(.*)/, msg => handleAirdrop(bot, msg));
+  bot.onText(/\/campaign(.*)/, msg => handleCampaign(bot, msg));
+  bot.onText(/\/claim(.*)/, msg => handleClaim(bot, msg));
+  bot.onText(/\/claimairdrop(.*)/, msg => handleClaimAirdrop(bot, msg));
+  bot.onText(/\/mycampaigns(.*)/, msg => handleMyCampaigns(bot, msg));
+  bot.onText(/\/campaigninfo(.*)/, msg => handleCampaignInfo(bot, msg));
+  bot.onText(/\/campaignstatus(.*)/, msg => handleCampaignStatus(bot, msg));
   // Nous avons désactivé l'ancien gestionnaire de langue qui causait des conflits
   // bot.onText(/\/(language|langue)(.*)/, msg => handleLanguage(bot, msg));
   
@@ -1021,6 +1054,11 @@ function registerCommands(bot) {
     { command: "sendtoken", description: "Envoyer des tokens à un autre compte" },
     { command: "history", description: "Consulter l'historique de vos transactions" },
     { command: "mint", description: "Créer un nouveau token" },
+    { command: "airdrop", description: "Créer un airdrop de tokens" },
+    { command: "campaign", description: "Créer une campagne de distribution" },
+    { command: "claim", description: "Réclamer des tokens d'une campagne" },
+    { command: "claimairdrop", description: "Réclamer des tokens d'un airdrop" },
+    { command: "mycampaigns", description: "Afficher vos campagnes" },
     { command: "setlang", description: "Changer la langue (FR/EN)" },
     { command: "help", description: "Afficher de l'aide" },
   ]);
