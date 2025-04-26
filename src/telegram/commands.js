@@ -973,8 +973,14 @@ To choose English: /language en
 
 function registerCommands(bot) {
   // Define command handlers
-  bot.onText(/\/start/, msg => handleStart(bot, msg));
-  bot.onText(/\/help/, msg => handleHelp(bot, msg));
+  // Supprimé le gestionnaire de /start car il est déjà dans language/handler.js
+  // ce qui causait un double affichage des menus
+  // bot.onText(/\/start/, msg => handleStart(bot, msg));
+  
+  // Supprimé le gestionnaire de /help car il est déjà dans language/handler.js
+  // ce qui pourrait causer des problèmes similaires
+  // bot.onText(/\/help/, msg => handleHelp(bot, msg));
+  
   bot.onText(/\/createwallet/, msg => handleCreateWallet(bot, msg));
   bot.onText(/\/balance/, msg => handleBalance(bot, msg));
   bot.onText(/\/send(.*)/, msg => handleSend(bot, msg));
