@@ -209,6 +209,7 @@ const initializeLanguageHandler = (bot) => {
       }
     }
   });
+};
 
 module.exports = {
   initializeLanguageHandler,
