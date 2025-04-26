@@ -42,8 +42,9 @@ const CLAIM_STATES = {
   NONE: 'none_claim'
 };
 
-// État des utilisateurs en conversation
-const userState = new Map();
+// On va partager l'état des utilisateurs avec le module principal
+// pour éviter les problèmes de synchronisation entre les différents gestionnaires
+let userState;
 
 /**
  * Gestionnaire de la commande /airdrop
@@ -785,6 +786,15 @@ async function handleAirdropConversation(bot, msg) {
   return false;
 }
 
+/**
+ * Initialise le module avec l'état partagé des utilisateurs
+ * @param {Map} sharedUserState - Map d'état des utilisateurs partagée
+ */
+function initializeWithSharedState(sharedUserState) {
+  userState = sharedUserState;
+  console.log('État des utilisateurs partagé initialisé dans airdrop-commands.js');
+}
+
 module.exports = {
   handleAirdrop,
   handleCampaign,
@@ -796,5 +806,6 @@ module.exports = {
   handleAirdropConversation,
   AIRDROP_STATES,
   CAMPAIGN_STATES,
-  CLAIM_STATES
+  CLAIM_STATES,
+  initializeWithSharedState
 };
