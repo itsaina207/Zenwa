@@ -280,10 +280,108 @@ async function getUserTokens(userId) {
   }
 }
 
+/**
+ * Vérifier si un token est associé à un compte
+ * @param {string} accountId - ID du compte Hedera
+ * @param {string} tokenId - ID du token à vérifier
+ * @returns {Promise<boolean>} True si le token est associé, false sinon
+ */
+async function isTokenAssociated(accountId, tokenId) {
+  try {
+    const client = getClient();
+    
+    // Vérifier si le compte est associé au token
+    const balanceQuery = new AccountBalanceQuery()
+      .setAccountId(accountId);
+    
+    const accountBalance = await balanceQuery.execute(client);
+    const tokens = accountBalance.tokens;
+    const isAssociated = tokens.get(tokenId) !== undefined;
+    
+    return isAssociated;
+  } catch (error) {
+    console.error(`Erreur lors de la vérification de l'association du token: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * Associer un token à un compte
+ * @param {string} userId - ID Telegram de l'utilisateur qui possède le compte
+ * @param {string} tokenId - ID du token à associer
+ * @returns {Promise<object>} Résultat de l'opération
+ */
+async function associateToken(userId, tokenId) {
+  try {
+    const client = getClient();
+    const wallet = await getWalletByUserId(userId);
+    
+    if (!wallet) {
+      return {
+        success: false,
+        message: 'Aucun wallet trouvé. Créez-en un d\'abord avec /createwallet',
+      };
+    }
+    
+    // Vérifier si le token est déjà associé
+    const alreadyAssociated = await isTokenAssociated(wallet.accountId, tokenId);
+    if (alreadyAssociated) {
+      return {
+        success: true,
+        message: `Votre compte est déjà associé au token ${tokenId}`,
+        tokenId,
+        accountId: wallet.accountId,
+        alreadyAssociated: true
+      };
+    }
+    
+    // Création de la transaction d'association
+    const transaction = await new TokenAssociateTransaction()
+      .setAccountId(wallet.accountId)
+      .setTokenIds([tokenId])
+      .freezeWith(client);
+    
+    // Signer avec la clé privée du compte
+    const signedTx = await transaction.sign(
+      PrivateKey.fromString(wallet.privateKey)
+    );
+    
+    // Exécuter la transaction
+    const txResponse = await signedTx.execute(client);
+    const receipt = await txResponse.getReceipt(client);
+    
+    if (receipt.status.toString() !== 'SUCCESS') {
+      return {
+        success: false,
+        message: `L'association du token a échoué avec le statut: ${receipt.status.toString()}`,
+      };
+    }
+    
+    const txId = txResponse.transactionId.toString();
+    
+    return {
+      success: true,
+      message: `Le token ${tokenId} a été associé avec succès à votre compte`,
+      tokenId,
+      accountId: wallet.accountId,
+      transactionId: txId,
+      explorerUrl: `https://hashscan.io/${HEDERA_NETWORK}/tx/${txId}`,
+    };
+  } catch (error) {
+    console.error(`Erreur lors de l'association du token: ${error.message}`);
+    return {
+      success: false,
+      message: `Échec de l'association du token: ${error.message}`,
+    };
+  }
+}
+
 module.exports = {
   mintToken,
   sendToken,
   storeTokenInfo,
   getTokenIdByNameOrSymbol,
-  getUserTokens
+  getUserTokens,
+  associateToken,
+  isTokenAssociated
 };
