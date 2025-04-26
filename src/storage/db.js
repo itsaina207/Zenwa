@@ -20,6 +20,36 @@ const pool = new Pool({
   try {
     const client = await pool.connect();
     console.log('Successfully connected to PostgreSQL database');
+    
+    // Créer la table pour les airdrops si elle n'existe pas déjà
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS airdrops (
+        id SERIAL PRIMARY KEY,
+        creator_id TEXT NOT NULL,
+        token_id TEXT NOT NULL,
+        token_name TEXT,
+        transaction_id TEXT NOT NULL,
+        pending_airdrop_id TEXT,
+        total_amount BIGINT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'ACTIVE'
+      )
+    `);
+    
+    // Créer la table pour les destinataires d'airdrop si elle n'existe pas déjà
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS airdrop_recipients (
+        id SERIAL PRIMARY KEY,
+        airdrop_id INTEGER REFERENCES airdrops(id),
+        recipient_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        amount BIGINT NOT NULL,
+        claimed BOOLEAN DEFAULT FALSE,
+        claimed_at TIMESTAMP
+      )
+    `);
+    
+    console.log('Database tables initialized successfully');
     client.release();
   } catch (err) {
     console.error('Error connecting to database:', err);
