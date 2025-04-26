@@ -18,9 +18,10 @@ const { HEDERA_NETWORK } = require('../config');
 /**
  * Create a new Hedera account for a user
  * @param {string} userId - Telegram user ID
+ * @param {string} [username] - Telegram username (optional)
  * @returns {Promise<object>} Account information
  */
-async function createAccount(userId) {
+async function createAccount(userId, username) {
   try {
     const client = getClient();
     
@@ -34,6 +35,7 @@ async function createAccount(userId) {
         evmAddress: existingWallet.evmAddress,
         privateKey: existingWallet.privateKey,
         publicKey: existingWallet.publicKey,
+        username: existingWallet.username || username,
       };
     }
 
@@ -70,6 +72,7 @@ async function createAccount(userId) {
       privateKey: accountPrivateKey.toString(),
       publicKey: accountPublicKey.toString(),
       evmAddress,
+      username: username || null, // Store the username if provided
       created: new Date().toISOString(),
     };
     
