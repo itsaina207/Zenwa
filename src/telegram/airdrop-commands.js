@@ -415,8 +415,8 @@ async function handleAirdropConversation(bot, msg) {
     if (unresolved.length > 0) {
       const unresolvedIds = unresolved.map(r => r.id).join(', ');
       const errorMsg = userLang === 'fr'
-        ? `Impossible de résoudre les identifiants suivants: ${unresolvedIds}. Veuillez vérifier et réessayer.`
-        : `Unable to resolve the following identifiers: ${unresolvedIds}. Please check and try again.`;
+        ? `Impossible de résoudre les identifiants suivants: ${unresolvedIds}.\n\n⚠️ Ces utilisateurs n'ont pas encore créé de portefeuille Hedera. Pour recevoir un airdrop, chaque utilisateur doit d'abord utiliser la commande /createwallet.\n\nVeuillez vérifier les identifiants ou demander aux utilisateurs de créer leur portefeuille avant de réessayer.`
+        : `Unable to resolve the following identifiers: ${unresolvedIds}.\n\n⚠️ These users haven't created a Hedera wallet yet. To receive an airdrop, each user must first use the /createwallet command.\n\nPlease check the identifiers or ask users to create their wallet before trying again.`;
         
       await bot.sendMessage(chatId, errorMsg);
       return true;
