@@ -30,6 +30,7 @@ async function resolveToAccountId(identifier) {
     
     // Si l'identifiant commence par @, le supprimer
     let telegramId = identifier;
+    let originalId = identifier; // Garder l'identifiant original pour la recherche
     if (telegramId.startsWith('@')) {
       telegramId = telegramId.substring(1);
       console.log(`Identifiant modifié sans @: ${telegramId}`);
@@ -44,25 +45,59 @@ async function resolveToAccountId(identifier) {
     if (!wallet) {
       console.log(`Aucun wallet trouvé pour l'ID exact ${telegramId}, recherche dans la base de données...`);
       
-      // Si aucun résultat direct, essayer de faire une recherche plus large dans la base
-      // Attention: Cette méthode pourrait potentiellement trouver plusieurs correspondances
+      // Si aucun résultat direct, essayer de consulter les informations du bot Telegram
       try {
-        // Vérifier si nous pouvons trouver un utilisateur dont le nom ressemble à l'identifiant
-        const sql = "SELECT * FROM user_wallets WHERE user_id ILIKE $1 LIMIT 1";
-        const result = await query(sql, [`%${telegramId}%`]);
+        // Vérification des données dans le bot
+        const telegramBot = require('../telegram/bot').getBot();
         
-        if (result && result.rows && result.rows.length > 0) {
-          console.log(`Trouvé un wallet par recherche partielle: ${result.rows[0].user_id}`);
-          wallet = {
-            userId: result.rows[0].user_id,
-            accountId: result.rows[0].account_id,
-            privateKey: result.rows[0].private_key,
-            publicKey: result.rows[0].public_key,
-            evmAddress: result.rows[0].evm_address
-          };
+        // Tenter d'obtenir des informations sur le chat en utilisant le nom d'utilisateur
+        try {
+          console.log(`Tentative de résolution via l'API Telegram pour: ${telegramId}`);
+          const chatInfo = await telegramBot.getChat(`@${telegramId}`);
+          
+          if (chatInfo && chatInfo.id) {
+            console.log(`ID Telegram résolu via l'API: ${chatInfo.id}`);
+            // Vérifier si cet ID existe dans la base de données
+            const resolvedWallet = await getWalletByUserId(chatInfo.id.toString());
+            
+            if (resolvedWallet) {
+              console.log(`Wallet trouvé pour l'ID résolu ${chatInfo.id}`);
+              return resolvedWallet.accountId;
+            }
+          }
+        } catch (telegramError) {
+          console.log(`Impossible de résoudre via l'API Telegram: ${telegramError.message}`);
+        }
+        
+        // Si toujours aucun résultat, faire une recherche plus large dans la base
+        // Recherche avec LIKE pour trouver des correspondances partielles
+        const searchPatterns = [
+          telegramId,                  // Nom d'utilisateur sans @
+          `%${telegramId}%`,           // Recherche partielle sur le nom d'utilisateur
+          originalId,                  // Identifiant original (avec @ si présent)
+          `%${originalId}%`            // Recherche partielle sur l'identifiant original
+        ];
+        
+        // Essayer chaque pattern de recherche
+        for (const pattern of searchPatterns) {
+          console.log(`Essai de recherche avec pattern: ${pattern}`);
+          const sql = "SELECT * FROM user_wallets WHERE user_id::text ILIKE $1 LIMIT 1";
+          const result = await query(sql, [pattern]);
+          
+          if (result && result.rows && result.rows.length > 0) {
+            console.log(`Trouvé un wallet par recherche avec pattern "${pattern}": ${result.rows[0].user_id}`);
+            wallet = {
+              userId: result.rows[0].user_id,
+              accountId: result.rows[0].account_id,
+              privateKey: result.rows[0].private_key,
+              publicKey: result.rows[0].public_key,
+              evmAddress: result.rows[0].evm_address
+            };
+            break;
+          }
         }
       } catch (dbError) {
-        console.error('Erreur lors de la recherche de wallet par nom:', dbError);
+        console.error('Erreur lors de la recherche avancée de wallet:', dbError);
       }
     }
     
