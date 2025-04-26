@@ -10,8 +10,8 @@ const {
   PendingAirdropId
 } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
-const { getAccountInfo } = require('./accounts');
-const { addExplorerLinks } = require('../utils/explorers');
+const { getAccountInfo } = require('./account');
+const { getExplorerUrls } = require('../utils/explorer');
 
 /**
  * Créer un airdrop de tokens pour plusieurs destinataires
@@ -88,7 +88,15 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
     };
     
     // Ajouter les liens vers les explorateurs
-    return addExplorerLinks(result, txId);
+    try {
+      const explorerUrls = getExplorerUrls(txId, 'transaction');
+      result.explorerUrl = explorerUrls.hederaExplorer;
+      result.hashscanUrl = explorerUrls.hashScan;
+    } catch (error) {
+      console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+    }
+    
+    return result;
     
   } catch (error) {
     console.error('Erreur lors de la création de l\'airdrop:', error);
@@ -155,7 +163,15 @@ async function claimTokenAirdrop(userId, pendingAirdropId) {
     };
     
     // Ajouter les liens vers les explorateurs
-    return addExplorerLinks(result, txId);
+    try {
+      const explorerUrls = getExplorerUrls(txId, 'transaction');
+      result.explorerUrl = explorerUrls.hederaExplorer;
+      result.hashscanUrl = explorerUrls.hashScan;
+    } catch (error) {
+      console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+    }
+    
+    return result;
     
   } catch (error) {
     console.error('Erreur lors de la réclamation de l\'airdrop:', error);

@@ -1039,6 +1039,17 @@ function registerCommands(bot) {
           handleMintConversation(bot, msg);
           return;
         }
+        
+        // Vérifier si nous sommes dans une conversation d'airdrop, de campagne ou de réclamation
+        if (userInfo.state && 
+            (userInfo.state.toString().startsWith('waiting_for_') || 
+             Object.values(AIRDROP_STATES).includes(userInfo.state) || 
+             Object.values(CAMPAIGN_STATES).includes(userInfo.state) ||
+             Object.values(CLAIM_STATES).includes(userInfo.state))) {
+          // Si l'utilisateur est dans une conversation d'airdrop, continuer celle-ci
+          const handled = await handleAirdropConversation(bot, msg);
+          if (handled) return;
+        }
       }
       
       // Si l'utilisateur n'est pas dans une conversation, utiliser OpenAI pour comprendre l'intention
