@@ -51,9 +51,12 @@ async function handleButtonAction(callbackQuery) {
       return true;
     }
     
-    const userInfo = userState.get(userId) || { state: 'none', tokenId: null, recipients: [] };
+    const userInfo = userState.get(userId) || { state: 'none', airdropInfo: { tokenId: null, recipients: [] } };
     
-    if (userInfo.tokenId) {
+    // Accéder aux données à partir de airdropInfo
+    const airdropInfo = userInfo.airdropInfo || { tokenId: null, recipients: [] };
+    
+    if (airdropInfo.tokenId) {
       // Mettre l'état sur attente de destinataire
       userInfo.state = AIRDROP_STATES.WAITING_FOR_RECIPIENTS;
       userState.set(userId, userInfo);
@@ -88,10 +91,14 @@ async function handleButtonAction(callbackQuery) {
       return true;
     }
     
-    const userInfo = userState.get(userId) || { state: 'none', tokenId: null, recipients: [] };
+    const userInfo = userState.get(userId) || { state: 'none', airdropInfo: { recipients: [], tokenId: null } };
     console.log('userInfo dans airdrop_finalize:', JSON.stringify(userInfo, null, 2));
     
-    if (userInfo.recipients && userInfo.recipients.length > 0 && userInfo.tokenId) {
+    // Accéder aux données à partir de airdropInfo
+    const airdropInfo = userInfo.airdropInfo || { recipients: [], tokenId: null };
+    console.log('airdropInfo extraite:', JSON.stringify(airdropInfo, null, 2));
+    
+    if (airdropInfo.recipients && airdropInfo.recipients.length > 0 && airdropInfo.tokenId) {
       try {
         // Notifier l'utilisateur que le processus a commencé
         const userLang = getUserLanguage(userId);
@@ -103,8 +110,8 @@ async function handleButtonAction(callbackQuery) {
         );
         
         // Exécuter l'airdrop
-        console.log('Création de l\'airdrop avec:', {userId, tokenId: userInfo.tokenId, recipients: userInfo.recipients});
-        const result = await createTokenAirdrop(userId, userInfo.tokenId, userInfo.recipients);
+        console.log('Création de l\'airdrop avec:', {userId, tokenId: airdropInfo.tokenId, recipients: airdropInfo.recipients});
+        const result = await createTokenAirdrop(userId, airdropInfo.tokenId, airdropInfo.recipients);
         console.log('Résultat de createTokenAirdrop:', result);
         
         // Traiter le résultat
