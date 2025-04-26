@@ -224,6 +224,56 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       };
     }
     
+    // Vérifier l'association du token pour chaque destinataire
+    const { TokenAssociateTransaction } = require('@hashgraph/sdk');
+    for (const recipient of recipients) {
+      try {
+        // Vérifier si le compte du destinataire est associé au token
+        const { AccountBalanceQuery } = require('@hashgraph/sdk');
+        console.log(`Vérification de l'association du token ${tokenId} pour le compte ${recipient.accountId}`);
+        
+        const balanceQuery = new AccountBalanceQuery()
+          .setAccountId(recipient.accountId);
+        
+        const accountBalance = await balanceQuery.execute(client);
+        const tokens = accountBalance.tokens;
+        const isAssociated = tokens.get(tokenId) !== undefined;
+        
+        if (!isAssociated) {
+          console.log(`Le compte ${recipient.accountId} n'est pas associé au token ${tokenId}. Tentative d'association...`);
+          
+          // Récupérer les informations du compte destinataire pour obtenir sa clé privée
+          // Cette étape n'est possible que parce que nous sommes dans un portefeuille custodial
+          // où nous avons accès aux clés privées des utilisateurs
+          const recipientAccount = await getAccountInfo(recipient.originalId);
+          if (!recipientAccount.success) {
+            console.error(`Impossible de récupérer les informations du compte pour ${recipient.accountId}: ${recipientAccount.message}`);
+            continue; // Passer au destinataire suivant
+          }
+          
+          // Créer et soumettre une transaction d'association
+          console.log(`Association du token ${tokenId} pour le compte ${recipient.accountId}`);
+          const associateTx = await new TokenAssociateTransaction()
+            .setAccountId(recipient.accountId)
+            .setTokenIds([tokenId])
+            .freezeWith(client);
+          
+          const recipientPrivateKey = PrivateKey.fromString(recipientAccount.privateKey);
+          const signedAssociateTx = await associateTx.sign(recipientPrivateKey);
+          const associateResponse = await signedAssociateTx.execute(client);
+          
+          // Attendre la confirmation de l'association
+          const associateReceipt = await associateResponse.getReceipt(client);
+          console.log(`Résultat de l'association: ${associateReceipt.status.toString()}`);
+        } else {
+          console.log(`Le compte ${recipient.accountId} est déjà associé au token ${tokenId}`);
+        }
+      } catch (error) {
+        console.error(`Erreur lors de la vérification/association du token pour ${recipient.accountId}:`, error);
+        // Continuer avec les autres destinataires même si celui-ci échoue
+      }
+    }
+    
     // Créer la transaction d'airdrop
     let txAirdrop = new TokenAirdropTransaction();
     
@@ -233,6 +283,7 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
     
     // Ajouter chaque destinataire avec son montant
     for (const recipient of recipients) {
+      console.log(`Ajout du transfert de ${recipient.amount} tokens du token ${tokenId} vers ${recipient.accountId}`);
       txAirdrop = txAirdrop.addTokenTransfer(tokenIdObj, recipient.accountId, recipient.amount);
     }
     
