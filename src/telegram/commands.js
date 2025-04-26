@@ -1068,10 +1068,8 @@ function registerCommands(bot) {
     { command: "history", description: "Consulter l'historique de vos transactions" },
     { command: "mint", description: "Créer un nouveau token" },
     { command: "airdrop", description: "Créer un airdrop de tokens" },
-    { command: "campaign", description: "Créer une campagne de distribution" },
-    { command: "claim", description: "Réclamer des tokens d'une campagne" },
+    { command: "claim", description: "Réclamer des tokens" },
     { command: "claimairdrop", description: "Réclamer des tokens d'un airdrop" },
-    { command: "mycampaigns", description: "Afficher vos campagnes" },
     { command: "setlang", description: "Changer la langue (FR/EN)" },
     { command: "help", description: "Afficher de l'aide" },
   ]);
@@ -1079,4 +1077,15 @@ function registerCommands(bot) {
 
 module.exports = {
   registerCommands,
+  handleStart,
+  handleHelp,
+  handleCreateWallet,
+  handleBalance,
+  handleSend,
+  handleSendToken,
+  handleHistory,
+  handleMint,
+  handleMintConversation,
+  handleSendConversation,
+  handleNaturalLanguage
 };
