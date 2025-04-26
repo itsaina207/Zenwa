@@ -19,15 +19,26 @@ const { HEDERA_NETWORK } = require('../config');
  * Create a new Hedera account for a user
  * @param {string} userId - Telegram user ID
  * @param {string} [username] - Telegram username (optional)
+ * @param {string} [phoneNumber] - User's phone number (optional)
  * @returns {Promise<object>} Account information
  */
-async function createAccount(userId, username) {
+async function createAccount(userId, username, phoneNumber) {
   try {
     const client = getClient();
     
     // Check if user already has an account
     const existingWallet = await getWalletByUserId(userId);
     if (existingWallet) {
+      // Si un numéro de téléphone est fourni et que le portefeuille n'en a pas, mettre à jour
+      if (phoneNumber && !existingWallet.phoneNumber) {
+        const { query } = require('../storage/db');
+        await query(
+          'UPDATE user_wallets SET phone_number = $1 WHERE user_id = $2',
+          [phoneNumber, userId]
+        );
+        console.log(`Numéro de téléphone ${phoneNumber} ajouté au wallet de l'utilisateur ${userId}`);
+      }
+      
       return {
         success: true,
         message: 'Vous avez déjà un wallet',
@@ -36,6 +47,7 @@ async function createAccount(userId, username) {
         privateKey: existingWallet.privateKey,
         publicKey: existingWallet.publicKey,
         username: existingWallet.username || username,
+        phoneNumber: phoneNumber || existingWallet.phoneNumber,
       };
     }
 
@@ -73,6 +85,7 @@ async function createAccount(userId, username) {
       publicKey: accountPublicKey.toString(),
       evmAddress,
       username: username || null, // Store the username if provided
+      phoneNumber: phoneNumber || null, // Store the phone number if provided
       created: new Date().toISOString(),
     };
     

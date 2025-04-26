@@ -68,13 +68,65 @@ async function handleStart(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
   const firstName = msg.from.first_name || 'l\'ami';
+  const username = msg.from.username || null;
   
   console.log(`Start command from user ${userId}`);
   
-  // Utiliser uniquement la fonction sendHelpWithButtons du gestionnaire de langue pour afficher les boutons
-  // sans envoyer de message texte supplémentaire
-  const { sendHelpWithButtons } = require('./language/handler');
-  await sendHelpWithButtons(bot, userId, chatId, `Bonjour ${firstName} ! 👋`);
+  // Vérifier si l'utilisateur a déjà un portefeuille
+  const { getWalletByUserId } = require('../storage/userWallets');
+  const wallet = await getWalletByUserId(userId);
+  
+  if (wallet && wallet.phoneNumber) {
+    // Utilisateur existant avec numéro de téléphone
+    console.log(`Utilisateur ${userId} déjà enregistré avec le numéro ${wallet.phoneNumber}`);
+    
+    // Utiliser la fonction sendHelpWithButtons du gestionnaire de langue
+    const { sendHelpWithButtons } = require('./language/handler');
+    await sendHelpWithButtons(bot, userId, chatId, `Rebonjour ${firstName} ! 👋\nVotre numéro de téléphone est déjà enregistré.`);
+    return;
+  }
+  
+  if (wallet && !wallet.phoneNumber) {
+    // Utilisateur existant sans numéro de téléphone, demander le numéro
+    userState.set(userId, {
+      state: START_STATES.WAITING_FOR_PHONE,
+      chatId: chatId,
+      userData: {
+        username,
+        accountId: wallet.accountId
+      }
+    });
+    
+    await bot.sendMessage(
+      chatId,
+      `Bonjour ${firstName} ! 👋\n\nPour améliorer l'identification sur notre service, veuillez entrer votre numéro de téléphone au format 0XXXXXXXXX ou +336XXXXXXXX:`,
+      { 
+        reply_markup: { 
+          force_reply: true 
+        } 
+      }
+    );
+    return;
+  }
+  
+  // Nouvel utilisateur, demander le numéro de téléphone avant de créer un portefeuille
+  userState.set(userId, {
+    state: START_STATES.WAITING_FOR_PHONE,
+    chatId: chatId,
+    userData: {
+      username
+    }
+  });
+  
+  await bot.sendMessage(
+    chatId,
+    `Bonjour ${firstName} ! 👋\n\nPour créer votre portefeuille Hedera, veuillez d'abord entrer votre numéro de téléphone au format 0XXXXXXXXX ou +336XXXXXXXX:`,
+    { 
+      reply_markup: { 
+        force_reply: true 
+      } 
+    }
+  );
 }
 
 /**
