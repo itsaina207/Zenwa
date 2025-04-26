@@ -145,26 +145,39 @@ Vous pouvez également me poser des questions en langage naturel comme :
 const sendHelpWithButtons = async (bot, userId, chatId) => {
   try {
     const lang = getUserLanguage(userId);
+    console.log(`Generating help menu for user ${userId} with language: ${lang}`);
     
     // Créer les boutons interactifs en fonction de la langue
+    // Les étiquettes sont traduites individuellement pour déboguer
+    const walletLabelText = translations[lang]?.walletLabel || translations.en.walletLabel;
+    const balanceLabelText = translations[lang]?.balanceLabel || translations.en.balanceLabel;
+    const sendLabelText = translations[lang]?.sendLabel || translations.en.sendLabel;
+    const sendTokenLabelText = translations[lang]?.sendTokenLabel || translations.en.sendTokenLabel;
+    const historyLabelText = translations[lang]?.historyLabel || translations.en.historyLabel;
+    const mintLabelText = translations[lang]?.mintLabel || translations.en.mintLabel;
+    const langLabelText = translations[lang]?.languageLabel || translations.en.languageLabel;
+    const fullHelpLabelText = translations[lang]?.fullHelpLabel || translations.en.fullHelpLabel;
+    
+    console.log(`Menu labels for ${lang}: wallet="${walletLabelText}", balance="${balanceLabelText}"`);
+    
     const options = {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: translate(userId, 'walletLabel'), callback_data: 'cmd_wallet' },
-            { text: translate(userId, 'balanceLabel'), callback_data: 'cmd_balance' }
+            { text: walletLabelText, callback_data: 'cmd_wallet' },
+            { text: balanceLabelText, callback_data: 'cmd_balance' }
           ],
           [
-            { text: translate(userId, 'sendLabel'), callback_data: 'cmd_send' },
-            { text: translate(userId, 'sendTokenLabel'), callback_data: 'cmd_sendtoken' }
+            { text: sendLabelText, callback_data: 'cmd_send' },
+            { text: sendTokenLabelText, callback_data: 'cmd_sendtoken' }
           ],
           [
-            { text: translate(userId, 'historyLabel'), callback_data: 'cmd_history' },
-            { text: translate(userId, 'mintLabel'), callback_data: 'cmd_mint' }
+            { text: historyLabelText, callback_data: 'cmd_history' },
+            { text: mintLabelText, callback_data: 'cmd_mint' }
           ],
           [
-            { text: translate(userId, 'languageLabel'), callback_data: 'cmd_language' },
-            { text: translate(userId, 'fullHelpLabel'), callback_data: 'cmd_fullhelp' }
+            { text: langLabelText, callback_data: 'cmd_language' },
+            { text: fullHelpLabelText, callback_data: 'cmd_fullhelp' }
           ]
         ]
       }
@@ -192,6 +205,22 @@ const translate = (userId, key) => {
  */
 const initializeLanguageHandler = (bot) => {
   console.log('Initializing simplified language handler with interactive buttons');
+  
+  // Ajoutons un gestionnaire pour la commande /help qui affiche le menu avec boutons
+  bot.onText(/^\/help$/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id.toString();
+    console.log(`Help command from user ${userId}`);
+    await sendHelpWithButtons(bot, userId, chatId);
+  });
+  
+  // Ajoutons un gestionnaire pour la commande /start qui affiche le menu avec boutons
+  bot.onText(/^\/start$/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id.toString();
+    console.log(`Start command from user ${userId}`);
+    await sendHelpWithButtons(bot, userId, chatId);
+  });
   
   // Gestionnaire pour tous les boutons interactifs
   bot.on('callback_query', async (callbackQuery) => {
@@ -355,5 +384,6 @@ module.exports = {
   initializeLanguageHandler,
   getUserLanguage,
   setUserLanguage,
-  translate
+  translate,
+  sendHelpWithButtons
 };
