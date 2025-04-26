@@ -5,6 +5,34 @@
 
 const { query } = require('./db');
 
+// Initialize the database table if it doesn't exist
+async function initializeDatabase() {
+  try {
+    // Create the user_wallets table if it doesn't exist
+    await query(`
+      CREATE TABLE IF NOT EXISTS user_wallets (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL UNIQUE,
+        account_id TEXT NOT NULL,
+        private_key TEXT NOT NULL,
+        public_key TEXT NOT NULL,
+        evm_address TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('Database tables initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    return false;
+  }
+}
+
+// Initialize database tables on module load
+initializeDatabase().catch(err => {
+  console.error('Failed to initialize database tables:', err);
+});
+
 /**
  * Store a wallet for a user
  * @param {object} wallet - Wallet object
