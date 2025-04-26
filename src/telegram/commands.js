@@ -4,7 +4,7 @@
 
 const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
-const { mintToken, sendToken } = require('../hedera/tokens');
+const { mintToken, sendToken, associateToken } = require('../hedera/tokens');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera/topic-management');
 const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
 const { 
@@ -56,6 +56,12 @@ const MINT_STATES = {
   WAITING_FOR_NAME: 'WAITING_FOR_NAME',
   WAITING_FOR_SYMBOL: 'WAITING_FOR_SYMBOL',
   WAITING_FOR_SUPPLY: 'WAITING_FOR_SUPPLY',
+  NONE: 'NONE'
+};
+
+// Possible states for the /associate command
+const ASSOCIATE_STATES = {
+  WAITING_FOR_TOKEN_ID: 'WAITING_FOR_TOKEN_ID',
   NONE: 'NONE'
 };
 
@@ -1260,6 +1266,120 @@ Utilisez /balance pour vérifier votre solde.
   }
 }
 
+/**
+ * Handles the /associate command
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ */
+async function handleAssociate(bot, msg) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
+  const args = msg.text.split(' ').slice(1);
+  
+  // Si un token ID est fourni directement en argument
+  if (args.length > 0) {
+    const tokenId = args[0];
+    
+    await bot.sendMessage(chatId, `Association du token ${tokenId} en cours...`);
+    
+    const result = await associateToken(userId, tokenId);
+    
+    if (result.success) {
+      let message;
+      if (result.alreadyAssociated) {
+        message = `ℹ️ ${result.message}`;
+      } else {
+        message = `
+✅ ${result.message}
+
+*Détails de l'association :*
+Token ID: \`${result.tokenId}\`
+Compte: \`${result.accountId}\`
+
+${result.transactionId ? `[Voir la transaction dans l'explorateur](${result.explorerUrl})` : ''}
+
+Vous pouvez maintenant recevoir ce token dans votre portefeuille.
+`;
+      }
+      
+      await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } else {
+      await bot.sendMessage(chatId, `❌ ${result.message}`);
+    }
+    return;
+  }
+  
+  // Sinon, démarrer le processus interactif d'association de token
+  userState.set(userId, {
+    state: ASSOCIATE_STATES.WAITING_FOR_TOKEN_ID,
+    chatId: chatId
+  });
+  
+  // Demander l'ID du token à associer
+  await bot.sendMessage(
+    chatId, 
+    "Quel token souhaitez-vous associer à votre compte? Entrez l'ID du token (format: 0.0.xxxx)",
+    { reply_markup: { force_reply: true } }
+  );
+}
+
+/**
+ * Handle conversation steps for associating a token
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ */
+async function handleAssociateConversation(bot, msg) {
+  const userId = msg.from.id.toString();
+  const userInfo = userState.get(userId);
+  const msgChatId = msg.chat.id;
+  const text = msg.text.trim();
+  
+  // Vérifier si l'utilisateur est en cours de processus d'association de token
+  if (userInfo && userInfo.state === ASSOCIATE_STATES.WAITING_FOR_TOKEN_ID) {
+    const currentChatId = userInfo.chatId;
+    
+    // Valider le format du tokenId (simple vérification)
+    if (!text.match(/^\d+\.\d+\.\d+$/)) {
+      await bot.sendMessage(
+        currentChatId,
+        "Format de Token ID invalide. Le format attendu est 0.0.xxxx. Veuillez réessayer :"
+      );
+      return;
+    }
+    
+    // Réinitialiser l'état de l'utilisateur
+    userState.set(userId, { state: ASSOCIATE_STATES.NONE });
+    
+    // Associer le token
+    await bot.sendMessage(currentChatId, `Association du token ${text} en cours...`);
+    
+    const result = await associateToken(userId, text);
+    
+    if (result.success) {
+      let message;
+      if (result.alreadyAssociated) {
+        message = `ℹ️ ${result.message}`;
+      } else {
+        message = `
+✅ ${result.message}
+
+*Détails de l'association :*
+Token ID: \`${result.tokenId}\`
+Compte: \`${result.accountId}\`
+
+${result.transactionId ? `[Voir la transaction dans l'explorateur](${result.explorerUrl})` : ''}
+
+Vous pouvez maintenant recevoir ce token dans votre portefeuille.
+`;
+      }
+      
+      await bot.sendMessage(currentChatId, message, { parse_mode: 'Markdown' });
+    } else {
+      await bot.sendMessage(currentChatId, `❌ ${result.message}`);
+    }
+  }
+}
+
 module.exports = {
   registerCommands,
   handleStart,
@@ -1274,6 +1394,9 @@ module.exports = {
   handleSendConversation,
   handleNaturalLanguage,
   handlePhoneNumberConversation,
+  // Fonctions d'association de token
+  handleAssociate,
+  handleAssociateConversation,
   // Exporter les fonctions d'airdrop pour qu'elles soient disponibles ailleurs
   handleAirdrop,
   handleClaimAirdrop,
@@ -1282,6 +1405,7 @@ module.exports = {
   START_STATES,
   SEND_STATES,
   MINT_STATES,
+  ASSOCIATE_STATES,
   AIRDROP_STATES,
   CAMPAIGN_STATES,
   CLAIM_STATES,
