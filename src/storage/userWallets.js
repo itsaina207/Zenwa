@@ -48,14 +48,15 @@ async function storeWallet(wallet) {
     // Insert or update wallet data
     const sql = `
       INSERT INTO user_wallets 
-        (user_id, account_id, private_key, public_key, evm_address)
+        (user_id, account_id, private_key, public_key, evm_address, username)
       VALUES 
-        ($1, $2, $3, $4, $5)
+        ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (user_id) DO UPDATE SET
         account_id = $2,
         private_key = $3,
         public_key = $4,
-        evm_address = $5
+        evm_address = $5,
+        username = $6
       RETURNING id;
     `;
     
@@ -64,7 +65,8 @@ async function storeWallet(wallet) {
       wallet.accountId,
       wallet.privateKey,
       wallet.publicKey,
-      wallet.evmAddress || null
+      wallet.evmAddress || null,
+      wallet.username || null
     ];
     
     const result = await query(sql, values);
@@ -99,6 +101,7 @@ async function getWalletByUserId(userId) {
         privateKey: wallet.private_key,
         publicKey: wallet.public_key,
         evmAddress: wallet.evm_address,
+        username: wallet.username,
         created: wallet.created_at
       };
     }
@@ -106,6 +109,42 @@ async function getWalletByUserId(userId) {
     return null;
   } catch (error) {
     console.error('Error getting wallet by user ID:', error);
+    return null;
+  }
+}
+
+/**
+ * Get wallet by username
+ * @param {string} username - Telegram username (with or without @)
+ * @returns {Promise<object|null>} Wallet object or null if not found
+ */
+async function getWalletByUsername(username) {
+  try {
+    // Normalize username (remove @ if present)
+    let normalizedUsername = username;
+    if (normalizedUsername.startsWith('@')) {
+      normalizedUsername = normalizedUsername.substring(1);
+    }
+    
+    const sql = 'SELECT * FROM user_wallets WHERE username ILIKE $1';
+    const result = await query(sql, [normalizedUsername]);
+    
+    if (result.rows.length > 0) {
+      const wallet = result.rows[0];
+      return {
+        userId: wallet.user_id,
+        accountId: wallet.account_id,
+        privateKey: wallet.private_key,
+        publicKey: wallet.public_key,
+        evmAddress: wallet.evm_address,
+        username: wallet.username,
+        created: wallet.created_at
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting wallet by username:', error);
     return null;
   }
 }
@@ -182,6 +221,7 @@ async function getAllWallets() {
 module.exports = {
   storeWallet,
   getWalletByUserId,
+  getWalletByUsername,
   getWalletByAccountId,
   deleteWallet,
   getAllWallets,
