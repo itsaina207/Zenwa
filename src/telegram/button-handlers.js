@@ -112,7 +112,13 @@ async function handleButtonAction(callbackQuery) {
         // Exécuter l'airdrop
         console.log('Création de l\'airdrop avec:', {userId, tokenId: airdropInfo.tokenId, recipients: airdropInfo.recipients});
         const result = await createTokenAirdrop(userId, airdropInfo.tokenId, airdropInfo.recipients);
-        console.log('Résultat de createTokenAirdrop:', result);
+        console.log('Résultat de createTokenAirdrop:', JSON.stringify(result, null, 2));
+        // Log supplémentaire pour vérifier si l'ID de base de données a été créé
+        if (result.success && result.dbAirdropId) {
+          console.log(`✅ Airdrop enregistré en base de données avec l'ID ${result.dbAirdropId}`);
+        } else {
+          console.log(`❌ Aucun ID de base de données retourné pour l'airdrop`);
+        }
         
         // Traiter le résultat
         if (result.success) {
