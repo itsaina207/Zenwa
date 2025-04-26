@@ -495,6 +495,100 @@ const initializeLanguageHandler = (bot) => {
       const { handleClaim } = require('../airdrop-commands');
       await handleClaim(bot, { chat: { id: chatId }, from: callbackQuery.from, text: '/claim' });
     }
+    else if (action === 'airdrop_add_recipient') {
+      await bot.answerCallbackQuery(callbackQuery.id, { text: 'Ajout de destinataires' });
+      
+      // Redemander un destinataire sans réinitialiser les destinataires existants
+      const { userState, AIRDROP_STATES } = require('../airdrop-commands');
+      const userInfo = userState.get(userId) || { state: 'none', tokenId: null, recipients: [] };
+      
+      if (userInfo.tokenId) {
+        // Mettre l'état sur attente de destinataire
+        userInfo.state = AIRDROP_STATES.WAITING_FOR_RECIPIENTS;
+        userState.set(userId, userInfo);
+        
+        // Demander le nouveau destinataire
+        const userLang = getUserLanguage(userId);
+        await bot.sendMessage(
+          chatId,
+          userLang === 'fr' 
+            ? "Veuillez fournir les IDs des destinataires (format: 0.0.X pour les comptes Hedera ou l'ID numérique Telegram, @nom_utilisateur ou simplement le nom d'utilisateur).\n\nVous pouvez spécifier plusieurs destinataires en les séparant par des virgules.\n\nExemple: 0.0.1234, @utilisateur1, utilisateur2"
+            : "Please provide recipient IDs (format: 0.0.X for Hedera accounts or Telegram numeric ID, @username or just username).\n\nYou can specify multiple recipients by separating them with commas.\n\nExample: 0.0.1234, @user1, user2"
+        );
+      } else {
+        // Données d'airdrop invalides
+        await bot.sendMessage(
+          chatId,
+          getUserLanguage(userId) === 'fr'
+            ? "❌ Impossible d'ajouter des destinataires: l'airdrop n'a pas été correctement initialisé."
+            : "❌ Cannot add recipients: the airdrop was not properly initialized."
+        );
+      }
+    }
+    else if (action === 'airdrop_finalize') {
+      await bot.answerCallbackQuery(callbackQuery.id, { text: 'Finalisation de l\'airdrop...' });
+      
+      // Récupérer l'état et les données d'airdrop de l'utilisateur
+      const { userState, AIRDROP_STATES } = require('../airdrop-commands');
+      const userInfo = userState.get(userId) || { state: 'none', tokenId: null, recipients: [] };
+      
+      if (userInfo.recipients && userInfo.recipients.length > 0 && userInfo.tokenId) {
+        try {
+          // Notifier l'utilisateur que le processus a commencé
+          const userLang = getUserLanguage(userId);
+          await bot.sendMessage(
+            chatId, 
+            userLang === 'fr' ? 
+              "⏳ Finalisation de l'airdrop en cours..." : 
+              "⏳ Finalizing airdrop..."
+          );
+          
+          // Exécuter l'airdrop
+          const { createTokenAirdrop } = require('../hedera/airdrop');
+          const result = await createTokenAirdrop(userId, userInfo.tokenId, userInfo.recipients);
+          
+          // Traiter le résultat
+          if (result.success) {
+            const message = userLang === 'fr' ?
+              `✅ Airdrop réalisé avec succès!\n\n` +
+              `ID de transaction: ${result.transactionId}\n` +
+              `Explorer: ${result.explorerUrl || 'N/A'}\n` +
+              `HashScan: ${result.hashscanUrl || 'N/A'}` :
+              `✅ Airdrop successfully completed!\n\n` +
+              `Transaction ID: ${result.transactionId}\n` +
+              `Explorer: ${result.explorerUrl || 'N/A'}\n` +
+              `HashScan: ${result.hashscanUrl || 'N/A'}`;
+            
+            await bot.sendMessage(chatId, message);
+          } else {
+            const message = userLang === 'fr' ?
+              `❌ Erreur lors de la finalisation de l'airdrop: ${result.message}` :
+              `❌ Error finalizing airdrop: ${result.message}`;
+            
+            await bot.sendMessage(chatId, message);
+          }
+        } catch (error) {
+          console.error(`Error in airdrop_finalize:`, error);
+          await bot.sendMessage(
+            chatId, 
+            getUserLanguage(userId) === 'fr' ?
+              `❌ Une erreur s'est produite lors de la finalisation de l'airdrop: ${error.message}` :
+              `❌ An error occurred while finalizing the airdrop: ${error.message}`
+          );
+        }
+        
+        // Réinitialiser l'état de l'utilisateur
+        userState.delete(userId);
+      } else {
+        // Données d'airdrop invalides
+        await bot.sendMessage(
+          chatId, 
+          getUserLanguage(userId) === 'fr' ?
+            "❌ Impossible de finaliser l'airdrop: données incomplètes" :
+            "❌ Cannot finalize airdrop: incomplete data"
+        );
+      }
+    }
     else if (action === 'cmd_language') {
       await bot.answerCallbackQuery(callbackQuery.id);
       // Afficher les options de langue
