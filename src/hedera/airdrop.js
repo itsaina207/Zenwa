@@ -21,17 +21,57 @@ const { getWalletByUserId } = require('../storage/userWallets');
  */
 async function resolveToAccountId(identifier) {
   try {
+    console.log(`Essai de résolution de l'identifiant: "${identifier}"`);
     // Vérifier si c'est déjà un ID de compte Hedera (format: 0.0.X)
     if (/^\d+\.\d+\.\d+$/.test(identifier)) {
+      console.log(`Identifiant reconnu comme un account ID Hedera: ${identifier}`);
       return identifier;
     }
     
-    // Sinon, considérer comme un ID Telegram et chercher le compte associé
-    const wallet = await getWalletByUserId(identifier);
+    // Si l'identifiant commence par @, le supprimer
+    let telegramId = identifier;
+    if (telegramId.startsWith('@')) {
+      telegramId = telegramId.substring(1);
+      console.log(`Identifiant modifié sans @: ${telegramId}`);
+    }
+    
+    // Essayer de trouver le compte associé au nom d'utilisateur ou à l'ID Telegram
+    const { query } = require('../storage/db');
+    
+    // Essayer d'abord par user_id exact (pour les IDs numériques)
+    let wallet = await getWalletByUserId(telegramId);
+    
+    if (!wallet) {
+      console.log(`Aucun wallet trouvé pour l'ID exact ${telegramId}, recherche dans la base de données...`);
+      
+      // Si aucun résultat direct, essayer de faire une recherche plus large dans la base
+      // Attention: Cette méthode pourrait potentiellement trouver plusieurs correspondances
+      try {
+        // Vérifier si nous pouvons trouver un utilisateur dont le nom ressemble à l'identifiant
+        const sql = "SELECT * FROM user_wallets WHERE user_id ILIKE $1 LIMIT 1";
+        const result = await query(sql, [`%${telegramId}%`]);
+        
+        if (result && result.rows && result.rows.length > 0) {
+          console.log(`Trouvé un wallet par recherche partielle: ${result.rows[0].user_id}`);
+          wallet = {
+            userId: result.rows[0].user_id,
+            accountId: result.rows[0].account_id,
+            privateKey: result.rows[0].private_key,
+            publicKey: result.rows[0].public_key,
+            evmAddress: result.rows[0].evm_address
+          };
+        }
+      } catch (dbError) {
+        console.error('Erreur lors de la recherche de wallet par nom:', dbError);
+      }
+    }
+    
     if (wallet) {
+      console.log(`Wallet trouvé pour ${telegramId}, account ID: ${wallet.accountId}`);
       return wallet.accountId;
     }
     
+    console.log(`Aucun wallet trouvé pour ${telegramId}`);
     return null;
   } catch (error) {
     console.error('Erreur lors de la résolution de l\'ID:', error);

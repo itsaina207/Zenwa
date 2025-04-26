@@ -391,8 +391,8 @@ async function handleAirdropConversation(bot, msg) {
     userInfo.state = AIRDROP_STATES.WAITING_FOR_RECIPIENT_ID;
     
     const message = userLang === 'fr'
-      ? "Veuillez fournir les IDs des destinataires (format: 0.0.X ou ID Telegram).\nVous pouvez spécifier plusieurs destinataires en les séparant par des virgules:"
-      : "Please provide the recipient IDs (format: 0.0.X or Telegram ID).\nYou can specify multiple recipients by separating them with commas:";
+      ? "Veuillez fournir les IDs des destinataires (format: 0.0.X pour les comptes Hedera ou l'ID numérique Telegram, @nom_utilisateur ou simplement le nom d'utilisateur).\n\nVous pouvez spécifier plusieurs destinataires en les séparant par des virgules.\n\nExemple: 0.0.1234, @utilisateur1, utilisateur2"
+      : "Please provide the recipient IDs (format: 0.0.X for Hedera accounts or the numerical Telegram ID, @username or just username).\n\nYou can specify multiple recipients by separating them with commas.\n\nExample: 0.0.1234, @user1, user2";
       
     await bot.sendMessage(chatId, message);
     return true;
