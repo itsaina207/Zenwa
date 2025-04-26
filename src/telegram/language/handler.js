@@ -328,17 +328,76 @@ const initializeLanguageHandler = (bot) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
     const firstName = msg.from.first_name || 'l\'ami';
+    const username = msg.from.username || null;
     console.log(`Start command from user ${userId}`);
+    
+    // Vérifier si l'utilisateur a déjà un portefeuille
+    const { getWalletByUserId, getWalletByPhoneNumber } = require('../../storage/userWallets');
+    const wallet = await getWalletByUserId(userId);
     
     // Récupérer la langue de l'utilisateur
     const lang = getUserLanguage(userId);
     
-    // Message d'accueil personnalisé qui sera affiché au-dessus des boutons
-    const welcomeMessage = lang === 'fr' 
-      ? `👋 Bonjour ${firstName} ! Bienvenue sur le Bot Hedera Wallet.\n\n⚠️ Important : Pour commencer à utiliser ce bot, vous devez d'abord créer un portefeuille Hedera en utilisant le bouton "💼 Créer Wallet" ci-dessous.`
-      : `👋 Hello ${firstName}! Welcome to the Hedera Wallet Bot.\n\n⚠️ Important: To start using this bot, you must first create a Hedera wallet using the "💼 Create Wallet" button below.`;
+    // Message de demande de téléphone
+    const phoneRequestMessage = lang === 'fr'
+      ? `👋 Bonjour ${firstName} ! Pour améliorer l'identification sur notre service, veuillez entrer votre numéro de téléphone au format 0XXXXXXXXX ou +336XXXXXXXX:`
+      : `👋 Hello ${firstName}! To improve identification on our service, please enter your phone number in the format 0XXXXXXXXX or +336XXXXXXXX:`;
+    
+    // Si l'utilisateur a déjà un portefeuille avec un numéro de téléphone, afficher le menu d'aide
+    if (wallet && wallet.phoneNumber) {
+      const welcomeMessage = lang === 'fr' 
+        ? `👋 Rebonjour ${firstName} ! Bienvenue sur le Bot Hedera Wallet.`
+        : `👋 Welcome back ${firstName}! Welcome to the Hedera Wallet Bot.`;
       
-    await sendHelpWithButtons(bot, userId, chatId, welcomeMessage);
+      await sendHelpWithButtons(bot, userId, chatId, welcomeMessage);
+      return;
+    }
+    
+    // Sinon, demander le numéro de téléphone
+    // Importer les modules nécessaires
+    const { START_STATES, userState } = require('../commands');
+    
+    if (wallet && !wallet.phoneNumber) {
+      // Utilisateur existant sans numéro de téléphone, demander le numéro
+      userState.set(userId, {
+        state: START_STATES.WAITING_FOR_PHONE,
+        chatId: chatId,
+        userData: {
+          username,
+          accountId: wallet.accountId
+        }
+      });
+      
+      await bot.sendMessage(
+        chatId,
+        phoneRequestMessage,
+        { 
+          reply_markup: { 
+            force_reply: true 
+          } 
+        }
+      );
+      return;
+    }
+    
+    // Nouvel utilisateur, demander le numéro de téléphone avant de créer un portefeuille
+    userState.set(userId, {
+      state: START_STATES.WAITING_FOR_PHONE,
+      chatId: chatId,
+      userData: {
+        username
+      }
+    });
+    
+    await bot.sendMessage(
+      chatId,
+      phoneRequestMessage,
+      { 
+        reply_markup: { 
+          force_reply: true 
+        } 
+      }
+    );
   });
   
   // Gestionnaire pour tous les boutons interactifs
