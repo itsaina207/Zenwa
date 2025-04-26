@@ -14,6 +14,7 @@ const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
 const { getExplorerUrls } = require('../utils/explorer');
 const { getWalletByUserId, getWalletByUsername, getWalletByPhoneNumber } = require('../storage/userWallets');
+const { storeAirdrop, getAvailableAirdropsForAccount, markAirdropAsClaimed } = require('../storage/airdrops');
 
 /**
  * Convertit un ID Telegram, un numéro de téléphone ou un ID de compte Hedera en ID de compte Hedera
@@ -274,6 +275,39 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       result.hashscanUrl = explorerUrls.hashScan;
     } catch (error) {
       console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+    }
+    
+    // Stocker les informations d'airdrop dans la base de données
+    try {
+      // Récupérer des informations sur le token (on pourra ajouter une fonction pour récupérer le nom plus tard)
+      const tokenName = `Token ${tokenId}`; 
+      
+      // Préparer les données pour la sauvegarde
+      const airdropData = {
+        creatorId: userId,
+        tokenId: tokenId,
+        tokenName: tokenName,
+        transactionId: txId,
+        pendingAirdropId: pendingAirdropId ? pendingAirdropId.toString() : null,
+        totalAmount: totalAmount,
+        recipients: recipients.map(r => ({
+          originalId: r.originalId || null,
+          accountId: r.accountId,
+          amount: r.amount
+        }))
+      };
+      
+      // Sauvegarder l'airdrop dans la base de données
+      const storeResult = await storeAirdrop(airdropData);
+      
+      if (storeResult.success) {
+        console.log(`Airdrop sauvegardé en base de données avec l'ID: ${storeResult.airdropId}`);
+        result.dbAirdropId = storeResult.airdropId;
+      } else {
+        console.error(`Erreur lors de la sauvegarde de l'airdrop: ${storeResult.message}`);
+      }
+    } catch (dbError) {
+      console.error(`Erreur lors de l'enregistrement de l'airdrop en base de données: ${dbError.message}`);
     }
     
     return result;
