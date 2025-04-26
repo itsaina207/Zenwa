@@ -807,5 +807,6 @@ module.exports = {
   AIRDROP_STATES,
   CAMPAIGN_STATES,
   CLAIM_STATES,
-  initializeWithSharedState
+  initializeWithSharedState,
+  userState // Exporter l'état des utilisateurs pour les gestionnaires de callback
 };
