@@ -237,8 +237,9 @@ Vous pouvez également me poser des questions en langage naturel comme :
  * @param {TelegramBot} bot - Instance du bot Telegram 
  * @param {string} userId - ID de l'utilisateur
  * @param {number} chatId - ID du chat
+ * @param {string} [customMessage] - Message personnalisé à afficher au lieu du message d'aide par défaut
  */
-const sendHelpWithButtons = async (bot, userId, chatId) => {
+const sendHelpWithButtons = async (bot, userId, chatId, customMessage = null) => {
   try {
     const lang = getUserLanguage(userId);
     console.log(`Generating help menu for user ${userId} with language: ${lang}`);
@@ -251,6 +252,13 @@ const sendHelpWithButtons = async (bot, userId, chatId) => {
     const sendTokenLabelText = translations[lang]?.sendTokenLabel || translations.en.sendTokenLabel;
     const historyLabelText = translations[lang]?.historyLabel || translations.en.historyLabel;
     const mintLabelText = translations[lang]?.mintLabel || translations.en.mintLabel;
+    
+    // Traductions pour les nouveaux boutons d'airdrop et de campagne
+    const airdropLabelText = lang === 'fr' ? "🪂 Airdrop" : "🪂 Airdrop";
+    const campaignLabelText = lang === 'fr' ? "📢 Campagne" : "📢 Campaign";
+    const claimLabelText = lang === 'fr' ? "🎁 Réclamer" : "🎁 Claim";
+    const myCampaignsLabelText = lang === 'fr' ? "📋 Mes Campagnes" : "📋 My Campaigns";
+    
     const langLabelText = translations[lang]?.languageLabel || translations.en.languageLabel;
     const fullHelpLabelText = translations[lang]?.fullHelpLabel || translations.en.fullHelpLabel;
     
@@ -272,6 +280,14 @@ const sendHelpWithButtons = async (bot, userId, chatId) => {
             { text: mintLabelText, callback_data: 'cmd_mint' }
           ],
           [
+            { text: airdropLabelText, callback_data: 'cmd_airdrop' },
+            { text: campaignLabelText, callback_data: 'cmd_campaign' }
+          ],
+          [
+            { text: claimLabelText, callback_data: 'cmd_claim' },
+            { text: myCampaignsLabelText, callback_data: 'cmd_mycampaigns' }
+          ],
+          [
             { text: langLabelText, callback_data: 'cmd_language' },
             { text: fullHelpLabelText, callback_data: 'cmd_fullhelp' }
           ]
@@ -279,8 +295,9 @@ const sendHelpWithButtons = async (bot, userId, chatId) => {
       }
     };
     
-    // Envoyer le message avec les boutons
-    await bot.sendMessage(chatId, translate(userId, 'help'), options);
+    // Envoyer le message avec les boutons, en utilisant le message personnalisé s'il existe
+    const messageText = customMessage || translate(userId, 'help');
+    await bot.sendMessage(chatId, messageText, options);
     console.log(`Sent help menu with buttons to user ${userId}`);
   } catch (error) {
     console.error(`Error sending help menu: ${error.message}`);
@@ -314,8 +331,18 @@ const initializeLanguageHandler = (bot) => {
   bot.onText(/^\/start$/, async (msg) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
+    const firstName = msg.from.first_name || 'l\'ami';
     console.log(`Start command from user ${userId}`);
-    await sendHelpWithButtons(bot, userId, chatId);
+    
+    // Récupérer la langue de l'utilisateur
+    const lang = getUserLanguage(userId);
+    
+    // Message d'accueil personnalisé qui sera affiché au-dessus des boutons
+    const welcomeMessage = lang === 'fr' 
+      ? `👋 Bonjour ${firstName} ! Bienvenue sur le Bot Hedera Wallet.`
+      : `👋 Hello ${firstName}! Welcome to the Hedera Wallet Bot.`;
+      
+    await sendHelpWithButtons(bot, userId, chatId, welcomeMessage);
   });
   
   // Gestionnaire pour tous les boutons interactifs
@@ -394,6 +421,26 @@ const initializeLanguageHandler = (bot) => {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'mintInfo') });
       // Simuler la commande /mint
       bot.emit('message', { ...msg, text: '/mint', from: msg.from, chat: msg.chat });
+    }
+    else if (action === 'cmd_airdrop') {
+      await bot.answerCallbackQuery(callbackQuery.id, { text: 'Airdrop tokens' });
+      // Simuler la commande /airdrop
+      bot.emit('message', { ...msg, text: '/airdrop', from: msg.from, chat: msg.chat });
+    }
+    else if (action === 'cmd_campaign') {
+      await bot.answerCallbackQuery(callbackQuery.id, { text: 'Create token campaign' });
+      // Simuler la commande /campaign
+      bot.emit('message', { ...msg, text: '/campaign', from: msg.from, chat: msg.chat });
+    }
+    else if (action === 'cmd_claim') {
+      await bot.answerCallbackQuery(callbackQuery.id, { text: 'Claim tokens' });
+      // Simuler la commande /claim
+      bot.emit('message', { ...msg, text: '/claim', from: msg.from, chat: msg.chat });
+    }
+    else if (action === 'cmd_mycampaigns') {
+      await bot.answerCallbackQuery(callbackQuery.id, { text: 'View your campaigns' });
+      // Simuler la commande /mycampaigns
+      bot.emit('message', { ...msg, text: '/mycampaigns', from: msg.from, chat: msg.chat });
     }
     else if (action === 'cmd_language') {
       await bot.answerCallbackQuery(callbackQuery.id);

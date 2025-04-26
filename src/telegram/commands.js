@@ -62,16 +62,12 @@ async function handleStart(bot, msg) {
   const userId = msg.from.id.toString();
   const firstName = msg.from.first_name || 'l\'ami';
   
-  const message = translate(userId, 'welcome') + `
-
-Bonjour ${firstName} ! 👋
-
-${translate(userId, 'help')}
-
-Commençons ! Utilisez /createwallet pour créer votre premier wallet.
-  `;
+  console.log(`Start command from user ${userId}`);
   
-  await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+  // Utiliser uniquement la fonction sendHelpWithButtons du gestionnaire de langue pour afficher les boutons
+  // sans envoyer de message texte supplémentaire
+  const { sendHelpWithButtons } = require('./language/handler');
+  await sendHelpWithButtons(bot, userId, chatId, `Bonjour ${firstName} ! 👋`);
 }
 
 /**
