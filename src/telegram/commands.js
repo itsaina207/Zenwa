@@ -93,10 +93,11 @@ async function handleHelp(bot, msg) {
 async function handleCreateWallet(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
+  const username = msg.from.username || null;
   
   await bot.sendMessage(chatId, 'Création de votre wallet Hedera en cours... Cela peut prendre un moment.');
   
-  const result = await createAccount(userId);
+  const result = await createAccount(userId, username);
   
   if (result.success) {
     const message = `
