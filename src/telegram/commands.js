@@ -1036,6 +1036,11 @@ function registerCommands(bot) {
   airdropModule.initializeWithSharedState(userState);
   console.log("État des utilisateurs partagé avec le module airdrop-commands");
   
+  // Initialiser le module de gestion des boutons avec l'état partagé
+  const buttonHandlers = require('./button-handlers');
+  buttonHandlers.initialize(userState, AIRDROP_STATES);
+  console.log("État des utilisateurs partagé avec le module button-handlers");
+  
   // Define command handlers
   // Supprimé le gestionnaire de /start car il est déjà dans language/handler.js
   // ce qui causait un double affichage des menus
