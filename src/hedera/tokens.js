@@ -7,6 +7,8 @@ const {
   TokenCreateTransaction,
   TokenType,
   TransferTransaction,
+  TokenAssociateTransaction,
+  AccountBalanceQuery,
   PrivateKey,
   AccountId,
 } = require('@hashgraph/sdk');
