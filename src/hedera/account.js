@@ -16,6 +16,38 @@ const { getWalletByUserId, storeWallet } = require('../storage/userWallets');
 const { HEDERA_NETWORK } = require('../config');
 
 /**
+ * Récupère les informations du compte d'un utilisateur
+ * @param {string} userId - ID Telegram de l'utilisateur
+ * @returns {Promise<Object>} Informations du compte ou objet d'erreur
+ */
+async function getAccountInfo(userId) {
+  try {
+    const wallet = await getWalletByUserId(userId);
+    
+    if (!wallet) {
+      return {
+        success: false,
+        message: 'Aucun wallet trouvé. Créez-en un d\'abord avec /createwallet'
+      };
+    }
+    
+    return {
+      success: true,
+      accountId: wallet.accountId,
+      privateKey: wallet.privateKey,
+      publicKey: wallet.publicKey,
+      evmAddress: wallet.evm_address
+    };
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des informations du compte: ${error.message}`);
+    return {
+      success: false,
+      message: `Erreur: ${error.message}`
+    };
+  }
+}
+
+/**
  * Create a new Hedera account for a user
  * @param {string} userId - Telegram user ID
  * @param {string} [username] - Telegram username (optional)
@@ -277,4 +309,5 @@ module.exports = {
   createAccount,
   getBalance,
   sendHbar,
+  getAccountInfo,
 };

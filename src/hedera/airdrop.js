@@ -7,7 +7,8 @@ const {
   TokenAirdropTransaction,
   TokenClaimAirdropTransaction,
   TokenId,
-  PendingAirdropId
+  PendingAirdropId,
+  PrivateKey
 } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
@@ -236,7 +237,9 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
     
     // Finaliser et signer la transaction
     const txAirdropFrozen = await txAirdrop.freezeWith(client);
-    const signedTx = await txAirdropFrozen.sign(privateKey);
+    // Convertir la chaîne privateKey en objet PrivateKey
+    const privateKeyObj = PrivateKey.fromString(privateKey);
+    const signedTx = await txAirdropFrozen.sign(privateKeyObj);
     
     // Soumettre la transaction
     const txResponse = await signedTx.execute(client);
@@ -340,8 +343,9 @@ async function claimTokenAirdrop(userId, pendingAirdropId) {
       .addPendingAirdropId(pendingAirdropIdObj)
       .freezeWith(client);
       
-    // Signer avec la clé privée du réclamant
-    const signedTx = await txClaimAirdrop.sign(privateKey);
+    // Convertir la chaîne privateKey en objet PrivateKey et signer
+    const privateKeyObj = PrivateKey.fromString(privateKey);
+    const signedTx = await txClaimAirdrop.sign(privateKeyObj);
     
     // Soumettre la transaction
     const txResponse = await signedTx.execute(client);
