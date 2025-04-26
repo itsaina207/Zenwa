@@ -328,13 +328,32 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
  */
 async function getAvailableAirdrops(userId) {
   try {
-    // Cette fonction est un emplacement pour une future implémentation
-    // qui permettrait de récupérer les airdrops disponibles pour un utilisateur
-    // à partir de l'API Hedera ou d'une autre source de données.
+    console.log(`Recherche des airdrops disponibles pour l'utilisateur ${userId}`);
     
-    // Pour l'instant, nous retournons une liste vide car Hedera n'expose pas
-    // directement une API pour lister les airdrops disponibles.
-    return [];
+    // 1. Récupérer l'ID de compte Hedera de l'utilisateur
+    const accountInfo = await getAccountInfo(userId);
+    if (!accountInfo.success) {
+      console.error(`Impossible de récupérer les informations du compte pour ${userId}: ${accountInfo.message}`);
+      return [];
+    }
+    
+    const { accountId } = accountInfo;
+    console.log(`ID de compte pour ${userId}: ${accountId}`);
+    
+    // 2. Rechercher les airdrops disponibles pour cet ID de compte
+    const availableAirdrops = await getAvailableAirdropsForAccount(accountId);
+    console.log(`Nombre d'airdrops disponibles pour ${userId}: ${availableAirdrops.length}`);
+    
+    return availableAirdrops.map(airdrop => ({
+      id: airdrop.id,
+      tokenId: airdrop.tokenId,
+      tokenName: airdrop.tokenName,
+      pendingAirdropId: airdrop.pendingAirdropId,
+      amount: airdrop.amount,
+      // Ajouter les liens vers les explorateurs si le tokenId est disponible
+      ...(airdrop.tokenId ? { explorerUrls: getExplorerUrls(airdrop.tokenId, 'token') } : {})
+    }));
+    
   } catch (error) {
     console.error('Erreur lors de la récupération des airdrops disponibles:', error);
     return [];
@@ -344,10 +363,11 @@ async function getAvailableAirdrops(userId) {
 /**
  * Réclamer un airdrop de tokens
  * @param {string} userId - ID Telegram de l'utilisateur qui réclame l'airdrop
- * @param {string} pendingAirdropId - ID de l'airdrop en attente
+ * @param {string} airdropId - ID de l'airdrop dans la base de données ou pendingAirdropId Hedera
+ * @param {boolean} isDbId - Si true, airdropId est l'ID de base de données, sinon c'est le pendingAirdropId Hedera
  * @returns {Promise<Object>} Résultat de l'opération de réclamation
  */
-async function claimTokenAirdrop(userId, pendingAirdropId) {
+async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
   try {
     // Récupérer les informations du compte réclamant
     const accountInfo = await getAccountInfo(userId);
@@ -360,6 +380,46 @@ async function claimTokenAirdrop(userId, pendingAirdropId) {
 
     const { accountId, privateKey } = accountInfo;
     const client = getClient();
+    
+    // Si c'est un ID de base de données, récupérer le pendingAirdropId correspondant
+    let pendingAirdropId = airdropId;
+    let dbAirdropId = isDbId ? airdropId : null;
+    
+    if (isDbId) {
+      // Récupérer l'airdrop dans la base de données
+      const availableAirdrops = await getAvailableAirdropsForAccount(accountId);
+      const airdrop = availableAirdrops.find(a => a.id.toString() === airdropId.toString());
+      
+      if (!airdrop) {
+        return {
+          success: false,
+          message: "Airdrop non trouvé ou déjà réclamé"
+        };
+      }
+      
+      pendingAirdropId = airdrop.pendingAirdropId;
+      
+      // Si pas de pendingAirdropId, c'est qu'il n'y a pas besoin de faire une transaction sur la blockchain
+      if (!pendingAirdropId) {
+        // Marquer comme réclamé dans la base de données
+        const markResult = await markAirdropAsClaimed(accountId, airdropId);
+        
+        if (!markResult.success) {
+          return {
+            success: false,
+            message: `Erreur lors du marquage de l'airdrop comme réclamé: ${markResult.message}`
+          };
+        }
+        
+        return {
+          success: true,
+          message: 'Airdrop marqué comme réclamé avec succès',
+          tokenId: airdrop.tokenId,
+          tokenName: airdrop.tokenName,
+          amount: airdrop.amount
+        };
+      }
+    }
     
     // Vérifier que le pendingAirdropId est au bon format et créer un objet PendingAirdropId
     let pendingAirdropIdObj;
@@ -404,6 +464,16 @@ async function claimTokenAirdrop(userId, pendingAirdropId) {
       result.hashscanUrl = explorerUrls.hashScan;
     } catch (error) {
       console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+    }
+    
+    // Si c'était un airdrop de la base de données, le marquer comme réclamé
+    if (dbAirdropId) {
+      try {
+        const markResult = await markAirdropAsClaimed(accountId, dbAirdropId);
+        console.log(`Marquage de l'airdrop ${dbAirdropId} comme réclamé: ${markResult.success ? "Réussi" : "Échoué"}`);
+      } catch (dbError) {
+        console.error(`Erreur lors du marquage de l'airdrop comme réclamé: ${dbError.message}`);
+      }
     }
     
     return result;
