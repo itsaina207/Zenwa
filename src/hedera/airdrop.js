@@ -12,11 +12,11 @@ const {
 const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
 const { getExplorerUrls } = require('../utils/explorer');
-const { getWalletByUserId } = require('../storage/userWallets');
+const { getWalletByUserId, getWalletByUsername, getWalletByPhoneNumber } = require('../storage/userWallets');
 
 /**
- * Convertit un ID Telegram ou un ID de compte Hedera en ID de compte Hedera
- * @param {string} identifier - ID Telegram ou ID de compte Hedera
+ * Convertit un ID Telegram, un numéro de téléphone ou un ID de compte Hedera en ID de compte Hedera
+ * @param {string} identifier - ID Telegram, numéro de téléphone ou ID de compte Hedera
  * @returns {Promise<string|null>} ID de compte Hedera ou null si non trouvé
  */
 async function resolveToAccountId(identifier) {
@@ -36,13 +36,23 @@ async function resolveToAccountId(identifier) {
       console.log(`Identifiant modifié sans @: ${telegramId}`);
     }
     
-    // 1. Essayer de trouver par ID numérique
+    // 1. Vérifier si c'est un numéro de téléphone (0xx ou +xx)
+    if (identifier.match(/^[0+][0-9\s\-\(\)\.]+$/)) {
+      console.log(`Tentative de résolution par numéro de téléphone pour: ${identifier}`);
+      const wallet = await getWalletByPhoneNumber(identifier);
+      
+      if (wallet) {
+        console.log(`Wallet trouvé par numéro de téléphone: ${wallet.phoneNumber}`);
+        return wallet.accountId;
+      }
+    }
+    
+    // 2. Essayer de trouver par ID numérique
     let wallet = await getWalletByUserId(telegramId);
     
-    // 2. Si ça échoue et c'est potentiellement un nom d'utilisateur, essayer par nom d'utilisateur
+    // 3. Si ça échoue et c'est potentiellement un nom d'utilisateur, essayer par nom d'utilisateur
     if (!wallet && (telegramId.match(/[a-zA-Z]/) || originalId.match(/[a-zA-Z]/))) {
       console.log(`Tentative de résolution par nom d'utilisateur pour: ${originalId}`);
-      const { getWalletByUsername } = require('../storage/userWallets');
       wallet = await getWalletByUsername(originalId);
       
       if (wallet) {
