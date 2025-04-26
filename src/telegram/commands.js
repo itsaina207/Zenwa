@@ -1062,6 +1062,7 @@ function registerCommands(bot) {
   bot.onText(/\/sendtoken(.*)/, msg => handleSendToken(bot, msg));
   bot.onText(/\/history(.*)/, msg => handleHistory(bot, msg));
   bot.onText(/\/mint(.*)/, msg => handleMint(bot, msg));
+  bot.onText(/\/associate(.*)/, msg => handleAssociate(bot, msg));
   
   // Nouvelles commandes pour les airdrops et campagnes
   bot.onText(/\/airdrop(.*)/, msg => handleAirdrop(bot, msg));
@@ -1124,6 +1125,13 @@ function registerCommands(bot) {
           return;
         }
         
+        // Vérifier si nous sommes dans une conversation d'association de token
+        if (userInfo.state === ASSOCIATE_STATES.WAITING_FOR_TOKEN_ID) {
+          // Si l'utilisateur est dans une conversation d'association de token, continuer celle-ci
+          handleAssociateConversation(bot, msg);
+          return;
+        }
+        
         // Vérifier si nous sommes dans une conversation d'airdrop, de campagne ou de réclamation
         if (userInfo.state && 
             (userInfo.state.toString().startsWith('waiting_for_') || 
@@ -1149,6 +1157,7 @@ function registerCommands(bot) {
     { command: "sendtoken", description: "Envoyer des tokens à un autre compte" },
     { command: "history", description: "Consulter l'historique de vos transactions" },
     { command: "mint", description: "Créer un nouveau token" },
+    { command: "associate", description: "Associer un token à votre compte" },
     { command: "airdrop", description: "Créer un airdrop de tokens" },
     { command: "claim", description: "Réclamer des tokens" },
     { command: "claimairdrop", description: "Réclamer des tokens d'un airdrop" },
