@@ -281,11 +281,7 @@ const sendHelpWithButtons = async (bot, userId, chatId, customMessage = null) =>
           ],
           [
             { text: airdropLabelText, callback_data: 'cmd_airdrop' },
-            { text: campaignLabelText, callback_data: 'cmd_campaign' }
-          ],
-          [
-            { text: claimLabelText, callback_data: 'cmd_claim' },
-            { text: myCampaignsLabelText, callback_data: 'cmd_mycampaigns' }
+            { text: claimLabelText, callback_data: 'cmd_claim' }
           ],
           [
             { text: langLabelText, callback_data: 'cmd_language' },
@@ -394,53 +390,51 @@ const initializeLanguageHandler = (bot) => {
     }
     else if (action === 'cmd_wallet') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'createWalletInfo') });
-      // Simuler la commande /createwallet
-      bot.emit('message', { ...msg, text: '/createwallet', from: msg.from, chat: msg.chat });
+      // Exécuter la commande directement au lieu de simuler
+      const { handleCreateWallet } = require('../commands');
+      await handleCreateWallet(bot, { chat: { id: chatId }, from: callbackQuery.from });
     }
     else if (action === 'cmd_balance') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'balanceInfo') });
-      // Simuler la commande /balance
-      bot.emit('message', { ...msg, text: '/balance', from: msg.from, chat: msg.chat });
+      // Exécuter la commande directement au lieu de simuler
+      const { handleBalance } = require('../commands');
+      await handleBalance(bot, { chat: { id: chatId }, from: callbackQuery.from });
     }
     else if (action === 'cmd_send') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'sendInfo') });
-      // Simuler la commande /send
-      bot.emit('message', { ...msg, text: '/send', from: msg.from, chat: msg.chat });
+      // Exécuter la commande directement au lieu de simuler
+      const { handleSend } = require('../commands');
+      await handleSend(bot, { chat: { id: chatId }, from: callbackQuery.from });
     }
     else if (action === 'cmd_sendtoken') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'sendTokenInfo') });
-      // Simuler la commande /sendtoken
-      bot.emit('message', { ...msg, text: '/sendtoken', from: msg.from, chat: msg.chat });
+      // Exécuter la commande directement au lieu de simuler
+      const { handleSendToken } = require('../commands');
+      await handleSendToken(bot, { chat: { id: chatId }, from: callbackQuery.from });
     }
     else if (action === 'cmd_history') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'historyInfo') });
-      // Simuler la commande /history
-      bot.emit('message', { ...msg, text: '/history', from: msg.from, chat: msg.chat });
+      // Exécuter la commande directement au lieu de simuler
+      const { handleHistory } = require('../commands');
+      await handleHistory(bot, { chat: { id: chatId }, from: callbackQuery.from, text: '/history' });
     }
     else if (action === 'cmd_mint') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'mintInfo') });
-      // Simuler la commande /mint
-      bot.emit('message', { ...msg, text: '/mint', from: msg.from, chat: msg.chat });
+      // Exécuter la commande directement au lieu de simuler
+      const { handleMint } = require('../commands');
+      await handleMint(bot, { chat: { id: chatId }, from: callbackQuery.from, text: '/mint' });
     }
     else if (action === 'cmd_airdrop') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: 'Airdrop tokens' });
-      // Simuler la commande /airdrop
-      bot.emit('message', { ...msg, text: '/airdrop', from: msg.from, chat: msg.chat });
-    }
-    else if (action === 'cmd_campaign') {
-      await bot.answerCallbackQuery(callbackQuery.id, { text: 'Create token campaign' });
-      // Simuler la commande /campaign
-      bot.emit('message', { ...msg, text: '/campaign', from: msg.from, chat: msg.chat });
+      // Exécuter la commande directement au lieu de simuler
+      const { handleAirdrop } = require('../airdrop-commands');
+      await handleAirdrop(bot, { chat: { id: chatId }, from: callbackQuery.from, text: '/airdrop' });
     }
     else if (action === 'cmd_claim') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: 'Claim tokens' });
-      // Simuler la commande /claim
-      bot.emit('message', { ...msg, text: '/claim', from: msg.from, chat: msg.chat });
-    }
-    else if (action === 'cmd_mycampaigns') {
-      await bot.answerCallbackQuery(callbackQuery.id, { text: 'View your campaigns' });
-      // Simuler la commande /mycampaigns
-      bot.emit('message', { ...msg, text: '/mycampaigns', from: msg.from, chat: msg.chat });
+      // Exécuter la commande directement au lieu de simuler
+      const { handleClaim } = require('../airdrop-commands');
+      await handleClaim(bot, { chat: { id: chatId }, from: callbackQuery.from, text: '/claim' });
     }
     else if (action === 'cmd_language') {
       await bot.answerCallbackQuery(callbackQuery.id);
