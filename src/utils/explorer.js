@@ -1,95 +1,61 @@
 /**
- * Utilitaires pour générer des liens vers les explorateurs blockchain Hedera
+ * Utilitaire pour la génération des liens vers les explorateurs de blockchain Hedera
  */
-
-// Configuration
-const config = require('../config');
 
 /**
- * Types d'entités supportés
- * @type {Object}
+ * Génère les URLs pour les explorateurs Hedera
+ * @param {string} id - ID de la ressource (transaction, token, compte, topic, etc.)
+ * @param {string} type - Type de ressource ('transaction', 'token', 'account', 'topic')
+ * @param {string} network - Réseau Hedera ('testnet' ou 'mainnet')
+ * @returns {Object} URLs des explorateurs
  */
-const ENTITY_TYPES = {
-  account: 'account',
-  transaction: 'transaction', 
-  token: 'token',
-  topic: 'topic',
-  contract: 'contract',
-  nft: 'nft',
-};
-
-/**
- * URLs de base des explorateurs selon le réseau
- * @type {Object}
- */
-const EXPLORER_BASE_URLS = {
-  mainnet: {
-    hederaExplorer: 'https://hederaexplorer.io',
-    hashScan: 'https://hashscan.io/mainnet',
-  },
-  testnet: {
-    hederaExplorer: 'https://testnet.hederaexplorer.io',
-    hashScan: 'https://hashscan.io/testnet',
-  },
-  previewnet: {
-    hederaExplorer: 'https://previewnet.hederaexplorer.io',
-    hashScan: 'https://hashscan.io/previewnet',
-  },
-};
-
-/**
- * Chemins des URLs selon le type d'entité et l'explorateur
- * @type {Object}
- */
-const URL_PATHS = {
-  hederaExplorer: {
-    account: 'account',
-    transaction: 'transaction',
-    token: 'token',
-    topic: 'topic',
-    contract: 'contract',
-    nft: 'nft',
-  },
-  hashScan: {
-    account: 'account',
-    transaction: 'tx',
-    token: 'token',
-    topic: 'topic',
-    contract: 'contract',
-    nft: 'token', // HashScan utilise /token/{tokenId}/nfts pour les NFTs
-  },
-};
-
-/**
- * Génère des URLs pour les explorateurs Hedera
- * @param {string} entityId - ID de l'entité (accountId, transactionId, tokenId, etc.)
- * @param {string} entityType - Type d'entité (account, transaction, token, etc.)
- * @param {string} [network] - Réseau (mainnet, testnet, previewnet)
- * @returns {Object} URLs pour les différents explorateurs
- */
-function getExplorerUrls(entityId, entityType, network) {
-  // Valider le type d'entité
-  if (!Object.values(ENTITY_TYPES).includes(entityType)) {
-    throw new Error(`Type d'entité non valide: ${entityType}`);
+function getExplorerUrls(id, type, network = 'testnet') {
+  // URLs de base des explorateurs
+  const baseUrls = {
+    testnet: {
+      hederaExplorer: 'https://testnet.hederaexplorer.io',
+      hashScan: 'https://hashscan.io/testnet'
+    },
+    mainnet: {
+      hederaExplorer: 'https://hederaexplorer.io',
+      hashScan: 'https://hashscan.io/mainnet'
+    }
+  };
+  
+  const { hederaExplorer, hashScan } = baseUrls[network];
+  
+  // Construire les chemins en fonction du type
+  let hederaPath = '';
+  let hashScanPath = '';
+  
+  switch (type) {
+    case 'transaction':
+      hederaPath = `/search/transaction/${id}`;
+      hashScanPath = `/transaction/${id}`;
+      break;
+    case 'token':
+      hederaPath = `/search/token/${id}`;
+      hashScanPath = `/token/${id}`;
+      break;
+    case 'account':
+      hederaPath = `/search/account/${id}`;
+      hashScanPath = `/account/${id}`;
+      break;
+    case 'topic':
+      hederaPath = `/search/topic/${id}`;
+      hashScanPath = `/topic/${id}`;
+      break;
+    default:
+      hederaPath = `/search/${id}`;
+      hashScanPath = `/dashboard?search=${id}`;
   }
   
-  // Déterminer le réseau
-  const networkName = network || config.HEDERA_NETWORK || 'testnet';
-  
-  // Récupérer les URLs de base
-  const baseUrls = EXPLORER_BASE_URLS[networkName];
-  if (!baseUrls) {
-    throw new Error(`Réseau non pris en charge: ${networkName}`);
-  }
-  
-  // Construire les URLs
   return {
-    hederaExplorer: `${baseUrls.hederaExplorer}/${URL_PATHS.hederaExplorer[entityType]}/${entityId}`,
-    hashScan: `${baseUrls.hashScan}/${URL_PATHS.hashScan[entityType]}/${entityId}`,
+    hederaExplorer: `${hederaExplorer}${hederaPath}`,
+    hashScan: `${hashScan}${hashScanPath}`
   };
 }
 
 module.exports = {
-  getExplorerUrls,
-  ENTITY_TYPES,
+  getExplorerUrls
 };

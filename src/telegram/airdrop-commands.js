@@ -11,32 +11,38 @@ const {
   claimFromCampaign,
   updateCampaignStatus
 } = require('../hedera/campaigns');
-const { getUserLanguage, translate } = require('./language/handler');
+const { getUserLanguage, translate } = require('../utils/localizations');
 
-// États de conversation pour les airdrops et campagnes
+// État pour le suivi des conversations d'airdrop
 const AIRDROP_STATES = {
-  WAITING_FOR_TOKEN_ID: 'waiting_for_token_id',
-  WAITING_FOR_RECIPIENTS: 'waiting_for_recipients',
-  WAITING_FOR_AMOUNT: 'waiting_for_amount',
-  WAITING_FOR_CONFIRMATION: 'waiting_for_confirmation'
+  WAITING_FOR_TOKEN_ID: 'waiting_for_token_id_airdrop',
+  WAITING_FOR_RECIPIENTS: 'waiting_for_recipients_airdrop',
+  WAITING_FOR_RECIPIENT_ID: 'waiting_for_recipient_id',
+  WAITING_FOR_AMOUNT: 'waiting_for_amount_airdrop',
+  WAITING_FOR_CONFIRMATION: 'waiting_for_confirmation_airdrop',
+  NONE: 'none_airdrop'
 };
 
+// État pour le suivi des conversations de campagnes
 const CAMPAIGN_STATES = {
-  WAITING_FOR_NAME: 'waiting_for_name',
-  WAITING_FOR_DESCRIPTION: 'waiting_for_description',
-  WAITING_FOR_TOKEN_ID: 'waiting_for_token_id',
+  WAITING_FOR_TOKEN_ID: 'waiting_for_token_id_campaign',
+  WAITING_FOR_NAME: 'waiting_for_name_campaign',
+  WAITING_FOR_DESCRIPTION: 'waiting_for_description_campaign',
+  WAITING_FOR_AMOUNT_PER_USER: 'waiting_for_amount_per_user',
   WAITING_FOR_TOTAL_AMOUNT: 'waiting_for_total_amount',
-  WAITING_FOR_AMOUNT_PER_CLAIM: 'waiting_for_amount_per_claim',
-  WAITING_FOR_MAX_CLAIMS: 'waiting_for_max_claims',
-  WAITING_FOR_CONFIRMATION: 'waiting_for_confirmation'
+  WAITING_FOR_END_DATE: 'waiting_for_end_date',
+  WAITING_FOR_CONFIRMATION: 'waiting_for_confirmation_campaign',
+  NONE: 'none_campaign'
 };
 
+// État pour le suivi des conversations de réclamation
 const CLAIM_STATES = {
   WAITING_FOR_CAMPAIGN_ID: 'waiting_for_campaign_id',
-  WAITING_FOR_AIRDROP_ID: 'waiting_for_airdrop_id'
+  WAITING_FOR_AIRDROP_ID: 'waiting_for_airdrop_id',
+  NONE: 'none_claim'
 };
 
-// Map pour stocker les états de conversation des utilisateurs
+// État des utilisateurs en conversation
 const userState = new Map();
 
 /**
@@ -47,29 +53,21 @@ const userState = new Map();
 async function handleAirdrop(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const lang = getUserLanguage(userId);
+  const userLang = getUserLanguage(userId);
   
-  // Initialiser l'état de l'utilisateur pour l'airdrop
+  // Initialiser l'état de l'utilisateur
   userState.set(userId, {
     state: AIRDROP_STATES.WAITING_FOR_TOKEN_ID,
-    chatId,
-    tokenId: null,
-    recipients: [],
-    amount: null
+    airdropInfo: {
+      recipients: []
+    }
   });
   
-  await bot.sendMessage(
-    chatId,
-    translate(userId, 'airdropIntro'),
-    { parse_mode: 'Markdown' }
-  );
-  
-  // Demander l'ID du token
-  await bot.sendMessage(
-    chatId,
-    translate(userId, 'airdropTokenIdPrompt'),
-    { reply_markup: { force_reply: true } }
-  );
+  const message = userLang === 'fr' 
+    ? "Vous allez créer un airdrop de tokens.\n\nVeuillez d'abord indiquer l'ID du token à distribuer (format: 0.0.X):"
+    : "You are going to create a token airdrop.\n\nPlease provide the token ID to distribute (format: 0.0.X):";
+    
+  await bot.sendMessage(chatId, message);
 }
 
 /**
@@ -80,34 +78,19 @@ async function handleAirdrop(bot, msg) {
 async function handleCampaign(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const lang = getUserLanguage(userId);
+  const userLang = getUserLanguage(userId);
   
-  // Initialiser l'état de l'utilisateur pour la campagne
+  // Initialiser l'état de l'utilisateur
   userState.set(userId, {
-    state: CAMPAIGN_STATES.WAITING_FOR_NAME,
-    chatId,
-    campaignInfo: {
-      name: null,
-      description: null,
-      tokenId: null,
-      totalAmount: null,
-      amountPerClaim: null,
-      maxClaims: null
-    }
+    state: CAMPAIGN_STATES.WAITING_FOR_TOKEN_ID,
+    campaignInfo: {}
   });
   
-  await bot.sendMessage(
-    chatId,
-    translate(userId, 'campaignIntro'),
-    { parse_mode: 'Markdown' }
-  );
-  
-  // Demander le nom de la campagne
-  await bot.sendMessage(
-    chatId,
-    translate(userId, 'campaignNamePrompt'),
-    { reply_markup: { force_reply: true } }
-  );
+  const message = userLang === 'fr' 
+    ? "Vous allez créer une campagne de distribution de tokens.\n\nVeuillez d'abord indiquer l'ID du token à distribuer (format: 0.0.X):"
+    : "You are going to create a token distribution campaign.\n\nPlease provide the token ID to distribute (format: 0.0.X):";
+    
+  await bot.sendMessage(chatId, message);
 }
 
 /**
@@ -118,61 +101,37 @@ async function handleCampaign(bot, msg) {
 async function handleClaim(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const lang = getUserLanguage(userId);
-  const args = msg.text.split(' ').slice(1);
+  const userLang = getUserLanguage(userId);
   
-  // Si un ID de campagne est fourni directement
-  if (args.length > 0) {
-    const campaignId = args[0];
-    const result = await claimFromCampaign(userId, campaignId);
-    
-    if (result.success) {
-      await bot.sendMessage(
-        chatId,
-        `✅ ${result.message}\n\nToken ID: \`${result.tokenId}\`\nMontant: ${result.amount}\n\n[Voir dans l'explorateur](${result.explorerUrl})`,
-        { parse_mode: 'Markdown' }
-      );
-    } else {
-      await bot.sendMessage(chatId, `❌ ${result.message}`);
-    }
-    return;
-  }
-  
-  // Sinon, démarrer le processus interactif de réclamation
-  const activeCampaigns = getActiveCampaigns();
-  
-  if (activeCampaigns.length === 0) {
-    await bot.sendMessage(
-      chatId,
-      translate(userId, 'noActiveCampaigns')
-    );
-    return;
-  }
-  
-  // Initialiser l'état de l'utilisateur pour la réclamation
+  // Initialiser l'état de l'utilisateur
   userState.set(userId, {
-    state: CLAIM_STATES.WAITING_FOR_CAMPAIGN_ID,
-    chatId
+    state: CLAIM_STATES.WAITING_FOR_CAMPAIGN_ID
   });
   
-  // Afficher la liste des campagnes actives
-  let message = translate(userId, 'activeCampaignsHeader') + '\n\n';
+  // Récupérer les campagnes actives
+  const campaigns = getActiveCampaigns();
   
-  activeCampaigns.forEach((campaign, index) => {
-    message += `${index + 1}. *${campaign.name}*\n`;
-    message += `   ID: \`${campaign.id}\`\n`;
-    message += `   Token: \`${campaign.tokenId}\`\n`;
-    message += `   Par réclamation: ${campaign.amountPerClaim}\n`;
-    message += `   Restant: ${campaign.remainingAmount}/${campaign.totalAmount}\n\n`;
+  if (!campaigns || campaigns.length === 0) {
+    const message = userLang === 'fr' 
+      ? "Il n'y a actuellement aucune campagne active à laquelle vous pouvez participer."
+      : "There are currently no active campaigns you can participate in.";
+      
+    await bot.sendMessage(chatId, message);
+    userState.delete(userId);
+    return;
+  }
+  
+  // Créer une liste des campagnes actives
+  let campaignList = '';
+  campaigns.forEach((campaign, index) => {
+    campaignList += `${index + 1}. ${campaign.name} (ID: ${campaign.id})\n   ${campaign.tokenId} - ${campaign.amountPerUser} tokens par utilisateur\n\n`;
   });
   
-  message += translate(userId, 'campaignIdPrompt');
-  
-  await bot.sendMessage(
-    chatId,
-    message,
-    { parse_mode: 'Markdown' }
-  );
+  const message = userLang === 'fr' 
+    ? `Voici les campagnes actives :\n\n${campaignList}\nVeuillez indiquer l'ID de la campagne à laquelle vous souhaitez participer:`
+    : `Here are the active campaigns:\n\n${campaignList}\nPlease provide the ID of the campaign you want to participate in:`;
+    
+  await bot.sendMessage(chatId, message);
 }
 
 /**
@@ -183,36 +142,43 @@ async function handleClaim(bot, msg) {
 async function handleMyCampaigns(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const lang = getUserLanguage(userId);
+  const userLang = getUserLanguage(userId);
   
-  const userCampaigns = getUserCampaigns(userId);
+  // Récupérer les campagnes de l'utilisateur
+  const campaigns = getUserCampaigns(userId);
   
-  if (userCampaigns.length === 0) {
-    await bot.sendMessage(
-      chatId,
-      translate(userId, 'noUserCampaigns')
-    );
+  if (!campaigns || campaigns.length === 0) {
+    const message = userLang === 'fr' 
+      ? "Vous n'avez créé aucune campagne pour le moment."
+      : "You haven't created any campaigns yet.";
+      
+    await bot.sendMessage(chatId, message);
     return;
   }
   
-  let message = translate(userId, 'userCampaignsHeader') + '\n\n';
-  
-  userCampaigns.forEach((campaign, index) => {
-    message += `${index + 1}. *${campaign.name}*\n`;
-    message += `   ID: \`${campaign.id}\`\n`;
-    message += `   Statut: ${campaign.status}\n`;
-    message += `   Token: \`${campaign.tokenId}\`\n`;
-    message += `   Réclamations: ${campaign.claimCount}${campaign.maxClaims > 0 ? `/${campaign.maxClaims}` : ''}\n`;
-    message += `   Restant: ${campaign.remainingAmount}/${campaign.totalAmount}\n\n`;
+  // Créer une liste des campagnes de l'utilisateur
+  let campaignList = '';
+  campaigns.forEach((campaign, index) => {
+    const status = campaign.status === 'active' 
+      ? (userLang === 'fr' ? '✅ Active' : '✅ Active')
+      : campaign.status === 'paused' 
+        ? (userLang === 'fr' ? '⏸️ En pause' : '⏸️ Paused')
+        : campaign.status === 'completed' 
+          ? (userLang === 'fr' ? '✓ Terminée' : '✓ Completed')
+          : (userLang === 'fr' ? '❌ Annulée' : '❌ Cancelled');
+          
+    campaignList += `${index + 1}. ${campaign.name} (ID: ${campaign.id}) - ${status}\n   ${campaign.tokenId} - ${campaign.claimedAmount}/${campaign.totalAmount} tokens distribués\n\n`;
   });
   
-  message += translate(userId, 'campaignManagementHelp');
+  let instructions = userLang === 'fr'
+    ? "Pour modifier le statut d'une campagne, utilisez la commande /campaignstatus suivi de l'ID de la campagne."
+    : "To change a campaign's status, use the /campaignstatus command followed by the campaign ID.";
   
-  await bot.sendMessage(
-    chatId,
-    message,
-    { parse_mode: 'Markdown' }
-  );
+  const message = userLang === 'fr' 
+    ? `Vos campagnes :\n\n${campaignList}\n${instructions}`
+    : `Your campaigns:\n\n${campaignList}\n${instructions}`;
+    
+  await bot.sendMessage(chatId, message);
 }
 
 /**
@@ -223,50 +189,66 @@ async function handleMyCampaigns(bot, msg) {
 async function handleCampaignInfo(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const lang = getUserLanguage(userId);
-  const args = msg.text.split(' ').slice(1);
+  const userLang = getUserLanguage(userId);
+  const args = msg.text.split(' ');
   
-  if (args.length === 0) {
-    await bot.sendMessage(
-      chatId,
-      translate(userId, 'campaignIdMissing')
-    );
+  if (args.length < 2) {
+    const message = userLang === 'fr' 
+      ? "Veuillez fournir l'ID de la campagne. Exemple: /campaigninfo CAMPAIGN_ID"
+      : "Please provide the campaign ID. Example: /campaigninfo CAMPAIGN_ID";
+      
+    await bot.sendMessage(chatId, message);
     return;
   }
   
-  const campaignId = args[0];
+  const campaignId = args[1].trim();
   const campaign = getCampaign(campaignId);
   
   if (!campaign) {
-    await bot.sendMessage(
-      chatId,
-      translate(userId, 'campaignNotFound')
-    );
+    const message = userLang === 'fr' 
+      ? `Aucune campagne trouvée avec l'ID ${campaignId}`
+      : `No campaign found with ID ${campaignId}`;
+      
+    await bot.sendMessage(chatId, message);
     return;
   }
   
-  let message = `📣 *Informations sur la Campagne*\n\n`;
-  message += `Nom: *${campaign.name}*\n`;
-  message += `Description: ${campaign.description}\n`;
-  message += `Token ID: \`${campaign.tokenId}\`\n`;
-  message += `Statut: ${campaign.status}\n`;
-  message += `Montant total: ${campaign.totalAmount}\n`;
-  message += `Montant par réclamation: ${campaign.amountPerClaim}\n`;
-  message += `Réclamations: ${campaign.claimCount}${campaign.maxClaims > 0 ? `/${campaign.maxClaims}` : ' (illimité)'}\n`;
-  message += `Restant: ${campaign.remainingAmount}\n`;
-  message += `Créée le: ${new Date(campaign.createdAt).toLocaleString()}\n\n`;
+  const status = campaign.status === 'active' 
+    ? (userLang === 'fr' ? '✅ Active' : '✅ Active')
+    : campaign.status === 'paused' 
+      ? (userLang === 'fr' ? '⏸️ En pause' : '⏸️ Paused')
+      : campaign.status === 'completed' 
+        ? (userLang === 'fr' ? '✓ Terminée' : '✓ Completed')
+        : (userLang === 'fr' ? '❌ Annulée' : '❌ Cancelled');
+        
+  const createdDate = new Date(campaign.createdAt).toLocaleDateString();
+  const endDate = new Date(campaign.endDate).toLocaleDateString();
   
-  if (campaign.creatorId === userId) {
-    message += translate(userId, 'campaignManagementOptions');
-  } else if (campaign.status === 'active' && !campaign.claimedBy.includes(userId)) {
-    message += `Pour réclamer des tokens de cette campagne: /claim ${campaignId}`;
-  }
-  
-  await bot.sendMessage(
-    chatId,
-    message,
-    { parse_mode: 'Markdown' }
-  );
+  const detailsMessage = userLang === 'fr'
+    ? `📊 *Détails de la campagne:*\n\n`
+      + `*Nom:* ${campaign.name}\n`
+      + `*ID:* ${campaign.id}\n`
+      + `*Description:* ${campaign.description}\n`
+      + `*Token:* ${campaign.tokenId}\n`
+      + `*Montant par utilisateur:* ${campaign.amountPerUser}\n`
+      + `*Total distribué:* ${campaign.claimedAmount}/${campaign.totalAmount}\n`
+      + `*Participants:* ${campaign.participants.length}\n`
+      + `*Statut:* ${status}\n`
+      + `*Créé le:* ${createdDate}\n`
+      + `*Date de fin:* ${endDate}\n`
+    : `📊 *Campaign Details:*\n\n`
+      + `*Name:* ${campaign.name}\n`
+      + `*ID:* ${campaign.id}\n`
+      + `*Description:* ${campaign.description}\n`
+      + `*Token:* ${campaign.tokenId}\n`
+      + `*Amount per user:* ${campaign.amountPerUser}\n`
+      + `*Total distributed:* ${campaign.claimedAmount}/${campaign.totalAmount}\n`
+      + `*Participants:* ${campaign.participants.length}\n`
+      + `*Status:* ${status}\n`
+      + `*Created on:* ${createdDate}\n`
+      + `*End date:* ${endDate}\n`;
+      
+  await bot.sendMessage(chatId, detailsMessage, { parse_mode: 'Markdown' });
 }
 
 /**
@@ -277,34 +259,61 @@ async function handleCampaignInfo(bot, msg) {
 async function handleCampaignStatus(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const lang = getUserLanguage(userId);
-  const args = msg.text.split(' ').slice(1);
+  const userLang = getUserLanguage(userId);
+  const args = msg.text.split(' ');
   
   if (args.length < 2) {
-    await bot.sendMessage(
-      chatId,
-      translate(userId, 'campaignStatusUsage')
-    );
+    const message = userLang === 'fr' 
+      ? "Veuillez fournir l'ID de la campagne. Exemple: /campaignstatus CAMPAIGN_ID"
+      : "Please provide the campaign ID. Example: /campaignstatus CAMPAIGN_ID";
+      
+    await bot.sendMessage(chatId, message);
     return;
   }
   
-  const campaignId = args[0];
-  const newStatus = args[1].toLowerCase();
+  const campaignId = args[1].trim();
+  const campaign = getCampaign(campaignId);
   
-  const result = updateCampaignStatus(userId, campaignId, newStatus);
-  
-  if (result.success) {
-    await bot.sendMessage(
-      chatId,
-      `✅ ${result.message}`,
-      { parse_mode: 'Markdown' }
-    );
-  } else {
-    await bot.sendMessage(
-      chatId,
-      `❌ ${result.message}`
-    );
+  if (!campaign) {
+    const message = userLang === 'fr' 
+      ? `Aucune campagne trouvée avec l'ID ${campaignId}`
+      : `No campaign found with ID ${campaignId}`;
+      
+    await bot.sendMessage(chatId, message);
+    return;
   }
+  
+  // Vérifier que l'utilisateur est bien le créateur de la campagne
+  if (campaign.creatorId !== userId) {
+    const message = userLang === 'fr' 
+      ? "Vous n'êtes pas autorisé à modifier le statut de cette campagne."
+      : "You are not authorized to change the status of this campaign.";
+      
+    await bot.sendMessage(chatId, message);
+    return;
+  }
+  
+  // Options de statut
+  const statusOptions = {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: userLang === 'fr' ? '✅ Activer' : '✅ Activate', callback_data: `status_${campaignId}_active` },
+          { text: userLang === 'fr' ? '⏸️ Mettre en pause' : '⏸️ Pause', callback_data: `status_${campaignId}_paused` }
+        ],
+        [
+          { text: userLang === 'fr' ? '✓ Terminer' : '✓ Complete', callback_data: `status_${campaignId}_completed` },
+          { text: userLang === 'fr' ? '❌ Annuler' : '❌ Cancel', callback_data: `status_${campaignId}_cancelled` }
+        ]
+      ]
+    }
+  };
+  
+  const message = userLang === 'fr' 
+    ? `Veuillez choisir le nouveau statut pour la campagne "${campaign.name}":`
+    : `Please select the new status for the campaign "${campaign.name}":`;
+    
+  await bot.sendMessage(chatId, message, statusOptions);
 }
 
 /**
@@ -315,39 +324,18 @@ async function handleCampaignStatus(bot, msg) {
 async function handleClaimAirdrop(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const lang = getUserLanguage(userId);
-  const args = msg.text.split(' ').slice(1);
+  const userLang = getUserLanguage(userId);
   
-  if (args.length === 0) {
-    // Initialiser l'état de l'utilisateur pour la réclamation d'airdrop
-    userState.set(userId, {
-      state: CLAIM_STATES.WAITING_FOR_AIRDROP_ID,
-      chatId
-    });
+  // Initialiser l'état de l'utilisateur
+  userState.set(userId, {
+    state: CLAIM_STATES.WAITING_FOR_AIRDROP_ID
+  });
+  
+  const message = userLang === 'fr' 
+    ? "Veuillez fournir l'ID de l'airdrop que vous souhaitez réclamer:"
+    : "Please provide the airdrop ID you want to claim:";
     
-    await bot.sendMessage(
-      chatId,
-      translate(userId, 'airdropIdPrompt'),
-      { reply_markup: { force_reply: true } }
-    );
-    return;
-  }
-  
-  const pendingAirdropId = args[0];
-  const result = await claimTokenAirdrop(userId, pendingAirdropId);
-  
-  if (result.success) {
-    await bot.sendMessage(
-      chatId,
-      `✅ ${result.message}\n\n[Voir dans l'explorateur](${result.explorerUrl})`,
-      { parse_mode: 'Markdown' }
-    );
-  } else {
-    await bot.sendMessage(
-      chatId,
-      `❌ ${result.message}`
-    );
-  }
+  await bot.sendMessage(chatId, message);
 }
 
 /**
@@ -357,378 +345,345 @@ async function handleClaimAirdrop(bot, msg) {
  * @returns {boolean} true si le message a été traité, false sinon
  */
 async function handleAirdropConversation(bot, msg) {
+  const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
+  const userLang = getUserLanguage(userId);
   const userInfo = userState.get(userId);
   
-  if (!userInfo) {
+  if (!userInfo || !userInfo.state) {
     return false;
   }
   
-  const chatId = userInfo.chatId;
-  const text = msg.text.trim();
+  // Traitement des différents états de conversation
+  // Gestion des airdrops
+  if (userInfo.state === AIRDROP_STATES.WAITING_FOR_TOKEN_ID) {
+    const tokenId = msg.text.trim();
+    userInfo.airdropInfo.tokenId = tokenId;
+    userInfo.state = AIRDROP_STATES.WAITING_FOR_RECIPIENT_ID;
+    
+    const message = userLang === 'fr'
+      ? "Veuillez fournir l'ID du compte destinataire (format: 0.0.X):"
+      : "Please provide the recipient account ID (format: 0.0.X):";
+      
+    await bot.sendMessage(chatId, message);
+    return true;
+  }
   
-  try {
-    // Traitement des conversations d'airdrop
-    if (userInfo.state && userInfo.state.startsWith('waiting_for_')) {
-      // Airdrop simple
-      if (userInfo.state === AIRDROP_STATES.WAITING_FOR_TOKEN_ID) {
-        userInfo.tokenId = text;
-        userInfo.state = AIRDROP_STATES.WAITING_FOR_RECIPIENTS;
-        userState.set(userId, userInfo);
-        
-        await bot.sendMessage(
-          chatId,
-          translate(userId, 'airdropRecipientsPrompt'),
-          { reply_markup: { force_reply: true } }
-        );
-        return true;
-      }
-      else if (userInfo.state === AIRDROP_STATES.WAITING_FOR_RECIPIENTS) {
-        // Format attendu: 0.0.12345,0.0.67890,0.0.54321
-        const recipientIds = text.split(',').map(id => id.trim());
-        
-        if (recipientIds.length === 0) {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'airdropInvalidRecipients')
-          );
-          return true;
-        }
-        
-        userInfo.recipients = recipientIds.map(id => ({
-          accountId: id,
-          amount: null
-        }));
-        userInfo.state = AIRDROP_STATES.WAITING_FOR_AMOUNT;
-        userState.set(userId, userInfo);
-        
-        await bot.sendMessage(
-          chatId,
-          translate(userId, 'airdropAmountPrompt'),
-          { reply_markup: { force_reply: true } }
-        );
-        return true;
-      }
-      else if (userInfo.state === AIRDROP_STATES.WAITING_FOR_AMOUNT) {
-        const amount = parseInt(text, 10);
-        
-        if (isNaN(amount) || amount <= 0) {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'airdropInvalidAmount')
-          );
-          return true;
-        }
-        
-        // Mettre à jour les montants pour tous les destinataires
-        userInfo.recipients = userInfo.recipients.map(recipient => ({
-          ...recipient,
-          amount
-        }));
-        
-        userInfo.state = AIRDROP_STATES.WAITING_FOR_CONFIRMATION;
-        userState.set(userId, userInfo);
-        
-        // Demander confirmation
-        let message = translate(userId, 'airdropConfirmationHeader') + '\n\n';
-        message += `Token ID: \`${userInfo.tokenId}\`\n`;
-        message += `Nombre de destinataires: ${userInfo.recipients.length}\n`;
-        message += `Montant par destinataire: ${amount}\n`;
-        message += `Montant total: ${amount * userInfo.recipients.length}\n\n`;
-        
-        message += translate(userId, 'airdropConfirmationPrompt');
-        
-        await bot.sendMessage(
-          chatId,
-          message,
-          { 
-            parse_mode: 'Markdown',
-            reply_markup: {
-              keyboard: [['✅ Confirmer', '❌ Annuler']],
-              one_time_keyboard: true,
-              resize_keyboard: true
-            }
-          }
-        );
-        return true;
-      }
-      else if (userInfo.state === AIRDROP_STATES.WAITING_FOR_CONFIRMATION) {
-        if (text.includes('Confirmer')) {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'airdropProcessing'),
-            { reply_markup: { remove_keyboard: true } }
-          );
-          
-          const result = await createTokenAirdrop(
-            userId,
-            userInfo.tokenId,
-            userInfo.recipients
-          );
-          
-          if (result.success) {
-            let message = `✅ ${result.message}\n\n`;
-            message += `Token ID: \`${result.tokenId}\`\n`;
-            message += `Nombre de destinataires: ${result.recipientCount}\n`;
-            message += `Montant total: ${result.totalAmount}\n\n`;
-            
-            if (result.pendingAirdropId) {
-              message += `ID d'airdrop: \`${result.pendingAirdropId}\`\n\n`;
-              message += `Les destinataires peuvent réclamer leurs tokens avec:\n`;
-              message += `/claimairdrop ${result.pendingAirdropId}\n\n`;
-            }
-            
-            message += `[Voir dans l'explorateur](${result.explorerUrl})`;
-            
-            await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-          } else {
-            await bot.sendMessage(chatId, `❌ ${result.message}`);
-          }
-          
-          // Réinitialiser l'état
-          userState.delete(userId);
-        } else {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'airdropCancelled'),
-            { reply_markup: { remove_keyboard: true } }
-          );
-          userState.delete(userId);
-        }
-        return true;
-      }
+  if (userInfo.state === AIRDROP_STATES.WAITING_FOR_RECIPIENT_ID) {
+    const recipientId = msg.text.trim();
+    userInfo.currentRecipient = { accountId: recipientId };
+    userInfo.state = AIRDROP_STATES.WAITING_FOR_AMOUNT;
+    
+    const message = userLang === 'fr'
+      ? "Veuillez indiquer le montant de tokens à envoyer à ce destinataire:"
+      : "Please specify the amount of tokens to send to this recipient:";
       
-      // Campagne
-      else if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_NAME) {
-        userInfo.campaignInfo.name = text;
-        userInfo.state = CAMPAIGN_STATES.WAITING_FOR_DESCRIPTION;
-        userState.set(userId, userInfo);
+    await bot.sendMessage(chatId, message);
+    return true;
+  }
+  
+  if (userInfo.state === AIRDROP_STATES.WAITING_FOR_AMOUNT) {
+    const amount = parseFloat(msg.text.trim());
+    
+    if (isNaN(amount) || amount <= 0) {
+      const errorMsg = userLang === 'fr'
+        ? "Montant invalide. Veuillez entrer un nombre positif."
+        : "Invalid amount. Please enter a positive number.";
         
-        await bot.sendMessage(
-          chatId,
-          translate(userId, 'campaignDescriptionPrompt'),
-          { reply_markup: { force_reply: true } }
-        );
-        return true;
-      }
-      else if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_DESCRIPTION) {
-        userInfo.campaignInfo.description = text;
-        userInfo.state = CAMPAIGN_STATES.WAITING_FOR_TOKEN_ID;
-        userState.set(userId, userInfo);
-        
-        await bot.sendMessage(
-          chatId,
-          translate(userId, 'campaignTokenIdPrompt'),
-          { reply_markup: { force_reply: true } }
-        );
-        return true;
-      }
-      else if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_TOKEN_ID) {
-        userInfo.campaignInfo.tokenId = text;
-        userInfo.state = CAMPAIGN_STATES.WAITING_FOR_TOTAL_AMOUNT;
-        userState.set(userId, userInfo);
-        
-        await bot.sendMessage(
-          chatId,
-          translate(userId, 'campaignTotalAmountPrompt'),
-          { reply_markup: { force_reply: true } }
-        );
-        return true;
-      }
-      else if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_TOTAL_AMOUNT) {
-        const totalAmount = parseInt(text, 10);
-        
-        if (isNaN(totalAmount) || totalAmount <= 0) {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'campaignInvalidAmount')
-          );
-          return true;
-        }
-        
-        userInfo.campaignInfo.totalAmount = totalAmount;
-        userInfo.state = CAMPAIGN_STATES.WAITING_FOR_AMOUNT_PER_CLAIM;
-        userState.set(userId, userInfo);
-        
-        await bot.sendMessage(
-          chatId,
-          translate(userId, 'campaignAmountPerClaimPrompt'),
-          { reply_markup: { force_reply: true } }
-        );
-        return true;
-      }
-      else if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_AMOUNT_PER_CLAIM) {
-        const amountPerClaim = parseInt(text, 10);
-        
-        if (isNaN(amountPerClaim) || amountPerClaim <= 0) {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'campaignInvalidAmount')
-          );
-          return true;
-        }
-        
-        if (amountPerClaim > userInfo.campaignInfo.totalAmount) {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'campaignAmountTooLarge')
-          );
-          return true;
-        }
-        
-        userInfo.campaignInfo.amountPerClaim = amountPerClaim;
-        userInfo.state = CAMPAIGN_STATES.WAITING_FOR_MAX_CLAIMS;
-        userState.set(userId, userInfo);
-        
-        await bot.sendMessage(
-          chatId,
-          translate(userId, 'campaignMaxClaimsPrompt'),
-          { reply_markup: { force_reply: true } }
-        );
-        return true;
-      }
-      else if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_MAX_CLAIMS) {
-        let maxClaims = parseInt(text, 10);
-        
-        if (text.toLowerCase() === 'illimité' || text.toLowerCase() === 'unlimited' || text === '0') {
-          maxClaims = 0; // 0 = illimité
-        } else if (isNaN(maxClaims) || maxClaims < 0) {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'campaignInvalidMaxClaims')
-          );
-          return true;
-        }
-        
-        userInfo.campaignInfo.maxClaims = maxClaims;
-        userInfo.state = CAMPAIGN_STATES.WAITING_FOR_CONFIRMATION;
-        userState.set(userId, userInfo);
-        
-        // Calculer le nombre maximum de réclamations basé sur le montant total et le montant par réclamation
-        const maxPossibleClaims = Math.floor(userInfo.campaignInfo.totalAmount / userInfo.campaignInfo.amountPerClaim);
-        
-        // Demander confirmation
-        let message = translate(userId, 'campaignConfirmationHeader') + '\n\n';
-        message += `Nom: *${userInfo.campaignInfo.name}*\n`;
-        message += `Description: ${userInfo.campaignInfo.description}\n`;
-        message += `Token ID: \`${userInfo.campaignInfo.tokenId}\`\n`;
-        message += `Montant total: ${userInfo.campaignInfo.totalAmount}\n`;
-        message += `Montant par réclamation: ${userInfo.campaignInfo.amountPerClaim}\n`;
-        message += `Nombre maximum de réclamations: ${maxClaims === 0 ? 'Illimité' : maxClaims}\n`;
-        message += `Réclamations possibles avec ce montant: ${maxPossibleClaims}\n\n`;
-        
-        message += translate(userId, 'campaignConfirmationPrompt');
-        
-        await bot.sendMessage(
-          chatId,
-          message,
-          { 
-            parse_mode: 'Markdown',
-            reply_markup: {
-              keyboard: [['✅ Confirmer', '❌ Annuler']],
-              one_time_keyboard: true,
-              resize_keyboard: true
-            }
-          }
-        );
-        return true;
-      }
-      else if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_CONFIRMATION) {
-        if (text.includes('Confirmer')) {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'campaignCreating'),
-            { reply_markup: { remove_keyboard: true } }
-          );
-          
-          const result = createCampaign(userId, userInfo.campaignInfo);
-          
-          if (result.success) {
-            let message = `✅ ${result.message}\n\n`;
-            message += `Nom: *${result.campaign.name}*\n`;
-            message += `ID: \`${result.campaignId}\`\n`;
-            message += `Token ID: \`${result.campaign.tokenId}\`\n\n`;
-            
-            message += `Les utilisateurs peuvent récupérer des tokens avec:\n`;
-            message += `/claim ${result.campaignId}\n\n`;
-            
-            message += `Utilisez /campaigninfo ${result.campaignId} pour voir les détails de la campagne.`;
-            
-            await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-          } else {
-            await bot.sendMessage(chatId, `❌ ${result.message}`);
-          }
-          
-          // Réinitialiser l'état
-          userState.delete(userId);
-        } else {
-          await bot.sendMessage(
-            chatId,
-            translate(userId, 'campaignCancelled'),
-            { reply_markup: { remove_keyboard: true } }
-          );
-          userState.delete(userId);
-        }
-        return true;
-      }
-      
-      // Réclamation
-      else if (userInfo.state === CLAIM_STATES.WAITING_FOR_CAMPAIGN_ID) {
-        // Vérifier si l'utilisateur a entré un indice ou un ID de campagne
-        const activeCampaigns = getActiveCampaigns();
-        let campaignId;
-        
-        const index = parseInt(text, 10);
-        if (!isNaN(index) && index > 0 && index <= activeCampaigns.length) {
-          // L'utilisateur a entré un indice valide
-          campaignId = activeCampaigns[index - 1].id;
-        } else {
-          // L'utilisateur a peut-être entré un ID directement
-          campaignId = text;
-        }
-        
-        const result = await claimFromCampaign(userId, campaignId);
-        
-        if (result.success) {
-          await bot.sendMessage(
-            chatId,
-            `✅ ${result.message}\n\nToken ID: \`${result.tokenId}\`\nMontant: ${result.amount}\n\n[Voir dans l'explorateur](${result.explorerUrl})`,
-            { parse_mode: 'Markdown' }
-          );
-        } else {
-          await bot.sendMessage(chatId, `❌ ${result.message}`);
-        }
-        
-        // Réinitialiser l'état
-        userState.delete(userId);
-        return true;
-      }
-      else if (userInfo.state === CLAIM_STATES.WAITING_FOR_AIRDROP_ID) {
-        const pendingAirdropId = text;
-        const result = await claimTokenAirdrop(userId, pendingAirdropId);
-        
-        if (result.success) {
-          await bot.sendMessage(
-            chatId,
-            `✅ ${result.message}\n\n[Voir dans l'explorateur](${result.explorerUrl})`,
-            { parse_mode: 'Markdown' }
-          );
-        } else {
-          await bot.sendMessage(chatId, `❌ ${result.message}`);
-        }
-        
-        // Réinitialiser l'état
-        userState.delete(userId);
-        return true;
-      }
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
     }
-  } catch (error) {
-    console.error(`Erreur dans handleAirdropConversation: ${error.message}`);
-    await bot.sendMessage(
-      chatId,
-      `❌ Une erreur est survenue: ${error.message}`,
-      { reply_markup: { remove_keyboard: true } }
-    );
+    
+    // Ajouter le destinataire à la liste
+    userInfo.currentRecipient.amount = amount;
+    userInfo.airdropInfo.recipients.push(userInfo.currentRecipient);
+    
+    // Options pour ajouter un autre destinataire ou finaliser
+    const options = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { 
+              text: userLang === 'fr' ? "➕ Ajouter un autre destinataire" : "➕ Add another recipient", 
+              callback_data: "airdrop_add_recipient" 
+            }
+          ],
+          [
+            { 
+              text: userLang === 'fr' ? "✅ Finaliser l'airdrop" : "✅ Finalize airdrop", 
+              callback_data: "airdrop_finalize" 
+            }
+          ]
+        ]
+      }
+    };
+    
+    const recipientsList = userInfo.airdropInfo.recipients.map((r, i) => 
+      `${i+1}. ${r.accountId} - ${r.amount} tokens`
+    ).join('\n');
+    
+    const message = userLang === 'fr'
+      ? `Destinataire ajouté avec succès.\n\nDestinaires actuels:\n${recipientsList}\n\nQue souhaitez-vous faire ?`
+      : `Recipient added successfully.\n\nCurrent recipients:\n${recipientsList}\n\nWhat would you like to do?`;
+      
+    await bot.sendMessage(chatId, message, options);
+    return true;
+  }
+  
+  // Gestion des campagnes
+  if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_TOKEN_ID) {
+    const tokenId = msg.text.trim();
+    userInfo.campaignInfo.tokenId = tokenId;
+    userInfo.state = CAMPAIGN_STATES.WAITING_FOR_NAME;
+    
+    const message = userLang === 'fr'
+      ? "Veuillez indiquer le nom de votre campagne:"
+      : "Please provide a name for your campaign:";
+      
+    await bot.sendMessage(chatId, message);
+    return true;
+  }
+  
+  if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_NAME) {
+    const name = msg.text.trim();
+    userInfo.campaignInfo.name = name;
+    userInfo.state = CAMPAIGN_STATES.WAITING_FOR_DESCRIPTION;
+    
+    const message = userLang === 'fr'
+      ? "Veuillez fournir une description pour votre campagne:"
+      : "Please provide a description for your campaign:";
+      
+    await bot.sendMessage(chatId, message);
+    return true;
+  }
+  
+  if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_DESCRIPTION) {
+    const description = msg.text.trim();
+    userInfo.campaignInfo.description = description;
+    userInfo.state = CAMPAIGN_STATES.WAITING_FOR_AMOUNT_PER_USER;
+    
+    const message = userLang === 'fr'
+      ? "Veuillez indiquer le montant de tokens par utilisateur:"
+      : "Please specify the amount of tokens per user:";
+      
+    await bot.sendMessage(chatId, message);
+    return true;
+  }
+  
+  if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_AMOUNT_PER_USER) {
+    const amountPerUser = parseFloat(msg.text.trim());
+    
+    if (isNaN(amountPerUser) || amountPerUser <= 0) {
+      const errorMsg = userLang === 'fr'
+        ? "Montant invalide. Veuillez entrer un nombre positif."
+        : "Invalid amount. Please enter a positive number.";
+        
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
+    }
+    
+    userInfo.campaignInfo.amountPerUser = amountPerUser;
+    userInfo.state = CAMPAIGN_STATES.WAITING_FOR_TOTAL_AMOUNT;
+    
+    const message = userLang === 'fr'
+      ? "Veuillez indiquer le montant total de tokens pour cette campagne:"
+      : "Please specify the total amount of tokens for this campaign:";
+      
+    await bot.sendMessage(chatId, message);
+    return true;
+  }
+  
+  if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_TOTAL_AMOUNT) {
+    const totalAmount = parseFloat(msg.text.trim());
+    
+    if (isNaN(totalAmount) || totalAmount <= 0) {
+      const errorMsg = userLang === 'fr'
+        ? "Montant invalide. Veuillez entrer un nombre positif."
+        : "Invalid amount. Please enter a positive number.";
+        
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
+    }
+    
+    if (totalAmount < userInfo.campaignInfo.amountPerUser) {
+      const errorMsg = userLang === 'fr'
+        ? "Le montant total doit être supérieur au montant par utilisateur."
+        : "Total amount must be greater than the amount per user.";
+        
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
+    }
+    
+    userInfo.campaignInfo.totalAmount = totalAmount;
+    userInfo.state = CAMPAIGN_STATES.WAITING_FOR_END_DATE;
+    
+    const message = userLang === 'fr'
+      ? "Veuillez indiquer la date de fin de la campagne (format: YYYY-MM-DD):"
+      : "Please specify the end date for the campaign (format: YYYY-MM-DD):";
+      
+    await bot.sendMessage(chatId, message);
+    return true;
+  }
+  
+  if (userInfo.state === CAMPAIGN_STATES.WAITING_FOR_END_DATE) {
+    const endDateStr = msg.text.trim();
+    const endDate = new Date(endDateStr);
+    
+    if (isNaN(endDate.getTime()) || endDate <= new Date()) {
+      const errorMsg = userLang === 'fr'
+        ? "Date invalide. Veuillez entrer une date future au format YYYY-MM-DD."
+        : "Invalid date. Please enter a future date in the format YYYY-MM-DD.";
+        
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
+    }
+    
+    userInfo.campaignInfo.endDate = endDate.toISOString();
+    userInfo.state = CAMPAIGN_STATES.WAITING_FOR_CONFIRMATION;
+    
+    // Résumé de la campagne
+    const summary = userLang === 'fr'
+      ? `📝 *Résumé de votre campagne:*\n\n`
+        + `*Nom:* ${userInfo.campaignInfo.name}\n`
+        + `*Description:* ${userInfo.campaignInfo.description}\n`
+        + `*Token:* ${userInfo.campaignInfo.tokenId}\n`
+        + `*Montant par utilisateur:* ${userInfo.campaignInfo.amountPerUser}\n`
+        + `*Montant total:* ${userInfo.campaignInfo.totalAmount}\n`
+        + `*Date de fin:* ${new Date(userInfo.campaignInfo.endDate).toLocaleDateString()}\n\n`
+        + `Veuillez confirmer la création de cette campagne.`
+      : `📝 *Campaign summary:*\n\n`
+        + `*Name:* ${userInfo.campaignInfo.name}\n`
+        + `*Description:* ${userInfo.campaignInfo.description}\n`
+        + `*Token:* ${userInfo.campaignInfo.tokenId}\n`
+        + `*Amount per user:* ${userInfo.campaignInfo.amountPerUser}\n`
+        + `*Total amount:* ${userInfo.campaignInfo.totalAmount}\n`
+        + `*End date:* ${new Date(userInfo.campaignInfo.endDate).toLocaleDateString()}\n\n`
+        + `Please confirm the creation of this campaign.`;
+        
+    // Options de confirmation
+    const options = {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { 
+              text: userLang === 'fr' ? "✅ Confirmer" : "✅ Confirm", 
+              callback_data: "campaign_confirm" 
+            },
+            { 
+              text: userLang === 'fr' ? "❌ Annuler" : "❌ Cancel", 
+              callback_data: "campaign_cancel" 
+            }
+          ]
+        ]
+      }
+    };
+    
+    await bot.sendMessage(chatId, summary, options);
+    return true;
+  }
+  
+  // Gestion des réclamations
+  if (userInfo.state === CLAIM_STATES.WAITING_FOR_CAMPAIGN_ID) {
+    const campaignId = msg.text.trim();
+    
+    // Vérifier si la campagne existe
+    const campaign = getCampaign(campaignId);
+    
+    if (!campaign) {
+      const errorMsg = userLang === 'fr'
+        ? `Aucune campagne trouvée avec l'ID ${campaignId}`
+        : `No campaign found with ID ${campaignId}`;
+        
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
+    }
+    
+    // Vérifier si la campagne est active
+    if (campaign.status !== 'active') {
+      const errorMsg = userLang === 'fr'
+        ? "Cette campagne n'est pas active actuellement."
+        : "This campaign is not currently active.";
+        
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
+    }
+    
+    // Vérifier si l'utilisateur a déjà réclamé des tokens
+    if (campaign.participants.includes(userId)) {
+      const errorMsg = userLang === 'fr'
+        ? "Vous avez déjà réclamé des tokens de cette campagne."
+        : "You have already claimed tokens from this campaign.";
+        
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
+    }
+    
+    // Procéder à la réclamation
+    await bot.sendMessage(chatId, 
+      userLang === 'fr' 
+        ? "Traitement de votre demande en cours..."
+        : "Processing your request...");
+    
+    const result = await claimFromCampaign(userId, campaignId);
+    
+    if (result.success) {
+      const message = userLang === 'fr'
+        ? `✅ Félicitations! Vous avez reçu ${campaign.amountPerUser} tokens (${campaign.tokenId}) de la campagne "${campaign.name}".\n\n`
+          + `ID de transaction: ${result.transactionId}\n`
+          + `Explorer: ${result.explorerUrl || 'N/A'}\n`
+          + `HashScan: ${result.hashscanUrl || 'N/A'}`
+        : `✅ Congratulations! You have received ${campaign.amountPerUser} tokens (${campaign.tokenId}) from the "${campaign.name}" campaign.\n\n`
+          + `Transaction ID: ${result.transactionId}\n`
+          + `Explorer: ${result.explorerUrl || 'N/A'}\n`
+          + `HashScan: ${result.hashscanUrl || 'N/A'}`;
+          
+      await bot.sendMessage(chatId, message);
+    } else {
+      const message = userLang === 'fr'
+        ? `❌ Erreur lors de la réclamation: ${result.message}`
+        : `❌ Error during claim: ${result.message}`;
+        
+      await bot.sendMessage(chatId, message);
+    }
+    
+    // Réinitialiser l'état
+    userState.delete(userId);
+    return true;
+  }
+  
+  if (userInfo.state === CLAIM_STATES.WAITING_FOR_AIRDROP_ID) {
+    const airdropId = msg.text.trim();
+    
+    // Procéder à la réclamation
+    await bot.sendMessage(chatId, 
+      userLang === 'fr' 
+        ? "Traitement de votre réclamation d'airdrop en cours..."
+        : "Processing your airdrop claim...");
+    
+    const result = await claimTokenAirdrop(userId, airdropId);
+    
+    if (result.success) {
+      const message = userLang === 'fr'
+        ? `✅ Félicitations! Vous avez réclamé avec succès l'airdrop.\n\n`
+          + `ID de transaction: ${result.transactionId}\n`
+          + `Explorer: ${result.explorerUrl || 'N/A'}\n`
+          + `HashScan: ${result.hashscanUrl || 'N/A'}`
+        : `✅ Congratulations! You have successfully claimed the airdrop.\n\n`
+          + `Transaction ID: ${result.transactionId}\n`
+          + `Explorer: ${result.explorerUrl || 'N/A'}\n`
+          + `HashScan: ${result.hashscanUrl || 'N/A'}`;
+          
+      await bot.sendMessage(chatId, message);
+    } else {
+      const message = userLang === 'fr'
+        ? `❌ Erreur lors de la réclamation de l'airdrop: ${result.message}`
+        : `❌ Error during airdrop claim: ${result.message}`;
+        
+      await bot.sendMessage(chatId, message);
+    }
+    
+    // Réinitialiser l'état
     userState.delete(userId);
     return true;
   }
@@ -747,6 +702,5 @@ module.exports = {
   handleAirdropConversation,
   AIRDROP_STATES,
   CAMPAIGN_STATES,
-  CLAIM_STATES,
-  userState
+  CLAIM_STATES
 };

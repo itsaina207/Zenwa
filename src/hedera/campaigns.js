@@ -5,21 +5,17 @@
 
 const fs = require('fs');
 const path = require('path');
-const { createTokenAirdrop } = require('./airdrop');
+const { v4: uuidv4 } = require('uuid');
+const { 
+  TokenTransferTransaction,
+  TokenId
+} = require('@hashgraph/sdk');
+const { getClient } = require('./client');
+const { getAccountInfo } = require('./account');
+const { getExplorerUrls } = require('../utils/explorer');
 
-// Chemin vers le fichier de stockage des campagnes
+// Chemin du fichier de stockage des campagnes
 const CAMPAIGNS_FILE = path.join(__dirname, '../data/airdrop_campaigns.json');
-
-// Assurer que le répertoire data existe
-const dataDir = path.join(__dirname, '../data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-// Initialiser le fichier de campagnes s'il n'existe pas
-if (!fs.existsSync(CAMPAIGNS_FILE)) {
-  fs.writeFileSync(CAMPAIGNS_FILE, JSON.stringify({ campaigns: [] }, null, 2));
-}
 
 /**
  * Charger les campagnes depuis le fichier
@@ -27,8 +23,15 @@ if (!fs.existsSync(CAMPAIGNS_FILE)) {
  */
 function loadCampaigns() {
   try {
+    // Créer le fichier s'il n'existe pas
+    if (!fs.existsSync(CAMPAIGNS_FILE)) {
+      fs.writeFileSync(CAMPAIGNS_FILE, JSON.stringify({ campaigns: [] }));
+      return [];
+    }
+    
     const data = fs.readFileSync(CAMPAIGNS_FILE, 'utf8');
-    return JSON.parse(data).campaigns || [];
+    const { campaigns } = JSON.parse(data);
+    return campaigns || [];
   } catch (error) {
     console.error('Erreur lors du chargement des campagnes:', error);
     return [];
@@ -41,11 +44,10 @@ function loadCampaigns() {
  */
 function saveCampaigns(campaigns) {
   try {
-    fs.writeFileSync(CAMPAIGNS_FILE, JSON.stringify({ campaigns }, null, 2));
-    return true;
+    const data = JSON.stringify({ campaigns }, null, 2);
+    fs.writeFileSync(CAMPAIGNS_FILE, data, 'utf8');
   } catch (error) {
     console.error('Erreur lors de la sauvegarde des campagnes:', error);
-    return false;
   }
 }
 
@@ -57,48 +59,42 @@ function saveCampaigns(campaigns) {
  */
 function createCampaign(creatorId, campaignInfo) {
   try {
-    const campaigns = loadCampaigns();
+    const { tokenId, name, description, amountPerUser, totalAmount, endDate } = campaignInfo;
     
-    // Générer un ID unique pour la campagne
-    const campaignId = `campaign_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Créer la nouvelle campagne
-    const newCampaign = {
-      id: campaignId,
-      creatorId,
-      name: campaignInfo.name,
-      description: campaignInfo.description,
-      tokenId: campaignInfo.tokenId,
-      totalAmount: campaignInfo.totalAmount,
-      amountPerClaim: campaignInfo.amountPerClaim,
-      maxClaims: campaignInfo.maxClaims || 0, // 0 = illimité
-      remainingAmount: campaignInfo.totalAmount,
-      claimCount: 0,
-      status: 'active',
-      claimedBy: [],
-      pendingAirdropIds: [],
-      createdAt: new Date().toISOString()
-    };
-    
-    // Ajouter la campagne à la liste
-    campaigns.push(newCampaign);
-    
-    // Sauvegarder les campagnes
-    const saved = saveCampaigns(campaigns);
-    
-    if (saved) {
-      return {
-        success: true,
-        message: 'Campagne d\'airdrop créée avec succès',
-        campaignId,
-        campaign: newCampaign
-      };
-    } else {
+    // Valider les informations
+    if (!tokenId || !name || !description || !amountPerUser || !totalAmount || !endDate) {
       return {
         success: false,
-        message: 'Erreur lors de la sauvegarde de la campagne'
+        message: 'Informations de campagne incomplètes'
       };
     }
+    
+    // Créer la campagne
+    const campaign = {
+      id: uuidv4(),
+      creatorId,
+      tokenId,
+      name,
+      description,
+      amountPerUser,
+      totalAmount,
+      claimedAmount: 0,
+      participants: [],
+      createdAt: new Date().toISOString(),
+      endDate,
+      status: 'active'  // active, paused, completed, cancelled
+    };
+    
+    // Charger les campagnes existantes et ajouter la nouvelle
+    const campaigns = loadCampaigns();
+    campaigns.push(campaign);
+    saveCampaigns(campaigns);
+    
+    return {
+      success: true,
+      message: 'Campagne créée avec succès',
+      campaignId: campaign.id
+    };
   } catch (error) {
     console.error('Erreur lors de la création de la campagne:', error);
     return {
@@ -114,13 +110,8 @@ function createCampaign(creatorId, campaignInfo) {
  * @returns {Object|null} Campagne trouvée ou null
  */
 function getCampaign(campaignId) {
-  try {
-    const campaigns = loadCampaigns();
-    return campaigns.find(campaign => campaign.id === campaignId) || null;
-  } catch (error) {
-    console.error('Erreur lors de la récupération de la campagne:', error);
-    return null;
-  }
+  const campaigns = loadCampaigns();
+  return campaigns.find(campaign => campaign.id === campaignId) || null;
 }
 
 /**
@@ -128,13 +119,8 @@ function getCampaign(campaignId) {
  * @returns {Array} Liste des campagnes actives
  */
 function getActiveCampaigns() {
-  try {
-    const campaigns = loadCampaigns();
-    return campaigns.filter(campaign => campaign.status === 'active');
-  } catch (error) {
-    console.error('Erreur lors de la récupération des campagnes actives:', error);
-    return [];
-  }
+  const campaigns = loadCampaigns();
+  return campaigns.filter(campaign => campaign.status === 'active');
 }
 
 /**
@@ -143,13 +129,8 @@ function getActiveCampaigns() {
  * @returns {Array} Liste des campagnes de l'utilisateur
  */
 function getUserCampaigns(creatorId) {
-  try {
-    const campaigns = loadCampaigns();
-    return campaigns.filter(campaign => campaign.creatorId === creatorId);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des campagnes de l\'utilisateur:', error);
-    return [];
-  }
+  const campaigns = loadCampaigns();
+  return campaigns.filter(campaign => campaign.creatorId === creatorId);
 }
 
 /**
@@ -160,103 +141,122 @@ function getUserCampaigns(creatorId) {
  */
 async function claimFromCampaign(userId, campaignId) {
   try {
-    // Charger les campagnes
+    // Récupérer la campagne
     const campaigns = loadCampaigns();
-    const campaignIndex = campaigns.findIndex(c => c.id === campaignId);
+    const campaignIndex = campaigns.findIndex(campaign => campaign.id === campaignId);
     
     if (campaignIndex === -1) {
       return {
         success: false,
-        message: 'Campagne introuvable'
+        message: 'Campagne non trouvée'
       };
     }
     
     const campaign = campaigns[campaignIndex];
     
-    // Vérifier si la campagne est active
+    // Vérifier que la campagne est active
     if (campaign.status !== 'active') {
       return {
         success: false,
-        message: `Cette campagne n'est pas active (statut: ${campaign.status})`
+        message: 'Cette campagne n\'est pas active'
       };
     }
     
-    // Vérifier si l'utilisateur a déjà réclamé
-    if (campaign.claimedBy.includes(userId)) {
+    // Vérifier que l'utilisateur n'a pas déjà réclamé
+    if (campaign.participants.includes(userId)) {
       return {
         success: false,
         message: 'Vous avez déjà réclamé des tokens de cette campagne'
       };
     }
     
-    // Vérifier s'il reste des tokens à distribuer
-    if (campaign.remainingAmount <= 0) {
+    // Vérifier qu'il reste suffisamment de tokens
+    if (campaign.claimedAmount + campaign.amountPerUser > campaign.totalAmount) {
+      return {
+        success: false,
+        message: 'Plus de tokens disponibles dans cette campagne'
+      };
+    }
+    
+    // Récupérer les informations du compte créateur
+    const creatorAccountInfo = await getAccountInfo(campaign.creatorId);
+    if (!creatorAccountInfo.success) {
+      return {
+        success: false,
+        message: `Impossible de récupérer les informations du compte du créateur: ${creatorAccountInfo.message}`
+      };
+    }
+    
+    // Récupérer les informations du compte de l'utilisateur
+    const userAccountInfo = await getAccountInfo(userId);
+    if (!userAccountInfo.success) {
+      return {
+        success: false,
+        message: `Impossible de récupérer les informations de votre compte: ${userAccountInfo.message}`
+      };
+    }
+    
+    const { accountId: creatorAccountId, privateKey: creatorPrivateKey } = creatorAccountInfo;
+    const { accountId: userAccountId } = userAccountInfo;
+    const client = getClient();
+    
+    // Convertir en objets Hedera SDK
+    const tokenIdObj = TokenId.fromString(campaign.tokenId);
+    
+    // Créer la transaction de transfert
+    const txTransfer = await new TokenTransferTransaction()
+      .addTokenTransfer(tokenIdObj, creatorAccountId, -campaign.amountPerUser)
+      .addTokenTransfer(tokenIdObj, userAccountId, campaign.amountPerUser)
+      .freezeWith(client);
+      
+    // Signer avec la clé privée du créateur
+    const signedTx = await txTransfer.sign(creatorPrivateKey);
+    
+    // Soumettre la transaction
+    const txResponse = await signedTx.execute(client);
+    const receipt = await txResponse.getReceipt(client);
+    
+    const txId = txResponse.transactionId.toString();
+    
+    // Mettre à jour la campagne
+    campaign.claimedAmount += campaign.amountPerUser;
+    campaign.participants.push(userId);
+    
+    // Si tous les tokens ont été réclamés, marquer la campagne comme terminée
+    if (campaign.claimedAmount >= campaign.totalAmount) {
       campaign.status = 'completed';
-      saveCampaigns(campaigns);
-      return {
-        success: false,
-        message: 'Cette campagne a distribué tous les tokens disponibles'
-      };
     }
     
-    // Vérifier si le nombre maximum de réclamations est atteint
-    if (campaign.maxClaims > 0 && campaign.claimCount >= campaign.maxClaims) {
-      campaign.status = 'completed';
-      saveCampaigns(campaigns);
-      return {
-        success: false,
-        message: 'Le nombre maximum de réclamations pour cette campagne a été atteint'
-      };
+    // Sauvegarder les modifications
+    campaigns[campaignIndex] = campaign;
+    saveCampaigns(campaigns);
+    
+    // Préparer le résultat avec les liens vers les explorateurs
+    const result = {
+      success: true,
+      message: 'Tokens réclamés avec succès',
+      transactionId: txId,
+      tokenId: campaign.tokenId,
+      amount: campaign.amountPerUser,
+      status: receipt.status.toString()
+    };
+    
+    // Ajouter les liens vers les explorateurs
+    try {
+      const explorerUrls = getExplorerUrls(txId, 'transaction');
+      result.explorerUrl = explorerUrls.hederaExplorer;
+      result.hashscanUrl = explorerUrls.hashScan;
+    } catch (error) {
+      console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
     }
     
-    // Effectuer l'airdrop
-    const result = await createTokenAirdrop(
-      campaign.creatorId,
-      campaign.tokenId,
-      [{ accountId: userId, amount: campaign.amountPerClaim }]
-    );
+    return result;
     
-    if (result.success) {
-      // Mettre à jour la campagne
-      campaign.claimedBy.push(userId);
-      campaign.claimCount += 1;
-      campaign.remainingAmount -= campaign.amountPerClaim;
-      
-      if (result.pendingAirdropId) {
-        campaign.pendingAirdropIds.push(result.pendingAirdropId);
-      }
-      
-      // Vérifier s'il faut clôturer la campagne
-      if (campaign.remainingAmount <= 0 || 
-         (campaign.maxClaims > 0 && campaign.claimCount >= campaign.maxClaims)) {
-        campaign.status = 'completed';
-      }
-      
-      // Sauvegarder les modifications
-      campaigns[campaignIndex] = campaign;
-      saveCampaigns(campaigns);
-      
-      return {
-        success: true,
-        message: `Vous avez réclamé ${campaign.amountPerClaim} tokens avec succès`,
-        tokenId: campaign.tokenId,
-        amount: campaign.amountPerClaim,
-        transactionId: result.transactionId,
-        explorerUrl: result.explorerUrl,
-        hashscanUrl: result.hashscanUrl,
-        pendingAirdropId: result.pendingAirdropId
-      };
-    } else {
-      return {
-        success: false,
-        message: `Erreur lors de la réclamation: ${result.message}`
-      };
-    }
   } catch (error) {
-    console.error('Erreur lors de la réclamation depuis la campagne:', error);
+    console.error('Erreur lors de la réclamation de tokens:', error);
     return {
       success: false,
-      message: `Erreur lors de la réclamation: ${error.message}`
+      message: `Erreur lors de la réclamation de tokens: ${error.message}`
     };
   }
 }
@@ -270,27 +270,29 @@ async function claimFromCampaign(userId, campaignId) {
  */
 function updateCampaignStatus(creatorId, campaignId, newStatus) {
   try {
+    // Vérifier que le statut est valide
     const validStatuses = ['active', 'paused', 'completed', 'cancelled'];
     if (!validStatuses.includes(newStatus)) {
       return {
         success: false,
-        message: `Statut invalide. Les statuts valides sont: ${validStatuses.join(', ')}`
+        message: 'Statut invalide'
       };
     }
     
+    // Récupérer la campagne
     const campaigns = loadCampaigns();
-    const campaignIndex = campaigns.findIndex(c => c.id === campaignId);
+    const campaignIndex = campaigns.findIndex(campaign => campaign.id === campaignId);
     
     if (campaignIndex === -1) {
       return {
         success: false,
-        message: 'Campagne introuvable'
+        message: 'Campagne non trouvée'
       };
     }
     
     const campaign = campaigns[campaignIndex];
     
-    // Vérifier que c'est bien le créateur qui fait la modification
+    // Vérifier que l'utilisateur est bien le créateur
     if (campaign.creatorId !== creatorId) {
       return {
         success: false,
@@ -301,27 +303,18 @@ function updateCampaignStatus(creatorId, campaignId, newStatus) {
     // Mettre à jour le statut
     campaign.status = newStatus;
     campaigns[campaignIndex] = campaign;
+    saveCampaigns(campaigns);
     
-    // Sauvegarder les modifications
-    const saved = saveCampaigns(campaigns);
-    
-    if (saved) {
-      return {
-        success: true,
-        message: `Statut de la campagne mis à jour: ${newStatus}`,
-        campaign
-      };
-    } else {
-      return {
-        success: false,
-        message: 'Erreur lors de la sauvegarde du statut'
-      };
-    }
+    return {
+      success: true,
+      message: 'Statut de la campagne mis à jour avec succès',
+      newStatus
+    };
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du statut de la campagne:', error);
+    console.error('Erreur lors de la mise à jour du statut:', error);
     return {
       success: false,
-      message: `Erreur lors de la mise à jour: ${error.message}`
+      message: `Erreur lors de la mise à jour du statut: ${error.message}`
     };
   }
 }
