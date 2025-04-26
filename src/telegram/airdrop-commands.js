@@ -326,16 +326,44 @@ async function handleClaimAirdrop(bot, msg) {
   const userId = msg.from.id.toString();
   const userLang = getUserLanguage(userId);
   
-  // Initialiser l'état de l'utilisateur
-  userState.set(userId, {
-    state: CLAIM_STATES.WAITING_FOR_AIRDROP_ID
-  });
+  // Récupérer les airdrops disponibles pour cet utilisateur
+  const { getAvailableAirdrops } = require('../hedera/airdrop');
+  const availableAirdrops = await getAvailableAirdrops(userId);
   
-  const message = userLang === 'fr' 
-    ? "Veuillez fournir l'ID de l'airdrop que vous souhaitez réclamer:"
-    : "Please provide the airdrop ID you want to claim:";
+  // Vérifier s'il y a des airdrops disponibles
+  // Note: Actuellement, Hedera n'expose pas d'API pour lister les airdrops disponibles,
+  // donc cette fonctionnalité est préparée pour une implémentation future.
+  if (availableAirdrops.length > 0) {
+    // Afficher la liste des airdrops disponibles
+    let airdropsList = '';
+    availableAirdrops.forEach((airdrop, index) => {
+      airdropsList += `${index + 1}. ${airdrop.tokenName || 'Token'} (ID: ${airdrop.pendingAirdropId})\n   ${airdrop.amount || 'Unknown'} tokens\n\n`;
+    });
     
-  await bot.sendMessage(chatId, message);
+    const message = userLang === 'fr' 
+      ? `Voici les airdrops disponibles pour votre compte:\n\n${airdropsList}\nVeuillez indiquer l'ID de l'airdrop que vous souhaitez réclamer:`
+      : `Here are the available airdrops for your account:\n\n${airdropsList}\nPlease provide the airdrop ID you want to claim:`;
+      
+    // Initialiser l'état de l'utilisateur
+    userState.set(userId, {
+      state: CLAIM_STATES.WAITING_FOR_AIRDROP_ID,
+      availableAirdrops: availableAirdrops
+    });
+    
+    await bot.sendMessage(chatId, message);
+  } else {
+    // Pas d'airdrops disponibles connus, demander directement l'ID
+    // Initialiser l'état de l'utilisateur
+    userState.set(userId, {
+      state: CLAIM_STATES.WAITING_FOR_AIRDROP_ID
+    });
+    
+    const message = userLang === 'fr' 
+      ? "Pour réclamer un airdrop, veuillez fournir l'ID de l'airdrop que vous souhaitez réclamer. Cet ID vous a été communiqué par l'expéditeur de l'airdrop:"
+      : "To claim an airdrop, please provide the airdrop ID you want to claim. This ID was communicated to you by the sender of the airdrop:";
+      
+    await bot.sendMessage(chatId, message);
+  }
 }
 
 /**
@@ -362,23 +390,70 @@ async function handleAirdropConversation(bot, msg) {
     userInfo.state = AIRDROP_STATES.WAITING_FOR_RECIPIENT_ID;
     
     const message = userLang === 'fr'
-      ? "Veuillez fournir l'ID du compte destinataire (format: 0.0.X):"
-      : "Please provide the recipient account ID (format: 0.0.X):";
+      ? "Veuillez fournir les IDs des destinataires (format: 0.0.X ou ID Telegram).\nVous pouvez spécifier plusieurs destinataires en les séparant par des virgules:"
+      : "Please provide the recipient IDs (format: 0.0.X or Telegram ID).\nYou can specify multiple recipients by separating them with commas:";
       
     await bot.sendMessage(chatId, message);
     return true;
   }
   
   if (userInfo.state === AIRDROP_STATES.WAITING_FOR_RECIPIENT_ID) {
-    const recipientId = msg.text.trim();
-    userInfo.currentRecipient = { accountId: recipientId };
-    userInfo.state = AIRDROP_STATES.WAITING_FOR_AMOUNT;
+    const recipientsInput = msg.text.trim();
     
-    const message = userLang === 'fr'
-      ? "Veuillez indiquer le montant de tokens à envoyer à ce destinataire:"
-      : "Please specify the amount of tokens to send to this recipient:";
+    // Initialiser la liste des destinataires s'ils n'existent pas encore
+    if (!userInfo.airdropInfo.recipientsResolved) {
+      userInfo.airdropInfo.recipientsResolved = [];
+    }
+    
+    // Résoudre tous les identifiants (Telegram ou Hedera)
+    const { resolveIdentifiersList } = require('../hedera/airdrop');
+    const resolvedRecipients = await resolveIdentifiersList(recipientsInput);
+    
+    // Vérifier si tous les identifiants ont été résolus
+    const unresolved = resolvedRecipients.filter(r => r.accountId === null);
+    if (unresolved.length > 0) {
+      const unresolvedIds = unresolved.map(r => r.id).join(', ');
+      const errorMsg = userLang === 'fr'
+        ? `Impossible de résoudre les identifiants suivants: ${unresolvedIds}. Veuillez vérifier et réessayer.`
+        : `Unable to resolve the following identifiers: ${unresolvedIds}. Please check and try again.`;
+        
+      await bot.sendMessage(chatId, errorMsg);
+      return true;
+    }
+    
+    // Stocker les destinataires résolus
+    userInfo.airdropInfo.recipientsResolved = resolvedRecipients.map(r => ({ 
+      originalId: r.id,
+      accountId: r.accountId 
+    }));
+    
+    // Si plusieurs destinataires, demander un montant pour tous
+    if (resolvedRecipients.length > 1) {
+      userInfo.state = AIRDROP_STATES.WAITING_FOR_AMOUNT;
+      const recipientCount = resolvedRecipients.length;
       
-    await bot.sendMessage(chatId, message);
+      const message = userLang === 'fr'
+        ? `${recipientCount} destinataires identifiés. Veuillez indiquer le montant de tokens à envoyer à chaque destinataire:`
+        : `${recipientCount} recipients identified. Please specify the amount of tokens to send to each recipient:`;
+        
+      await bot.sendMessage(chatId, message);
+    } else if (resolvedRecipients.length === 1) {
+      // Un seul destinataire
+      userInfo.state = AIRDROP_STATES.WAITING_FOR_AMOUNT;
+      const message = userLang === 'fr'
+        ? "Veuillez indiquer le montant de tokens à envoyer à ce destinataire:"
+        : "Please specify the amount of tokens to send to this recipient:";
+        
+      await bot.sendMessage(chatId, message);
+    } else {
+      // Aucun destinataire résolu (ne devrait pas arriver à cause de la vérification ci-dessus)
+      const errorMsg = userLang === 'fr'
+        ? "Aucun destinataire valide n'a été trouvé. Veuillez réessayer."
+        : "No valid recipients were found. Please try again.";
+        
+      await bot.sendMessage(chatId, errorMsg);
+    }
+    
     return true;
   }
   
@@ -394,9 +469,32 @@ async function handleAirdropConversation(bot, msg) {
       return true;
     }
     
-    // Ajouter le destinataire à la liste
-    userInfo.currentRecipient.amount = amount;
-    userInfo.airdropInfo.recipients.push(userInfo.currentRecipient);
+    // Créer la liste des destinataires avec le montant spécifié
+    userInfo.airdropInfo.recipients = [];
+    
+    // Utiliser les destinataires résolus (format ID Telegram ou Hedera)
+    if (userInfo.airdropInfo.recipientsResolved && userInfo.airdropInfo.recipientsResolved.length > 0) {
+      userInfo.airdropInfo.recipients = userInfo.airdropInfo.recipientsResolved.map(r => ({
+        originalId: r.originalId,
+        accountId: r.accountId,
+        amount: amount
+      }));
+    } 
+    // Fallback pour l'ancienne méthode si nécessaire
+    else if (userInfo.currentRecipient) {
+      userInfo.currentRecipient.amount = amount;
+      userInfo.airdropInfo.recipients.push(userInfo.currentRecipient);
+    }
+    
+    // Préparer la liste des destinataires pour l'affichage
+    const recipientsList = userInfo.airdropInfo.recipients.map((r, i) => {
+      // Afficher à la fois l'ID original et l'ID du compte Hedera si différents
+      const idDisplay = r.originalId && r.originalId !== r.accountId 
+        ? `${r.originalId} (${r.accountId})` 
+        : r.accountId;
+        
+      return `${i+1}. ${idDisplay} - ${r.amount} tokens`;
+    }).join('\n');
     
     // Options pour ajouter un autre destinataire ou finaliser
     const options = {
@@ -404,7 +502,7 @@ async function handleAirdropConversation(bot, msg) {
         inline_keyboard: [
           [
             { 
-              text: userLang === 'fr' ? "➕ Ajouter un autre destinataire" : "➕ Add another recipient", 
+              text: userLang === 'fr' ? "➕ Ajouter d'autres destinataires" : "➕ Add more recipients", 
               callback_data: "airdrop_add_recipient" 
             }
           ],
@@ -418,13 +516,9 @@ async function handleAirdropConversation(bot, msg) {
       }
     };
     
-    const recipientsList = userInfo.airdropInfo.recipients.map((r, i) => 
-      `${i+1}. ${r.accountId} - ${r.amount} tokens`
-    ).join('\n');
-    
     const message = userLang === 'fr'
-      ? `Destinataire ajouté avec succès.\n\nDestinaires actuels:\n${recipientsList}\n\nQue souhaitez-vous faire ?`
-      : `Recipient added successfully.\n\nCurrent recipients:\n${recipientsList}\n\nWhat would you like to do?`;
+      ? `Destinataire(s) ajouté(s) avec succès.\n\nDestinaires actuels:\n${recipientsList}\n\nQue souhaitez-vous faire ?`
+      : `Recipient(s) added successfully.\n\nCurrent recipients:\n${recipientsList}\n\nWhat would you like to do?`;
       
     await bot.sendMessage(chatId, message, options);
     return true;
