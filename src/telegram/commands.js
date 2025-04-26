@@ -1000,7 +1000,7 @@ function registerCommands(bot) {
   // Nous avons supprimé le gestionnaire de callbacks pour simplifier
   
   // Handler pour les messages normaux
-  bot.on('message', msg => {
+  bot.on('message', async (msg) => {
     // On ne traite que les messages textuels
     if (!msg.text) return;
     
