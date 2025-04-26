@@ -111,17 +111,58 @@ const translate = (userId, key) => {
  * @param {TelegramBot} bot Instance du bot Telegram
  */
 const initializeLanguageHandler = (bot) => {
-  console.log('Initializing simplified language handler');
+  console.log('Initializing simplified language handler with interactive buttons');
   
-  // Gestionnaire de commande /setlang
-  bot.onText(/^\/setlang(?:\s+(.+))?$/, async (msg, match) => {
+  // Gestionnaire pour les boutons de langue
+  bot.on('callback_query', async (callbackQuery) => {
+    const action = callbackQuery.data;
+    const msg = callbackQuery.message;
+    const userId = callbackQuery.from.id.toString();
+    const chatId = msg.chat.id;
+    
+    console.log(`Callback received: ${action} from user ${userId}`);
+    
+    if (action === 'lang_en') {
+      // Changer la langue en anglais
+      const success = setUserLanguage(userId, 'en');
+      if (success) {
+        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Language set to English' });
+        await bot.editMessageText(translations.en.languageChanged, {
+          chat_id: chatId,
+          message_id: msg.message_id
+        });
+        setTimeout(() => {
+          bot.sendMessage(chatId, translations.en.help);
+        }, 500);
+      }
+    }
+    else if (action === 'lang_fr') {
+      // Changer la langue en français
+      const success = setUserLanguage(userId, 'fr');
+      if (success) {
+        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Langue définie en français' });
+        await bot.editMessageText(translations.fr.languageChanged, {
+          chat_id: chatId,
+          message_id: msg.message_id
+        });
+        setTimeout(() => {
+          bot.sendMessage(chatId, translations.fr.help);
+        }, 500);
+      }
+    }
+  });
+  
+  // Gestionnaire pour les commandes /language et /setlang
+  const languageRegex = /^\/(language|langue|setlang)(?:\s+(.+))?$/;
+  bot.onText(languageRegex, async (msg, match) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
-    const lang = match[1]?.toLowerCase().trim();
+    const lang = match[2]?.toLowerCase().trim();
     
     console.log(`Language command received from user ${userId}, lang arg: "${lang}"`);
     
     if (lang === 'en' || lang === 'english' || lang === 'anglais') {
+      // Traitement direct sans boutons
       const success = setUserLanguage(userId, 'en');
       if (success) {
         await bot.sendMessage(chatId, translations.en.languageChanged);
@@ -131,6 +172,7 @@ const initializeLanguageHandler = (bot) => {
       }
     } 
     else if (lang === 'fr' || lang === 'french' || lang === 'français') {
+      // Traitement direct sans boutons
       const success = setUserLanguage(userId, 'fr');
       if (success) {
         await bot.sendMessage(chatId, translations.fr.languageChanged);
@@ -140,12 +182,33 @@ const initializeLanguageHandler = (bot) => {
       }
     }
     else {
-      // Montrer les options de langue
-      const currentLang = getUserLanguage(userId);
-      await bot.sendMessage(chatId, translations[currentLang].languageOptions);
+      // Afficher les boutons de sélection de langue
+      try {
+        const options = {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🇫🇷 Français', callback_data: 'lang_fr' },
+                { text: '🇬🇧 English', callback_data: 'lang_en' }
+              ]
+            ]
+          }
+        };
+        
+        await bot.sendMessage(
+          chatId,
+          'Choisissez votre langue / Choose your language:',
+          options
+        );
+        console.log(`Sent language selection buttons to user ${userId}`);
+      } catch (error) {
+        console.error(`Error sending language options: ${error.message}`);
+        // Fallback en cas d'erreur avec les boutons
+        const currentLang = getUserLanguage(userId);
+        await bot.sendMessage(chatId, translations[currentLang].languageOptions);
+      }
     }
   });
-};
 
 module.exports = {
   initializeLanguageHandler,
