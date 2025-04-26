@@ -19,6 +19,7 @@ const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest } = 
 const { LANGUAGES, translate, setUserLanguage, getUserLanguage } = require('../utils/localizations');
 
 // Importer les gestionnaires des commandes d'airdrop et de campagne
+const airdropModule = require('./airdrop-commands');
 const { 
   handleAirdrop, 
   handleCampaign, 
@@ -31,7 +32,7 @@ const {
   AIRDROP_STATES, 
   CAMPAIGN_STATES, 
   CLAIM_STATES 
-} = require('./airdrop-commands');
+} = airdropModule;
 
 // State management for multi-step operations
 const userState = new Map();
@@ -972,6 +973,10 @@ To choose English: /language en
 }
 
 function registerCommands(bot) {
+  // Partager l'état de l'utilisateur avec le module airdrop-commands
+  airdropModule.initializeWithSharedState(userState);
+  console.log("État des utilisateurs partagé avec le module airdrop-commands");
+  
   // Define command handlers
   // Supprimé le gestionnaire de /start car il est déjà dans language/handler.js
   // ce qui causait un double affichage des menus
