@@ -331,19 +331,29 @@ async function handleClaimAirdrop(bot, msg) {
   const { getAvailableAirdrops } = require('../hedera/airdrop');
   const availableAirdrops = await getAvailableAirdrops(userId);
   
+  console.log(`Airdrops disponibles pour ${userId}:`, availableAirdrops);
+  
   // Vérifier s'il y a des airdrops disponibles
-  // Note: Actuellement, Hedera n'expose pas d'API pour lister les airdrops disponibles,
-  // donc cette fonctionnalité est préparée pour une implémentation future.
-  if (availableAirdrops.length > 0) {
-    // Afficher la liste des airdrops disponibles
+  if (availableAirdrops && availableAirdrops.length > 0) {
+    // Afficher la liste des airdrops disponibles avec boutons d'action
     let airdropsList = '';
     availableAirdrops.forEach((airdrop, index) => {
-      airdropsList += `${index + 1}. ${airdrop.tokenName || 'Token'} (ID: ${airdrop.pendingAirdropId})\n   ${airdrop.amount || 'Unknown'} tokens\n\n`;
+      airdropsList += `${index + 1}. ${airdrop.tokenName || 'Token'} (ID: ${airdrop.id})\n   ${airdrop.amount || 'Unknown'} tokens\n\n`;
     });
     
+    // Créer des boutons pour chaque airdrop
+    const inlineKeyboard = availableAirdrops.map((airdrop, index) => [
+      { 
+        text: userLang === 'fr' 
+          ? `Réclamer ${airdrop.tokenName || 'Token'} (${airdrop.amount} tokens)` 
+          : `Claim ${airdrop.tokenName || 'Token'} (${airdrop.amount} tokens)`,
+        callback_data: `claim_airdrop_${airdrop.id}` 
+      }
+    ]);
+    
     const message = userLang === 'fr' 
-      ? `Voici les airdrops disponibles pour votre compte:\n\n${airdropsList}\nVeuillez indiquer l'ID de l'airdrop que vous souhaitez réclamer:`
-      : `Here are the available airdrops for your account:\n\n${airdropsList}\nPlease provide the airdrop ID you want to claim:`;
+      ? `Voici les airdrops disponibles pour votre compte:\n\n${airdropsList}\nCliquez sur le bouton correspondant pour réclamer un airdrop, ou entrez manuellement l'ID d'un airdrop:`
+      : `Here are the available airdrops for your account:\n\n${airdropsList}\nClick on the corresponding button to claim an airdrop, or manually enter an airdrop ID:`;
       
     // Initialiser l'état de l'utilisateur
     userState.set(userId, {
@@ -351,7 +361,11 @@ async function handleClaimAirdrop(bot, msg) {
       availableAirdrops: availableAirdrops
     });
     
-    await bot.sendMessage(chatId, message);
+    await bot.sendMessage(chatId, message, {
+      reply_markup: {
+        inline_keyboard: inlineKeyboard
+      }
+    });
   } else {
     // Pas d'airdrops disponibles connus, demander directement l'ID
     // Initialiser l'état de l'utilisateur
@@ -360,8 +374,8 @@ async function handleClaimAirdrop(bot, msg) {
     });
     
     const message = userLang === 'fr' 
-      ? "Pour réclamer un airdrop, veuillez fournir l'ID de l'airdrop que vous souhaitez réclamer. Cet ID vous a été communiqué par l'expéditeur de l'airdrop:"
-      : "To claim an airdrop, please provide the airdrop ID you want to claim. This ID was communicated to you by the sender of the airdrop:";
+      ? "Aucun airdrop en attente trouvé pour votre compte.\n\nSi vous avez un ID d'airdrop spécifique à réclamer, veuillez le fournir ci-dessous. Cet ID vous a été communiqué par l'expéditeur de l'airdrop:"
+      : "No pending airdrops found for your account.\n\nIf you have a specific airdrop ID to claim, please provide it below. This ID was communicated to you by the sender of the airdrop:";
       
     await bot.sendMessage(chatId, message);
   }
@@ -756,18 +770,38 @@ async function handleAirdropConversation(bot, msg) {
         ? "Traitement de votre réclamation d'airdrop en cours..."
         : "Processing your airdrop claim...");
     
-    const result = await claimTokenAirdrop(userId, airdropId);
+    // Vérifier si nous utilisons un ID de base de données
+    const isDbId = userInfo.availableAirdrops && userInfo.availableAirdrops.length > 0;
+    
+    // Procéder à la réclamation
+    const result = await claimTokenAirdrop(userId, airdropId, isDbId);
     
     if (result.success) {
-      const message = userLang === 'fr'
-        ? `✅ Félicitations! Vous avez réclamé avec succès l'airdrop.\n\n`
-          + `ID de transaction: ${result.transactionId}\n`
-          + `Explorer: ${result.explorerUrl || 'N/A'}\n`
-          + `HashScan: ${result.hashscanUrl || 'N/A'}`
-        : `✅ Congratulations! You have successfully claimed the airdrop.\n\n`
-          + `Transaction ID: ${result.transactionId}\n`
-          + `Explorer: ${result.explorerUrl || 'N/A'}\n`
-          + `HashScan: ${result.hashscanUrl || 'N/A'}`;
+      let message;
+      
+      if (result.transactionId) {
+        // Transaction blockchain réalisée
+        message = userLang === 'fr'
+          ? `✅ Félicitations! Vous avez réclamé avec succès l'airdrop.\n\n`
+            + `ID de transaction: ${result.transactionId}\n`
+            + `Explorer: ${result.explorerUrl || 'N/A'}\n`
+            + `HashScan: ${result.hashscanUrl || 'N/A'}`
+          : `✅ Congratulations! You have successfully claimed the airdrop.\n\n`
+            + `Transaction ID: ${result.transactionId}\n`
+            + `Explorer: ${result.explorerUrl || 'N/A'}\n`
+            + `HashScan: ${result.hashscanUrl || 'N/A'}`;
+      } else {
+        // Réclamation de base de données uniquement
+        message = userLang === 'fr'
+          ? `✅ Félicitations! Vous avez réclamé avec succès l'airdrop.\n\n`
+            + `Nom du token: ${result.tokenName || 'Token'}\n`
+            + `ID du token: ${result.tokenId || 'N/A'}\n`
+            + `Montant: ${result.amount || 'N/A'}`
+          : `✅ Congratulations! You have successfully claimed the airdrop.\n\n`
+            + `Token name: ${result.tokenName || 'Token'}\n`
+            + `Token ID: ${result.tokenId || 'N/A'}\n`
+            + `Amount: ${result.amount || 'N/A'}`;
+      }
           
       await bot.sendMessage(chatId, message);
     } else {
