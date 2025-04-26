@@ -976,7 +976,7 @@ function registerCommands(bot) {
     
     // Si c'est une commande, vérifier si c'est une commande setlang connue
     if (isCommand) {
-      // Vérifier si c'est une commande setlang
+      // Vérifier si c'est une commande de langue
       const isLanguageCommand = msg.text.match(/^\/(setlang|language|langue)(\s+.*)?$/i);
       
       // Si c'est bien une commande langue, ne rien faire car le gestionnaire spécifique s'en occupera
