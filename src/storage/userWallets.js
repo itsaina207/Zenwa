@@ -48,15 +48,16 @@ async function storeWallet(wallet) {
     // Insert or update wallet data
     const sql = `
       INSERT INTO user_wallets 
-        (user_id, account_id, private_key, public_key, evm_address, username)
+        (user_id, account_id, private_key, public_key, evm_address, username, phone_number)
       VALUES 
-        ($1, $2, $3, $4, $5, $6)
+        ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (user_id) DO UPDATE SET
         account_id = $2,
         private_key = $3,
         public_key = $4,
         evm_address = $5,
-        username = $6
+        username = $6,
+        phone_number = $7
       RETURNING id;
     `;
     
@@ -66,7 +67,8 @@ async function storeWallet(wallet) {
       wallet.privateKey,
       wallet.publicKey,
       wallet.evmAddress || null,
-      wallet.username || null
+      wallet.username || null,
+      wallet.phoneNumber || null
     ];
     
     const result = await query(sql, values);
@@ -102,6 +104,7 @@ async function getWalletByUserId(userId) {
         publicKey: wallet.public_key,
         evmAddress: wallet.evm_address,
         username: wallet.username,
+        phoneNumber: wallet.phone_number,
         created: wallet.created_at
       };
     }
@@ -109,6 +112,40 @@ async function getWalletByUserId(userId) {
     return null;
   } catch (error) {
     console.error('Error getting wallet by user ID:', error);
+    return null;
+  }
+}
+
+/**
+ * Get wallet by phone number
+ * @param {string} phoneNumber - User phone number
+ * @returns {Promise<object|null>} Wallet object or null if not found
+ */
+async function getWalletByPhoneNumber(phoneNumber) {
+  try {
+    // Normalize phone number (remove spaces, hyphens, etc.)
+    let normalizedPhone = phoneNumber.replace(/[\s\-\(\)\.]/g, '');
+    
+    const sql = 'SELECT * FROM user_wallets WHERE phone_number = $1 OR phone_number LIKE $2';
+    const result = await query(sql, [normalizedPhone, `%${normalizedPhone}%`]);
+    
+    if (result.rows.length > 0) {
+      const wallet = result.rows[0];
+      return {
+        userId: wallet.user_id,
+        accountId: wallet.account_id,
+        privateKey: wallet.private_key,
+        publicKey: wallet.public_key,
+        evmAddress: wallet.evm_address,
+        username: wallet.username,
+        phoneNumber: wallet.phone_number,
+        created: wallet.created_at
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting wallet by phone number:', error);
     return null;
   }
 }
@@ -222,6 +259,7 @@ module.exports = {
   storeWallet,
   getWalletByUserId,
   getWalletByUsername,
+  getWalletByPhoneNumber,
   getWalletByAccountId,
   deleteWallet,
   getAllWallets,
