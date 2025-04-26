@@ -21,11 +21,22 @@ async function storeAirdrop(airdropData) {
   const { pool } = require('./db');
   const client = await pool.connect();
   
+  console.log('Tentative d\'enregistrement d\'airdrop avec les données:', JSON.stringify(airdropData, null, 2));
+  
   try {
     // Commencer une transaction
     await client.query('BEGIN');
     
     // Insérer l'airdrop principal
+    console.log('Insertion de l\'airdrop principal avec:', {
+      creatorId: airdropData.creatorId,
+      tokenId: airdropData.tokenId,
+      tokenName: airdropData.tokenName || null,
+      transactionId: airdropData.transactionId,
+      pendingAirdropId: airdropData.pendingAirdropId || null,
+      totalAmount: airdropData.totalAmount
+    });
+    
     const airdropInsert = await client.query(
       `INSERT INTO airdrops
         (creator_id, token_id, token_name, transaction_id, pending_airdrop_id, total_amount)
@@ -42,9 +53,18 @@ async function storeAirdrop(airdropData) {
     );
     
     const airdropId = airdropInsert.rows[0].id;
+    console.log(`Airdrop principal inséré avec succès, ID: ${airdropId}`);
     
     // Insérer les destinataires
+    console.log(`Insertion de ${airdropData.recipients.length} destinataires`);
     for (const recipient of airdropData.recipients) {
+      console.log('Insertion du destinataire:', {
+        airdropId: airdropId,
+        recipientId: recipient.originalId || 'unknown',
+        accountId: recipient.accountId,
+        amount: recipient.amount
+      });
+      
       await client.query(
         `INSERT INTO airdrop_recipients
           (airdrop_id, recipient_id, account_id, amount)
@@ -60,6 +80,7 @@ async function storeAirdrop(airdropData) {
     
     // Valider la transaction
     await client.query('COMMIT');
+    console.log(`Transaction validée avec succès pour l'airdrop ${airdropId}`);
     
     return {
       success: true,
@@ -86,16 +107,50 @@ async function storeAirdrop(airdropData) {
  */
 async function getAvailableAirdropsForAccount(accountId) {
   try {
+    console.log(`Recherche d'airdrops disponibles pour le compte ${accountId}`);
+    
+    // Vérifier d'abord la structure de la table
+    const checkTable = await query(
+      "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'airdrop_recipients')",
+      []
+    );
+    
+    console.log(`Table airdrop_recipients existe : ${checkTable.rows[0].exists}`);
+    
+    if (checkTable.rows[0].exists) {
+      // Compter le nombre total d'airdrop_recipients pour ce compte
+      const countRecipients = await query(
+        `SELECT COUNT(*) FROM airdrop_recipients WHERE account_id = $1`,
+        [accountId]
+      );
+      
+      console.log(`Nombre total d'enregistrements pour ce compte : ${countRecipients.rows[0].count}`);
+      
+      // Compter le nombre d'airdrops non réclamés pour ce compte
+      const countUnclaimedRecipients = await query(
+        `SELECT COUNT(*) FROM airdrop_recipients WHERE account_id = $1 AND claimed = FALSE`,
+        [accountId]
+      );
+      
+      console.log(`Nombre d'airdrops non réclamés : ${countUnclaimedRecipients.rows[0].count}`);
+    }
+    
+    // Simplifier la requête pour trouver l'erreur si elle existe
     const result = await query(
-      `SELECT a.id, a.token_id, a.token_name, a.pending_airdrop_id, ar.amount
+      `SELECT a.id, a.token_id, a.token_name, a.pending_airdrop_id, ar.amount, ar.claimed
        FROM airdrops a
        JOIN airdrop_recipients ar ON a.id = ar.airdrop_id
        WHERE ar.account_id = $1
        AND ar.claimed = FALSE
-       AND a.status = 'ACTIVE'
        ORDER BY a.created_at DESC`,
       [accountId]
     );
+    
+    console.log(`Résultat de la requête : ${result.rowCount} lignes trouvées`);
+    
+    if (result.rowCount > 0) {
+      console.log(`Premier résultat :`, result.rows[0]);
+    }
     
     return result.rows.map(row => ({
       id: row.id,
@@ -106,6 +161,7 @@ async function getAvailableAirdropsForAccount(accountId) {
     }));
   } catch (error) {
     console.error('Erreur lors de la récupération des airdrops disponibles:', error);
+    console.error('Détails de l\'erreur:', error.stack);
     return [];
   }
 }
