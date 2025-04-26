@@ -1087,5 +1087,12 @@ module.exports = {
   handleMint,
   handleMintConversation,
   handleSendConversation,
-  handleNaturalLanguage
+  handleNaturalLanguage,
+  // Exporter les fonctions d'airdrop pour qu'elles soient disponibles ailleurs
+  handleAirdrop,
+  handleClaimAirdrop,
+  handleAirdropConversation,
+  AIRDROP_STATES,
+  CAMPAIGN_STATES,
+  CLAIM_STATES
 };
