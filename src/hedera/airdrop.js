@@ -497,26 +497,87 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
       
       // Si pas de pendingAirdropId, c'est qu'il n'y a pas besoin de faire une transaction sur la blockchain
       if (!pendingAirdropId) {
-        console.log(`Pas de pendingAirdropId, marquage comme réclamé dans la base de données seulement`);
+        console.log(`Pas de pendingAirdropId, vérification onchain avant marquage comme réclamé`);
         
-        // Marquer comme réclamé dans la base de données
-        const markResult = await markAirdropAsClaimed(accountId, airdropId);
-        console.log(`Résultat du marquage: ${markResult.success ? 'Succès' : 'Échec'} - ${markResult.message}`);
-        
-        if (!markResult.success) {
+        // Vérifier onchain si l'utilisateur possède déjà le token
+        try {
+          const client = getClient();
+          console.log(`[ONCHAIN_CHECK] Vérification du solde de token ${airdrop.tokenId} pour le compte ${accountId}`);
+          
+          // Créer une requête de solde de token
+          const tokenBalanceQuery = new AccountBalanceQuery()
+            .setAccountId(AccountId.fromString(accountId));
+          
+          // Exécuter la requête
+          console.log(`[ONCHAIN_CHECK] Exécution de la requête de solde`);
+          const accountBalance = await tokenBalanceQuery.execute(client);
+          
+          // Récupérer le solde du token spécifique
+          const tokenId = TokenId.fromString(airdrop.tokenId);
+          let tokenBalance = 0;
+          
+          try {
+            console.log(`[ONCHAIN_CHECK] Vérification si le token ${airdrop.tokenId} existe dans le solde`);
+            if (accountBalance.tokens && accountBalance.tokens._map) {
+              const tokenBalanceObj = accountBalance.tokens._map.get(tokenId);
+              if (tokenBalanceObj) {
+                tokenBalance = tokenBalanceObj.toNumber();
+                console.log(`[ONCHAIN_CHECK] Solde du token trouvé: ${tokenBalance}`);
+              } else {
+                console.log(`[ONCHAIN_CHECK] Token non trouvé dans le solde onchain`);
+              }
+            } else {
+              console.log(`[ONCHAIN_CHECK] Aucun token trouvé dans le solde onchain`);
+            }
+          } catch (err) {
+            console.error(`[ONCHAIN_CHECK] Erreur lors de l'extraction du solde: ${err.message}`);
+          }
+          
+          // Si le token est déjà détenu par l'utilisateur, marquer comme réclamé
+          if (tokenBalance > 0) {
+            console.log(`[ONCHAIN_CHECK] ✅ Le compte ${accountId} possède déjà ${tokenBalance} units du token ${airdrop.tokenId}`);
+            
+            // Marquer comme réclamé dans la base de données
+            const markResult = await markAirdropAsClaimed(accountId, airdropId);
+            console.log(`Résultat du marquage: ${markResult.success ? 'Succès' : 'Échec'} - ${markResult.message}`);
+            
+            if (!markResult.success) {
+              return {
+                success: false,
+                message: `Erreur lors du marquage de l'airdrop comme réclamé: ${markResult.message}`
+              };
+            }
+            
+            return {
+              success: true,
+              message: `Airdrop marqué comme réclamé avec succès. Le token ${airdrop.tokenId} est déjà dans votre portefeuille.`,
+              tokenId: airdrop.tokenId,
+              tokenName: airdrop.tokenName,
+              amount: airdrop.amount,
+              verifiedOnChain: true,
+              currentBalance: tokenBalance
+            };
+          } else {
+            console.log(`[ONCHAIN_CHECK] ⚠️ Le compte ${accountId} ne possède pas encore le token ${airdrop.tokenId} onchain`);
+            return {
+              success: false,
+              message: `Vous ne possédez pas encore le token ${airdrop.tokenId} sur la blockchain. Veuillez contacter l'admin pour effectuer le transfert.`,
+              tokenId: airdrop.tokenId,
+              tokenName: airdrop.tokenName,
+              amount: airdrop.amount,
+              verifiedOnChain: true,
+              currentBalance: 0
+            };
+          }
+        } catch (onchainError) {
+          console.error(`[ONCHAIN_CHECK] Erreur lors de la vérification onchain: ${onchainError.message}`);
           return {
             success: false,
-            message: `Erreur lors du marquage de l'airdrop comme réclamé: ${markResult.message}`
+            message: `Erreur lors de la vérification onchain: ${onchainError.message}`,
+            tokenId: airdrop.tokenId,
+            tokenName: airdrop.tokenName
           };
         }
-        
-        return {
-          success: true,
-          message: 'Airdrop marqué comme réclamé avec succès',
-          tokenId: airdrop.tokenId,
-          tokenName: airdrop.tokenName,
-          amount: airdrop.amount
-        };
       }
     }
     
