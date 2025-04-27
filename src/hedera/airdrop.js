@@ -421,9 +421,18 @@ async function getAvailableAirdrops(userId) {
  */
 async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
   try {
+    console.log(`[CLAIM_START] 🚀 Début de la réclamation d'airdrop:
+📌 User ID: ${userId}
+📌 Airdrop ID: ${airdropId}
+📌 Type ID: ${isDbId ? 'Base de données' : 'Pending Airdrop ID'}
+📌 Timestamp: ${new Date().toISOString()}
+`);
+    
     // Récupérer les informations du compte réclamant
+    console.log(`[CLAIM_ACCOUNT] Récupération des informations du compte pour l'utilisateur ${userId}`);
     const accountInfo = await getAccountInfo(userId);
     if (!accountInfo.success) {
+      console.error(`[CLAIM_ACCOUNT] ❌ Échec de récupération des informations du compte: ${accountInfo.message}`);
       return {
         success: false,
         message: `Impossible de récupérer les informations de votre compte: ${accountInfo.message}`
@@ -431,6 +440,10 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
     }
 
     const { accountId, privateKey } = accountInfo;
+    console.log(`[CLAIM_ACCOUNT] ✅ Compte trouvé: ${accountId}`);
+    
+    // Initialiser le client Hedera
+    console.log(`[CLAIM_HEDERA] Initialisation du client Hedera`);
     const client = getClient();
     
     // Si c'est un ID de base de données, récupérer le pendingAirdropId correspondant
@@ -595,12 +608,37 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
     // Si c'était un airdrop de la base de données, le marquer comme réclamé
     if (dbAirdropId) {
       try {
+        console.log(`[CLAIM_TRANSACTION] Marquage de l'airdrop ${dbAirdropId} comme réclamé dans la base de données`);
         const markResult = await markAirdropAsClaimed(accountId, dbAirdropId);
-        console.log(`Marquage de l'airdrop ${dbAirdropId} comme réclamé: ${markResult.success ? "Réussi" : "Échoué"}`);
+        console.log(`[CLAIM_TRANSACTION] Marquage de l'airdrop ${dbAirdropId} pour le compte ${accountId}: ${markResult.success ? "✅ Réussi" : "❌ Échoué"}`);
+        
+        if (markResult.success) {
+          console.log(`[CLAIM_TRANSACTION] 📊 Détails de la transaction:
+ID de transaction: ${txId}
+HashScan: ${result.hashscanUrl || `https://hashscan.io/testnet/transaction/${txId}`}
+Hedera Explorer: ${result.explorerUrl || `https://testnet.hederaexplorer.io/tx/${txId}`}
+Compte: ${accountId}
+Status: ${receipt.status.toString()}
+`);
+        } else {
+          console.warn(`[CLAIM_TRANSACTION] ⚠️ Transaction réussie mais échec du marquage dans la base de données: ${markResult.message}`);
+        }
       } catch (dbError) {
-        console.error(`Erreur lors du marquage de l'airdrop comme réclamé: ${dbError.message}`);
+        console.error(`[CLAIM_TRANSACTION] ❌ Erreur lors du marquage de l'airdrop ${dbAirdropId} comme réclamé: ${dbError.message}`);
+        console.error(`[CLAIM_TRANSACTION] Stack trace:`, dbError.stack);
       }
     }
+    
+    // Pour le débogage final, afficher un résumé de la réclamation
+    console.log(`[CLAIM_SUMMARY] 📋 Résumé de la réclamation d'airdrop:
+📌 Type: ${pendingAirdropId ? 'Transaction blockchain' : 'Marquage base de données uniquement'}
+📌 ID Base de données: ${dbAirdropId || 'N/A'}
+📌 ID Airdrop en attente: ${pendingAirdropId || 'N/A'}
+📌 Compte: ${accountId}
+📌 Statut: ${result.success ? '✅ Succès' : '❌ Échec'}
+${result.transactionId ? `📌 ID Transaction: ${result.transactionId}` : ''}
+${result.hashscanUrl ? `📌 HashScan: ${result.hashscanUrl}` : ''}
+`);
     
     return result;
     
