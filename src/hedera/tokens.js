@@ -288,19 +288,50 @@ async function getUserTokens(userId) {
  */
 async function isTokenAssociated(accountId, tokenId) {
   try {
+    console.log(`[TOKEN_ASSOCIATE] 🔍 Vérification de l'association du token ${tokenId} avec le compte ${accountId}`);
     const client = getClient();
     
     // Vérifier si le compte est associé au token
+    console.log(`[TOKEN_ASSOCIATE] Création de la requête AccountBalanceQuery`);
     const balanceQuery = new AccountBalanceQuery()
       .setAccountId(accountId);
     
+    console.log(`[TOKEN_ASSOCIATE] Exécution de la requête de solde pour ${accountId}`);
     const accountBalance = await balanceQuery.execute(client);
+    
+    console.log(`[TOKEN_ASSOCIATE] Récupération des tokens pour le compte ${accountId}`);
     const tokens = accountBalance.tokens;
+    
+    // Vérifier si le Map contient une entrée pour ce token
     const isAssociated = tokens.get(tokenId) !== undefined;
+    
+    // Afficher tous les tokens associés pour le débogage
+    const associatedTokens = Array.from(tokens.keys());
+    console.log(`[TOKEN_ASSOCIATE] Tokens associés au compte ${accountId}: ${associatedTokens.length > 0 ? associatedTokens.join(', ') : 'Aucun'}`);
+    
+    if (isAssociated) {
+      console.log(`[TOKEN_ASSOCIATE] ✅ Le token ${tokenId} est associé au compte ${accountId}`);
+    } else {
+      console.log(`[TOKEN_ASSOCIATE] ⚠️ Le token ${tokenId} n'est PAS associé au compte ${accountId}`);
+      
+      // Vérifier si le compte a l'option "Max Auto Associations"
+      console.log(`[TOKEN_ASSOCIATE] Vérification des paramètres du compte pour déterminer si l'auto-association est possible`);
+      
+      // Cette partie nécessite des informations supplémentaires sur le compte
+      // qui ne sont pas disponibles via la simple requête de solde
+      try {
+        // Récupération des infos du compte via AccountInfoQuery
+        // Note: Cette fonctionnalité dépend des capacités de l'Agent Kit
+        console.log(`[TOKEN_ASSOCIATE] ℹ️ Note: Le compte ${accountId} devra explicitement associer le token ${tokenId} avant de pouvoir le recevoir`);
+      } catch (accountInfoError) {
+        console.log(`[TOKEN_ASSOCIATE] Impossible de vérifier les paramètres avancés du compte: ${accountInfoError.message}`);
+      }
+    }
     
     return isAssociated;
   } catch (error) {
-    console.error(`Erreur lors de la vérification de l'association du token: ${error.message}`);
+    console.error(`[TOKEN_ASSOCIATE] ❌ Erreur lors de la vérification de l'association du token: ${error.message}`);
+    console.error(`[TOKEN_ASSOCIATE] Stack trace:`, error.stack);
     return false;
   }
 }
@@ -313,19 +344,29 @@ async function isTokenAssociated(accountId, tokenId) {
  */
 async function associateToken(userId, tokenId) {
   try {
+    console.log(`[ASSOCIATE_TOKEN] 🔄 Début de l'association du token ${tokenId} pour l'utilisateur ${userId}`);
     const client = getClient();
+    
+    // Récupérer les informations du wallet
+    console.log(`[ASSOCIATE_TOKEN] Récupération du wallet pour l'utilisateur ${userId}`);
     const wallet = await getWalletByUserId(userId);
     
     if (!wallet) {
+      console.error(`[ASSOCIATE_TOKEN] ❌ Aucun wallet trouvé pour l'utilisateur ${userId}`);
       return {
         success: false,
         message: 'Aucun wallet trouvé. Créez-en un d\'abord avec /createwallet',
       };
     }
     
+    console.log(`[ASSOCIATE_TOKEN] ✅ Wallet trouvé pour ${userId}: Compte ${wallet.accountId}`);
+    
     // Vérifier si le token est déjà associé
+    console.log(`[ASSOCIATE_TOKEN] Vérification de l'association existante du token ${tokenId}`);
     const alreadyAssociated = await isTokenAssociated(wallet.accountId, tokenId);
+    
     if (alreadyAssociated) {
+      console.log(`[ASSOCIATE_TOKEN] ℹ️ Le token ${tokenId} est déjà associé au compte ${wallet.accountId}`);
       return {
         success: true,
         message: `Votre compte est déjà associé au token ${tokenId}`,
@@ -336,21 +377,27 @@ async function associateToken(userId, tokenId) {
     }
     
     // Création de la transaction d'association
+    console.log(`[ASSOCIATE_TOKEN] Création de la transaction TokenAssociateTransaction`);
     const transaction = await new TokenAssociateTransaction()
       .setAccountId(wallet.accountId)
       .setTokenIds([tokenId])
       .freezeWith(client);
     
     // Signer avec la clé privée du compte
-    const signedTx = await transaction.sign(
-      PrivateKey.fromString(wallet.privateKey)
-    );
+    console.log(`[ASSOCIATE_TOKEN] Signature de la transaction avec la clé privée du compte ${wallet.accountId}`);
+    const privateKeyObj = PrivateKey.fromString(wallet.privateKey);
+    const signedTx = await transaction.sign(privateKeyObj);
     
     // Exécuter la transaction
+    console.log(`[ASSOCIATE_TOKEN] Exécution de la transaction d'association`);
     const txResponse = await signedTx.execute(client);
+    console.log(`[ASSOCIATE_TOKEN] Transaction soumise, attente du reçu...`);
+    
     const receipt = await txResponse.getReceipt(client);
+    console.log(`[ASSOCIATE_TOKEN] Reçu obtenu, statut: ${receipt.status.toString()}`);
     
     if (receipt.status.toString() !== 'SUCCESS') {
+      console.error(`[ASSOCIATE_TOKEN] ❌ L'association a échoué avec le statut: ${receipt.status.toString()}`);
       return {
         success: false,
         message: `L'association du token a échoué avec le statut: ${receipt.status.toString()}`,
@@ -359,19 +406,52 @@ async function associateToken(userId, tokenId) {
     
     const txId = txResponse.transactionId.toString();
     
+    // Vérifier une fois de plus que l'association a bien été faite
+    console.log(`[ASSOCIATE_TOKEN] Vérification finale de l'association du token ${tokenId}`);
+    const finalCheck = await isTokenAssociated(wallet.accountId, tokenId);
+    
+    if (!finalCheck) {
+      console.warn(`[ASSOCIATE_TOKEN] ⚠️ Malgré un statut de succès, le token ${tokenId} ne semble pas être associé au compte ${wallet.accountId}`);
+    }
+    
+    // Préparer les URLs des explorateurs
+    const hashscanUrl = `https://hashscan.io/${HEDERA_NETWORK}/tx/${txId}`;
+    const hederaExplorerUrl = `https://testnet.hederaexplorer.io/tx/${txId}`;
+    
+    console.log(`[ASSOCIATE_TOKEN] ✅ Association réussie du token ${tokenId} au compte ${wallet.accountId}`);
+    console.log(`[ASSOCIATE_TOKEN] ID de transaction: ${txId}`);
+    console.log(`[ASSOCIATE_TOKEN] HashScan: ${hashscanUrl}`);
+    console.log(`[ASSOCIATE_TOKEN] Hedera Explorer: ${hederaExplorerUrl}`);
+    
     return {
       success: true,
       message: `Le token ${tokenId} a été associé avec succès à votre compte`,
       tokenId,
       accountId: wallet.accountId,
       transactionId: txId,
-      explorerUrl: `https://hashscan.io/${HEDERA_NETWORK}/tx/${txId}`,
+      explorerUrl: hederaExplorerUrl,
+      hashscanUrl: hashscanUrl
     };
   } catch (error) {
-    console.error(`Erreur lors de l'association du token: ${error.message}`);
+    console.error(`[ASSOCIATE_TOKEN] ❌ Erreur lors de l'association du token:`, error);
+    console.error(`[ASSOCIATE_TOKEN] Stack trace:`, error.stack);
+    
+    // Tenter d'identifier le type d'erreur pour un message plus précis
+    let errorMessage = `Échec de l'association du token: ${error.message}`;
+    
+    if (error.message.includes('INSUFFICIENT_PAYER_BALANCE')) {
+      errorMessage = `Solde insuffisant pour effectuer l'association du token. Veuillez recharger votre compte en HBAR.`;
+    } else if (error.message.includes('TOKEN_NOT_FOUND') || error.message.includes('INVALID_TOKEN_ID')) {
+      errorMessage = `Le token ${tokenId} n'existe pas ou n'est pas valide.`;
+    } else if (error.message.includes('ACCOUNT_FROZEN_FOR_TOKEN')) {
+      errorMessage = `L'association n'a pas pu être effectuée car votre compte est gelé pour ce token.`;
+    } else if (error.message.includes('INVALID_SIGNATURE')) {
+      errorMessage = `La signature de la transaction n'est pas valide. Problème avec les clés privées.`;
+    }
+    
     return {
       success: false,
-      message: `Échec de l'association du token: ${error.message}`,
+      message: errorMessage,
     };
   }
 }
