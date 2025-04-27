@@ -171,6 +171,8 @@ async function handleButtonAction(callbackQuery) {
     const airdropId = action.split('claim_airdrop_')[1];
     const userLang = getUserLanguage(userId);
     
+    console.log(`Demande de réclamation d'airdrop. Action: ${action}, ID: ${airdropId}, User: ${userId}`);
+    
     // Notifier l'utilisateur que le processus a commencé
     await bot.sendMessage(
       chatId, 
@@ -180,8 +182,27 @@ async function handleButtonAction(callbackQuery) {
     );
     
     try {
+      // Obtenir les infos du compte de l'utilisateur
+      const { getAccountInfo } = require('../hedera/account');
+      const accountInfo = await getAccountInfo(userId);
+      if (!accountInfo.success) {
+        console.error(`Impossible de récupérer les informations du compte pour ${userId}: ${accountInfo.message}`);
+        await bot.sendMessage(
+          chatId, 
+          userLang === 'fr'
+            ? `❌ Impossible de récupérer les informations de votre compte: ${accountInfo.message}`
+            : `❌ Unable to retrieve your account information: ${accountInfo.message}`
+        );
+        return true;
+      }
+      
+      console.log(`Compte trouvé pour ${userId}: ${accountInfo.accountId}`);
+      
       // Appeler la fonction de réclamation avec isDbId=true car il s'agit d'un ID de notre base de données
+      console.log(`Appel de claimTokenAirdrop avec userId=${userId}, airdropId=${airdropId}, isDbId=true`);
       const result = await claimTokenAirdrop(userId, airdropId, true);
+      
+      console.log(`Résultat de la réclamation:`, result);
       
       if (result.success) {
         let message;
@@ -210,16 +231,19 @@ async function handleButtonAction(callbackQuery) {
               + `Amount: ${result.amount || 'N/A'}`;
         }
         
+        console.log(`Envoi du message de succès à l'utilisateur ${userId}`);
         await bot.sendMessage(chatId, message);
       } else {
-        const message = userLang === 'fr'
+        const errorMessage = userLang === 'fr'
           ? `❌ Erreur lors de la réclamation de l'airdrop: ${result.message}`
           : `❌ Error claiming airdrop: ${result.message}`;
-          
-        await bot.sendMessage(chatId, message);
+        
+        console.error(`Échec de la réclamation pour l'utilisateur ${userId}: ${result.message}`);
+        await bot.sendMessage(chatId, errorMessage);
       }
     } catch (error) {
       console.error(`Erreur dans claim_airdrop_:`, error);
+      console.error('Stack trace:', error.stack);
       await bot.sendMessage(
         chatId, 
         userLang === 'fr'
@@ -230,6 +254,7 @@ async function handleButtonAction(callbackQuery) {
     
     // Réinitialiser l'état de l'utilisateur
     userState.delete(userId);
+    console.log(`État utilisateur réinitialisé pour ${userId}`);
     return true;
   }
   
