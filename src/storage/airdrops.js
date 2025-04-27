@@ -174,67 +174,91 @@ async function getAvailableAirdropsForAccount(accountId) {
  */
 async function markAirdropAsClaimed(accountId, airdropId) {
   try {
-    console.log(`Tentative de marquer l'airdrop ${airdropId} comme réclamé par le compte ${accountId}`);
+    console.log(`[CLAIM_DB] 🔍 Tentative de marquer l'airdrop ${airdropId} comme réclamé par le compte ${accountId}`);
     
     // Vérifier si l'enregistrement existe avant de le mettre à jour
+    console.log(`[CLAIM_DB] Vérification de l'existence de l'airdrop dans la base de données`);
     const checkResult = await query(
-      `SELECT * FROM airdrop_recipients 
-       WHERE account_id = $1 AND airdrop_id = $2`,
+      `SELECT ar.*, a.token_id, a.token_name
+       FROM airdrop_recipients ar
+       JOIN airdrops a ON ar.airdrop_id = a.id
+       WHERE ar.account_id = $1 AND ar.airdrop_id = $2`,
       [accountId, airdropId]
     );
     
-    console.log(`Vérification de l'airdrop : ${checkResult.rowCount} enregistrements trouvés`);
+    console.log(`[CLAIM_DB] Vérification de l'airdrop : ${checkResult.rowCount} enregistrements trouvés`);
     
     if (checkResult.rowCount === 0) {
-      console.error(`Aucun enregistrement trouvé pour le compte ${accountId} et l'airdrop ${airdropId}`);
+      console.error(`[CLAIM_DB] ❌ Aucun enregistrement trouvé pour le compte ${accountId} et l'airdrop ${airdropId}`);
       return {
         success: false,
         message: 'Aucun airdrop trouvé pour cette combinaison de compte et d\'ID'
       };
     }
     
+    // Afficher les détails de l'airdrop pour le débogage
+    const airdropDetails = checkResult.rows[0];
+    console.log(`[CLAIM_DB] 📋 Détails de l'airdrop trouvé:
+ID Airdrop: ${airdropId}
+Compte: ${accountId}
+Token ID: ${airdropDetails.token_id || 'Non spécifié'}
+Token Name: ${airdropDetails.token_name || 'Non spécifié'}
+Montant: ${airdropDetails.amount || 'Non spécifié'}
+Déjà réclamé: ${airdropDetails.claimed ? 'Oui' : 'Non'}
+Date de réclamation: ${airdropDetails.claimed_at || 'Non réclamé'}
+`);
+    
     // Si l'airdrop est déjà réclamé
-    if (checkResult.rows[0].claimed) {
-      console.log(`L'airdrop ${airdropId} est déjà marqué comme réclamé`);
+    if (airdropDetails.claimed) {
+      console.log(`[CLAIM_DB] ⚠️ L'airdrop ${airdropId} est déjà marqué comme réclamé le ${airdropDetails.claimed_at}`);
       return {
         success: true,
         message: 'Airdrop déjà réclamé précédemment',
-        alreadyClaimed: true
+        alreadyClaimed: true,
+        tokenId: airdropDetails.token_id,
+        tokenName: airdropDetails.token_name,
+        amount: airdropDetails.amount,
+        claimedAt: airdropDetails.claimed_at
       };
     }
     
     // Procéder à la mise à jour
-    console.log(`Mise à jour de l'airdrop ${airdropId} pour le marquer comme réclamé`);
+    console.log(`[CLAIM_DB] 🔄 Mise à jour de l'airdrop ${airdropId} pour le marquer comme réclamé`);
     
+    const timestamp = new Date().toISOString();
     const result = await query(
       `UPDATE airdrop_recipients
        SET claimed = TRUE, claimed_at = NOW()
        WHERE account_id = $1 AND airdrop_id = $2
-       RETURNING id`,
+       RETURNING id, amount`,
       [accountId, airdropId]
     );
     
-    console.log(`Résultat de la mise à jour : ${result.rowCount} lignes affectées`);
+    console.log(`[CLAIM_DB] Résultat de la mise à jour : ${result.rowCount} lignes affectées`);
     
     if (result.rowCount > 0) {
-      console.log(`Airdrop ${airdropId} marqué comme réclamé avec succès`);
+      console.log(`[CLAIM_DB] ✅ Airdrop ${airdropId} marqué comme réclamé avec succès à ${timestamp}`);
       return {
         success: true,
-        message: 'Airdrop marqué comme réclamé'
+        message: 'Airdrop marqué comme réclamé',
+        tokenId: airdropDetails.token_id,
+        tokenName: airdropDetails.token_name,
+        amount: airdropDetails.amount,
+        claimedAt: timestamp
       };
     } else {
-      console.error(`Échec de la mise à jour pour l'airdrop ${airdropId}`);
+      console.error(`[CLAIM_DB] ❌ Échec de la mise à jour pour l'airdrop ${airdropId}`);
       return {
         success: false,
         message: 'Aucune ligne mise à jour lors du marquage comme réclamé'
       };
     }
   } catch (error) {
-    console.error(`Erreur lors du marquage de l'airdrop ${airdropId} comme réclamé:`, error);
-    console.error('Détails de l\'erreur:', error.stack);
+    console.error(`[CLAIM_DB] ❌ Erreur lors du marquage de l'airdrop ${airdropId} comme réclamé:`, error);
+    console.error('[CLAIM_DB] Stack trace:', error.stack);
     return {
       success: false,
-      message: `Erreur: ${error.message}`
+      message: `Erreur de base de données: ${error.message}`
     };
   }
 }
