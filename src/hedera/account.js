@@ -180,12 +180,54 @@ async function getBalance(userIdOrAccountId) {
 
     const accountBalance = await query.execute(client);
 
+    // Extraction améliorée des tokens avec debug
+    console.log(`[BALANCE] Récupération des tokens pour le compte ${accountId}`);
+    
+    // Créer un objet pour stocker les informations des tokens
+    const tokenBalances = {};
+    
+    // Parcourir tous les tokens associés au compte
+    if (accountBalance.tokens) {
+      try {
+        // Analyser et logger la structure de l'objet des tokens
+        console.log(`[BALANCE] Structure des tokens: ${JSON.stringify(accountBalance.tokens)}`);
+        
+        // Vérifier si c'est un Map ou un objet standard
+        if (accountBalance.tokens._map) {
+          console.log(`[BALANCE] Tokens trouvés via _map: ${accountBalance.tokens._map.size}`);
+          // C'est un Map
+          accountBalance.tokens._map.forEach((value, key) => {
+            console.log(`[BALANCE] Token trouvé: ${key.toString()} = ${value.toString()}`);
+            tokenBalances[key.toString()] = value.toString();
+          });
+        } else if (accountBalance.tokens.size) {
+          console.log(`[BALANCE] Tokens trouvés via size: ${accountBalance.tokens.size}`);
+          // C'est un Map standard
+          accountBalance.tokens.forEach((value, key) => {
+            tokenBalances[key.toString()] = value.toString();
+          });
+        } else {
+          // C'est peut-être un objet avec une autre structure
+          console.log(`[BALANCE] Tentative d'extraction alternative des tokens`);
+          Object.entries(accountBalance.tokens).forEach(([key, value]) => {
+            if (key !== '_map' && key !== 'size') {
+              tokenBalances[key] = value.toString();
+            }
+          });
+        }
+      } catch (err) {
+        console.error(`[BALANCE] Erreur lors de l'extraction des tokens: ${err.message}`);
+      }
+    }
+    
+    console.log(`[BALANCE] Tokens extraits: ${JSON.stringify(tokenBalances)}`);
+    
     return {
       success: true,
       balance: {
         hbars: accountBalance.hbars.toString(),
-        tokens: accountBalance.tokens._map.size > 0 
-               ? Object.fromEntries(accountBalance.tokens._map) 
+        tokens: Object.keys(tokenBalances).length > 0 
+               ? tokenBalances 
                : 'Aucun token',
       },
       accountId: accountId,

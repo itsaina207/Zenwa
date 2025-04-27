@@ -206,13 +206,24 @@ async function handleBalance(bot, msg) {
   if (result.success) {
     let tokenList = '';
     if (typeof result.balance.tokens === 'string') {
+      // Si c'est juste une chaîne (probablement "Aucun token"), l'utiliser telle quelle
       tokenList = result.balance.tokens;
     } else {
-      tokenList = Object.entries(result.balance.tokens)
-        .map(([tokenId, amount]) => `${tokenId}: ${amount}`)
-        .join('\n');
+      // Sinon, parcourir les tokens et les formater
+      console.log(`[DISPLAY_BALANCE] Tokens à afficher: ${JSON.stringify(result.balance.tokens)}`);
       
-      if (!tokenList) tokenList = 'Aucun token';
+      const tokenEntries = Object.entries(result.balance.tokens);
+      if (tokenEntries.length > 0) {
+        // Formater chaque token avec son ID et montant
+        tokenList = tokenEntries
+          .map(([tokenId, amount]) => {
+            // Formatter avec lien HashScan
+            return `${tokenId}: ${amount} [Voir sur HashScan](https://hashscan.io/${HEDERA_NETWORK}/token/${tokenId})`;
+          })
+          .join('\n');
+      } else {
+        tokenList = 'Aucun token';
+      }
     }
     
     const message = `
