@@ -1075,7 +1075,21 @@ function registerCommands(bot) {
   // Nous avons désactivé l'ancien gestionnaire de langue qui causait des conflits
   // bot.onText(/\/(language|langue)(.*)/, msg => handleLanguage(bot, msg));
   
-  // Nous avons supprimé le gestionnaire de callbacks pour simplifier
+  // Gestionnaire pour les callbacks des boutons
+  bot.on('callback_query', async (callbackQuery) => {
+    console.log(`Callback received: ${callbackQuery.data} from user ${callbackQuery.from.id}`);
+    
+    // Essayer de traiter avec le gestionnaire des boutons
+    const handled = await buttonHandlers.handleButtonAction(callbackQuery);
+    
+    // Si le callback n'a pas été traité, retourner un message générique
+    if (!handled) {
+      console.log(`Unhandled callback: ${callbackQuery.data}`);
+      await bot.answerCallbackQuery(callbackQuery.id, { 
+        text: "Cette action n'est plus disponible ou a expiré."
+      });
+    }
+  });
   
   // Handler pour les messages normaux
   bot.on('message', async (msg) => {
