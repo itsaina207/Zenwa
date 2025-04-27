@@ -217,8 +217,9 @@ async function handleBalance(bot, msg) {
         // Formater chaque token avec son ID et montant
         tokenList = tokenEntries
           .map(([tokenId, amount]) => {
-            // Formatter avec lien HashScan
-            return `${tokenId}: ${amount} [Voir sur HashScan](https://hashscan.io/${HEDERA_NETWORK}/token/${tokenId})`;
+            // Formatter avec lien HashScan (testnet par défaut)
+            const network = 'testnet'; // Nous pouvons aussi importer cette valeur du module de configuration
+            return `${tokenId}: ${amount} [Voir sur HashScan](https://hashscan.io/${network}/token/${tokenId})`;
           })
           .join('\n');
       } else {
