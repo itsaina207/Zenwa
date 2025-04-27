@@ -13,6 +13,7 @@ const {
 const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
 const { getExplorerUrls } = require('../utils/explorer');
+const { isTokenAssociated, associateToken } = require('./tokens');
 const { getWalletByUserId, getWalletByUsername, getWalletByPhoneNumber } = require('../storage/userWallets');
 const { storeAirdrop, getAvailableAirdropsForAccount, markAirdropAsClaimed } = require('../storage/airdrops');
 
@@ -439,7 +440,10 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
     if (isDbId) {
       // Récupérer l'airdrop dans la base de données
       const availableAirdrops = await getAvailableAirdropsForAccount(accountId);
+      console.log(`Récupération des airdrops disponibles pour ${accountId}: ${availableAirdrops.length} trouvés`);
+      
       const airdrop = availableAirdrops.find(a => a.id.toString() === airdropId.toString());
+      console.log(`Recherche de l'airdrop ${airdropId} parmi les disponibles:`, airdrop ? 'Trouvé' : 'Non trouvé');
       
       if (!airdrop) {
         return {
@@ -448,12 +452,43 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
         };
       }
       
+      console.log(`Airdrop trouvé: Token ${airdrop.tokenId}, Montant: ${airdrop.amount}`);
+      
+      // Vérifier si le token est associé au compte avant de tenter la réclamation
+      if (airdrop.tokenId) {
+        console.log(`Vérification de l'association du token ${airdrop.tokenId} pour le compte ${accountId}`);
+        
+        const isAssociated = await isTokenAssociated(accountId, airdrop.tokenId);
+        console.log(`Le compte ${accountId} est-il associé au token ${airdrop.tokenId}? ${isAssociated ? 'Oui' : 'Non'}`);
+        
+        if (!isAssociated) {
+          console.log(`Association du token ${airdrop.tokenId} pour le compte ${accountId}...`);
+          
+          // Tenter d'associer automatiquement le token
+          const associateResult = await associateToken(userId, airdrop.tokenId);
+          
+          if (!associateResult.success) {
+            console.error(`Échec de l'association du token: ${associateResult.message}`);
+            return {
+              success: false,
+              message: `Impossible de réclamer l'airdrop: votre compte n'est pas associé au token et l'association automatique a échoué. Veuillez d'abord associer le token avec la commande /associate ${airdrop.tokenId}`
+            };
+          }
+          
+          console.log(`Token ${airdrop.tokenId} associé avec succès pour ${accountId}`);
+        }
+      }
+      
       pendingAirdropId = airdrop.pendingAirdropId;
+      console.log(`PendingAirdropId: ${pendingAirdropId || 'Non défini'}`);
       
       // Si pas de pendingAirdropId, c'est qu'il n'y a pas besoin de faire une transaction sur la blockchain
       if (!pendingAirdropId) {
+        console.log(`Pas de pendingAirdropId, marquage comme réclamé dans la base de données seulement`);
+        
         // Marquer comme réclamé dans la base de données
         const markResult = await markAirdropAsClaimed(accountId, airdropId);
+        console.log(`Résultat du marquage: ${markResult.success ? 'Succès' : 'Échec'} - ${markResult.message}`);
         
         if (!markResult.success) {
           return {
@@ -475,26 +510,66 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
     // Vérifier que le pendingAirdropId est au bon format et créer un objet PendingAirdropId
     let pendingAirdropIdObj;
     try {
+      console.log(`Vérification du format du pendingAirdropId: ${pendingAirdropId}`);
       pendingAirdropIdObj = PendingAirdropId.fromString(pendingAirdropId);
+      console.log(`PendingAirdropId validé`);
     } catch (error) {
+      console.error(`Format d'Airdrop ID invalide: ${error.message}`);
       return {
         success: false,
         message: `Format d'Airdrop ID invalide: ${error.message}`
       };
     }
     
+    // Si nous avons des informations sur le token pour cet airdrop, vérifier l'association
+    if (isDbId && dbAirdropId) {
+      console.log(`Récupération des informations sur l'airdrop ${dbAirdropId} pour vérifier l'association du token`);
+      const availableAirdrops = await getAvailableAirdropsForAccount(accountId);
+      const airdrop = availableAirdrops.find(a => a.id.toString() === dbAirdropId.toString());
+      
+      if (airdrop && airdrop.tokenId) {
+        console.log(`Vérification de l'association du token ${airdrop.tokenId} pour le compte ${accountId} avant réclamation`);
+        
+        const isAssociated = await isTokenAssociated(accountId, airdrop.tokenId);
+        console.log(`Le compte ${accountId} est-il associé au token ${airdrop.tokenId}? ${isAssociated ? 'Oui' : 'Non'}`);
+        
+        if (!isAssociated) {
+          console.log(`Association du token ${airdrop.tokenId} pour le compte ${accountId}...`);
+          
+          // Tenter d'associer automatiquement le token
+          const associateResult = await associateToken(userId, airdrop.tokenId);
+          
+          if (!associateResult.success) {
+            console.error(`Échec de l'association du token: ${associateResult.message}`);
+            return {
+              success: false,
+              message: `Impossible de réclamer l'airdrop: votre compte n'est pas associé au token et l'association automatique a échoué. Veuillez d'abord associer le token avec la commande /associate ${airdrop.tokenId}`
+            };
+          }
+          
+          console.log(`Token ${airdrop.tokenId} associé avec succès pour ${accountId}`);
+        }
+      }
+    }
+    
     // Créer la transaction de réclamation d'airdrop
+    console.log(`Création de la transaction de réclamation d'airdrop avec pendingAirdropId: ${pendingAirdropId}`);
     const txClaimAirdrop = await new TokenClaimAirdropTransaction()
       .addPendingAirdropId(pendingAirdropIdObj)
       .freezeWith(client);
       
     // Convertir la chaîne privateKey en objet PrivateKey et signer
+    console.log(`Signature de la transaction avec la clé privée du compte ${accountId}`);
     const privateKeyObj = PrivateKey.fromString(privateKey);
     const signedTx = await txClaimAirdrop.sign(privateKeyObj);
     
     // Soumettre la transaction
+    console.log(`Soumission de la transaction de réclamation...`);
     const txResponse = await signedTx.execute(client);
+    console.log(`Transaction soumise, attente du reçu...`);
     const receipt = await txResponse.getReceipt(client);
+    console.log(`Reçu obtenu, statut: ${receipt.status.toString()}`);
+    
     
     const txId = txResponse.transactionId.toString();
     
