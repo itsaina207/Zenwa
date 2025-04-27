@@ -174,6 +174,38 @@ async function getAvailableAirdropsForAccount(accountId) {
  */
 async function markAirdropAsClaimed(accountId, airdropId) {
   try {
+    console.log(`Tentative de marquer l'airdrop ${airdropId} comme réclamé par le compte ${accountId}`);
+    
+    // Vérifier si l'enregistrement existe avant de le mettre à jour
+    const checkResult = await query(
+      `SELECT * FROM airdrop_recipients 
+       WHERE account_id = $1 AND airdrop_id = $2`,
+      [accountId, airdropId]
+    );
+    
+    console.log(`Vérification de l'airdrop : ${checkResult.rowCount} enregistrements trouvés`);
+    
+    if (checkResult.rowCount === 0) {
+      console.error(`Aucun enregistrement trouvé pour le compte ${accountId} et l'airdrop ${airdropId}`);
+      return {
+        success: false,
+        message: 'Aucun airdrop trouvé pour cette combinaison de compte et d\'ID'
+      };
+    }
+    
+    // Si l'airdrop est déjà réclamé
+    if (checkResult.rows[0].claimed) {
+      console.log(`L'airdrop ${airdropId} est déjà marqué comme réclamé`);
+      return {
+        success: true,
+        message: 'Airdrop déjà réclamé précédemment',
+        alreadyClaimed: true
+      };
+    }
+    
+    // Procéder à la mise à jour
+    console.log(`Mise à jour de l'airdrop ${airdropId} pour le marquer comme réclamé`);
+    
     const result = await query(
       `UPDATE airdrop_recipients
        SET claimed = TRUE, claimed_at = NOW()
@@ -182,19 +214,24 @@ async function markAirdropAsClaimed(accountId, airdropId) {
       [accountId, airdropId]
     );
     
+    console.log(`Résultat de la mise à jour : ${result.rowCount} lignes affectées`);
+    
     if (result.rowCount > 0) {
+      console.log(`Airdrop ${airdropId} marqué comme réclamé avec succès`);
       return {
         success: true,
         message: 'Airdrop marqué comme réclamé'
       };
     } else {
+      console.error(`Échec de la mise à jour pour l'airdrop ${airdropId}`);
       return {
         success: false,
-        message: 'Aucun airdrop trouvé pour cette combinaison de compte et d\'ID'
+        message: 'Aucune ligne mise à jour lors du marquage comme réclamé'
       };
     }
   } catch (error) {
-    console.error('Erreur lors du marquage de l\'airdrop comme réclamé:', error);
+    console.error(`Erreur lors du marquage de l'airdrop ${airdropId} comme réclamé:`, error);
+    console.error('Détails de l\'erreur:', error.stack);
     return {
       success: false,
       message: `Erreur: ${error.message}`
