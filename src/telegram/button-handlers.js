@@ -171,14 +171,15 @@ async function handleButtonAction(callbackQuery) {
     const airdropId = action.split('claim_airdrop_')[1];
     const userLang = getUserLanguage(userId);
     
-    console.log(`Demande de réclamation d'airdrop. Action: ${action}, ID: ${airdropId}, User: ${userId}`);
+    console.log(`[CLAIM] Demande de réclamation d'airdrop. Action: ${action}, ID: ${airdropId}, User: ${userId}`);
     
     // Notifier l'utilisateur que le processus a commencé
-    await bot.sendMessage(
+    const processingMsg = await bot.sendMessage(
       chatId, 
       userLang === 'fr' ? 
-        "⏳ Réclamation de l'airdrop en cours..." : 
-        "⏳ Claiming airdrop..."
+        "⏳ Réclamation de l'airdrop en cours...\n_Veuillez patienter pendant que nous traitons votre demande..._" : 
+        "⏳ Claiming airdrop...\n_Please wait while we process your request..._",
+      { parse_mode: 'Markdown' }
     );
     
     try {
@@ -186,7 +187,7 @@ async function handleButtonAction(callbackQuery) {
       const { getAccountInfo } = require('../hedera/account');
       const accountInfo = await getAccountInfo(userId);
       if (!accountInfo.success) {
-        console.error(`Impossible de récupérer les informations du compte pour ${userId}: ${accountInfo.message}`);
+        console.error(`[CLAIM] ❌ Impossible de récupérer les informations du compte pour ${userId}: ${accountInfo.message}`);
         await bot.sendMessage(
           chatId, 
           userLang === 'fr'
@@ -196,65 +197,103 @@ async function handleButtonAction(callbackQuery) {
         return true;
       }
       
-      console.log(`Compte trouvé pour ${userId}: ${accountInfo.accountId}`);
+      console.log(`[CLAIM] ✅ Compte trouvé pour ${userId}: ${accountInfo.accountId}`);
+      
+      // Obtenir les informations de l'airdrop avant réclamation
+      const { getAvailableAirdropsForAccount } = require('../storage/airdrops');
+      const availableAirdrops = await getAvailableAirdropsForAccount(accountInfo.accountId);
+      const airdropInfo = availableAirdrops.find(a => a.id.toString() === airdropId.toString());
+      
+      if (airdropInfo) {
+        console.log(`[CLAIM] ℹ️ Détails de l'airdrop à réclamer:`, airdropInfo);
+      } else {
+        console.log(`[CLAIM] ⚠️ Impossible de trouver les détails de l'airdrop ${airdropId} pour le compte ${accountInfo.accountId}`);
+      }
       
       // Appeler la fonction de réclamation avec isDbId=true car il s'agit d'un ID de notre base de données
-      console.log(`Appel de claimTokenAirdrop avec userId=${userId}, airdropId=${airdropId}, isDbId=true`);
+      console.log(`[CLAIM] 🔄 Appel de claimTokenAirdrop avec userId=${userId}, airdropId=${airdropId}, isDbId=true`);
       const result = await claimTokenAirdrop(userId, airdropId, true);
       
-      console.log(`Résultat de la réclamation:`, result);
+      console.log(`[CLAIM] Résultat détaillé de la réclamation:`, JSON.stringify(result, null, 2));
       
       if (result.success) {
         let message;
         
         if (result.transactionId) {
           // Transaction blockchain réalisée
+          const hashscanUrl = result.hashscanUrl || `https://hashscan.io/testnet/transaction/${result.transactionId}`;
+          const explorerUrl = result.explorerUrl || `https://testnet.hederaexplorer.io/tx/${result.transactionId}`;
+          
           message = userLang === 'fr'
-            ? `✅ Félicitations! Vous avez réclamé avec succès l'airdrop.\n\n`
-              + `ID de transaction: ${result.transactionId}\n`
-              + `Explorer: ${result.explorerUrl || 'N/A'}\n`
-              + `HashScan: ${result.hashscanUrl || 'N/A'}`
-            : `✅ Congratulations! You have successfully claimed the airdrop.\n\n`
-              + `Transaction ID: ${result.transactionId}\n`
-              + `Explorer: ${result.explorerUrl || 'N/A'}\n`
-              + `HashScan: ${result.hashscanUrl || 'N/A'}`;
+            ? `✅ *Félicitations! Vous avez réclamé avec succès l'airdrop.*\n\n`
+              + `🔹 *Token:* ${result.tokenName || result.tokenId || airdropInfo?.tokenName || airdropInfo?.tokenId || 'Non spécifié'}\n`
+              + `🔹 *Montant:* ${result.amount || airdropInfo?.amount || 'Non spécifié'}\n`
+              + `🔹 *Compte:* \`${accountInfo.accountId}\`\n`
+              + `🔹 *ID de transaction:* \`${result.transactionId}\`\n\n`
+              + `🔍 Voir la transaction sur:\n`
+              + `[HashScan](${hashscanUrl}) | [Hedera Explorer](${explorerUrl})\n\n`
+              + `💼 Le token a été ajouté à votre portefeuille et est maintenant disponible.`
+            : `✅ *Congratulations! You have successfully claimed the airdrop.*\n\n`
+              + `🔹 *Token:* ${result.tokenName || result.tokenId || airdropInfo?.tokenName || airdropInfo?.tokenId || 'Not specified'}\n`
+              + `🔹 *Amount:* ${result.amount || airdropInfo?.amount || 'Not specified'}\n`
+              + `🔹 *Account:* \`${accountInfo.accountId}\`\n`
+              + `🔹 *Transaction ID:* \`${result.transactionId}\`\n\n`
+              + `🔍 View transaction on:\n`
+              + `[HashScan](${hashscanUrl}) | [Hedera Explorer](${explorerUrl})\n\n`
+              + `💼 The token has been added to your wallet and is now available.`;
         } else {
           // Réclamation de base de données uniquement
           message = userLang === 'fr'
-            ? `✅ Félicitations! Vous avez réclamé avec succès l'airdrop.\n\n`
-              + `Nom du token: ${result.tokenName || 'Token'}\n`
-              + `ID du token: ${result.tokenId || 'N/A'}\n`
-              + `Montant: ${result.amount || 'N/A'}`
-            : `✅ Congratulations! You have successfully claimed the airdrop.\n\n`
-              + `Token name: ${result.tokenName || 'Token'}\n`
-              + `Token ID: ${result.tokenId || 'N/A'}\n`
-              + `Amount: ${result.amount || 'N/A'}`;
+            ? `✅ *Félicitations! Vous avez réclamé avec succès l'airdrop.*\n\n`
+              + `🔹 *Token:* ${result.tokenName || airdropInfo?.tokenName || 'Token'}\n`
+              + `🔹 *ID du token:* \`${result.tokenId || airdropInfo?.tokenId || 'Non spécifié'}\`\n`
+              + `🔹 *Montant:* ${result.amount || airdropInfo?.amount || 'Non spécifié'}\n`
+              + `🔹 *Compte:* \`${accountInfo.accountId}\`\n\n`
+              + `ℹ️ Cet airdrop a été marqué comme réclamé dans notre base de données.`
+            : `✅ *Congratulations! You have successfully claimed the airdrop.*\n\n`
+              + `🔹 *Token:* ${result.tokenName || airdropInfo?.tokenName || 'Token'}\n`
+              + `🔹 *Token ID:* \`${result.tokenId || airdropInfo?.tokenId || 'Not specified'}\`\n`
+              + `🔹 *Amount:* ${result.amount || airdropInfo?.amount || 'Not specified'}\n`
+              + `🔹 *Account:* \`${accountInfo.accountId}\`\n\n`
+              + `ℹ️ This airdrop has been marked as claimed in our database.`;
         }
         
-        console.log(`Envoi du message de succès à l'utilisateur ${userId}`);
-        await bot.sendMessage(chatId, message);
+        console.log(`[CLAIM] ✅ Envoi du message de succès à l'utilisateur ${userId}`);
+        // Modifier le message d'origine plutôt qu'en envoyer un nouveau
+        await bot.deleteMessage(chatId, processingMsg.message_id);
+        await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
       } else {
         const errorMessage = userLang === 'fr'
-          ? `❌ Erreur lors de la réclamation de l'airdrop: ${result.message}`
-          : `❌ Error claiming airdrop: ${result.message}`;
+          ? `❌ *Erreur lors de la réclamation de l'airdrop:*\n\n${result.message}\n\n`
+            + (result.message.includes('token') && result.message.includes('associat') 
+               ? "💡 *Conseil:* Vous pouvez essayer d'associer manuellement le token avec la commande `/associate [tokenId]`." 
+               : "")
+          : `❌ *Error claiming airdrop:*\n\n${result.message}\n\n`
+            + (result.message.includes('token') && result.message.includes('associat') 
+               ? "💡 *Tip:* You can try to manually associate the token with the command `/associate [tokenId]`."
+               : "");
         
-        console.error(`Échec de la réclamation pour l'utilisateur ${userId}: ${result.message}`);
-        await bot.sendMessage(chatId, errorMessage);
+        console.error(`[CLAIM] ❌ Échec de la réclamation pour l'utilisateur ${userId}: ${result.message}`);
+        await bot.deleteMessage(chatId, processingMsg.message_id);
+        await bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
       }
     } catch (error) {
-      console.error(`Erreur dans claim_airdrop_:`, error);
-      console.error('Stack trace:', error.stack);
-      await bot.sendMessage(
-        chatId, 
-        userLang === 'fr'
-          ? `❌ Une erreur s'est produite lors de la réclamation de l'airdrop: ${error.message}`
-          : `❌ An error occurred while claiming the airdrop: ${error.message}`
-      );
+      console.error(`[CLAIM] ❌ Erreur dans claim_airdrop_:`, error);
+      console.error('[CLAIM] Stack trace:', error.stack);
+      
+      const errorMessage = userLang === 'fr'
+        ? `❌ *Une erreur s'est produite lors de la réclamation de l'airdrop:*\n\n${error.message}\n\n`
+          + "Si le problème persiste, contactez l'administrateur du bot."
+        : `❌ *An error occurred while claiming the airdrop:*\n\n${error.message}\n\n`
+          + "If the problem persists, please contact the bot administrator.";
+      
+      await bot.deleteMessage(chatId, processingMsg.message_id);
+      await bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
     }
     
     // Réinitialiser l'état de l'utilisateur
     userState.delete(userId);
-    console.log(`État utilisateur réinitialisé pour ${userId}`);
+    console.log(`[CLAIM] 🔄 État utilisateur réinitialisé pour ${userId}`);
     return true;
   }
   
