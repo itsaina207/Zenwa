@@ -6,9 +6,10 @@
 const express = require('express');
 const { createAccount, getBalance, sendHbar } = require('./hedera/account');
 const { getTransactionHistory } = require('./hedera/transactions');
-const { mintToken, sendToken } = require('./hedera/tokens');
+const { mintToken, sendToken, executeAirdropTransfer } = require('./hedera/tokens');
 const { associateToken, dissociateToken } = require('./hedera/token-management');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('./hedera/topic-management');
+const { getAvailableAirdrops, claimTokenAirdrop } = require('./hedera/airdrop');
 // Les imports NLP ont été supprimés
 const { initializeAgentKit, getAgentKit } = require('./agent/hedera-agent-kit-adapter');
 const { getWalletByUserId } = require('./storage/userWallets');
@@ -196,6 +197,89 @@ router.post('/wallet/dissociate', async (req, res) => {
     res.status(500).json({
       success: false,
       message: `Failed to dissociate token: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Get available airdrops for a user
+ * GET /api/wallet/airdrops/:userId
+ */
+router.get('/wallet/airdrops/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: userId',
+      });
+    }
+    
+    const result = await getAvailableAirdrops(userId);
+    
+    res.json({
+      success: true,
+      airdrops: result,
+      count: result.length
+    });
+  } catch (error) {
+    console.error(`API Error - Get Available Airdrops: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get available airdrops: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Claim an airdrop
+ * POST /api/wallet/claim-airdrop
+ */
+router.post('/wallet/claim-airdrop', async (req, res) => {
+  try {
+    const { userId, airdropId, isDbId = true } = req.body;
+    
+    if (!userId || !airdropId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, airdropId',
+      });
+    }
+    
+    const result = await claimTokenAirdrop(userId, airdropId, isDbId);
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Claim Airdrop: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to claim airdrop: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * Force transfer tokens directly (admin function)
+ * POST /api/wallet/force-transfer
+ */
+router.post('/wallet/force-transfer', async (req, res) => {
+  try {
+    const { fromUserId, toAccountId, tokenId, amount } = req.body;
+    
+    if (!fromUserId || !toAccountId || !tokenId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: fromUserId, toAccountId, tokenId, amount',
+      });
+    }
+    
+    const result = await executeAirdropTransfer(fromUserId, toAccountId, tokenId, amount);
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Force Transfer: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to force transfer tokens: ${error.message}`,
     });
   }
 });
