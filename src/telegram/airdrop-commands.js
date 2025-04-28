@@ -455,15 +455,33 @@ async function handleAirdropConversation(bot, msg) {
   const userInfo = userState.get(userId);
   
   if (!userInfo || !userInfo.state) {
+    console.log(`[DEBUG AIRDROP] Aucun état de conversation trouvé pour l'utilisateur ${userId}`);
     return false;
   }
+  
+  console.log(`[DEBUG AIRDROP] État de la conversation pour ${userId}: ${userInfo.state}`);
+  console.log(`[DEBUG AIRDROP] Message reçu: "${msg.text}"`);
   
   // Traitement des différents états de conversation
   // Gestion des airdrops
   if (userInfo.state === AIRDROP_STATES.WAITING_FOR_TOKEN_ID) {
+    console.log(`[DEBUG AIRDROP] Traitement du token ID: ${msg.text.trim()}`);
     const tokenId = msg.text.trim();
+    
+    // Vérifier le format du token ID (doit être 0.0.X)
+    if (!tokenId.match(/^\d+\.\d+\.\d+$/)) {
+      console.log(`[DEBUG AIRDROP] Format de token invalide: ${tokenId}`);
+      const errorMessage = userLang === 'fr'
+        ? `⚠️ Le format du token ID '${tokenId}' est invalide. Le format doit être exactement 0.0.X (exemple: 0.0.12345). Veuillez réessayer:`
+        : `⚠️ The token ID format '${tokenId}' is invalid. The format must be exactly 0.0.X (example: 0.0.12345). Please try again:`;
+      
+      await bot.sendMessage(chatId, errorMessage);
+      return true;
+    }
+    
     userInfo.airdropInfo.tokenId = tokenId;
     userInfo.state = AIRDROP_STATES.WAITING_FOR_RECIPIENT_ID;
+    console.log(`[DEBUG AIRDROP] Token ID accepté, état mis à jour: ${userInfo.state}`);
     
     const message = userLang === 'fr'
       ? "Veuillez fournir les IDs des destinataires (format: 0.0.X pour les comptes Hedera ou l'ID numérique Telegram, @nom_utilisateur ou simplement le nom d'utilisateur).\n\nVous pouvez spécifier plusieurs destinataires en les séparant par des virgules.\n\nExemple: 0.0.1234, @utilisateur1, utilisateur2"
