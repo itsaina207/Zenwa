@@ -1,0 +1,80 @@
+1. Assurez-vous d’avoir bien appelé addTokenTransfer AVANT freezeWith
+Si vous appelez .freezeWith(client) avant d’ajouter vos transferts, le corps de la transaction sera vide, et donc invalide.
+
+js
+Copier
+Modifier
+// ⛔ Mauvais ordre — freeze avant addTokenTransfer (CORPS vide)
+const txKo = await new TokenAirdropTransaction()
+  .freezeWith(client)
+  .addTokenTransfer(tokenId, treasuryId, recipientId, amount);
+
+// ✅ Bon ordre — addTokenTransfer avant freeze
+const txOk = await new TokenAirdropTransaction()
+  .addTokenTransfer(tokenId, treasuryId, recipientId, amount)
+  .freezeWith(client);
+Chaque addTokenTransfer(...) insère un tokenId, un compte émetteur, un compte destinataire et une quantité .
+
+2. Vérifiez que tous les paramètres sont renseignés et valides
+tokenId : doit être un objet TokenId existant (celui retourné par votre TokenCreateTransaction).
+
+treasuryId : identique à celui passé à .setTreasuryAccountId(...) lors de la création du token.
+
+recipientId : un AccountId correct et, idéalement, déjà associé ou auto-association activée.
+
+amount : un entier positif (≥ 1).
+
+Si l’un de ces quatre est undefined, null ou mal formé, le corps est considéré invalide.
+
+3. Ne mélangez pas NFT et tokens fongibles sans distinction
+Pour un NFT, utilisez strictement :
+
+js
+Copier
+Modifier
+new TokenAirdropTransaction()
+  .addNftTransfer(nftId, treasuryId, recipientId)
+  .freezeWith(client);
+Pour un token fongible, uniquement :
+
+js
+Copier
+Modifier
+new TokenAirdropTransaction()
+  .addTokenTransfer(tokenId, treasuryId, recipientId, amount)
+  .freezeWith(client);
+Un mix .addTokenTransfer + .addNftTransfer est permis, mais assurez-vous que chacun ait ses paramètres complets.
+
+4. Activez les logs SDK pour voir le plan de la transaction
+js
+Copier
+Modifier
+client.setLogLevel(LogLevel.DEBUG);
+Vous verrez dans la console la structure proto envoyée au nœud. Cherchez la section tokenTransfers : si elle est vide, c’est que votre transaction n’inclut aucun transfert.
+
+5. Exemple de bout en bout corrigé
+js
+Copier
+Modifier
+const airdropTx = await new TokenAirdropTransaction()
+  .addTokenTransfer(
+    tokenId,           // votre TokenId valide
+    treasuryAccountId, // le même que dans TokenCreateTransaction
+    recipientAccountId,
+    50                 // quantité à envoyer
+  )
+  .freezeWith(client);
+
+// N’oubliez pas de signer avec la clé du treasury !
+const signed = await airdropTx.sign(treasuryPrivateKey);
+const resp   = await signed.execute(client);
+console.log("Status:", (await resp.getReceipt(client)).status.toString());
+En suivant strictement ces étapes (ordre des appels, paramètres complets, bonne clé pour signer), vos TokenAirdropTransaction ne renverront plus INVALID_TRANSACTION_BODY.
+
+
+
+
+
+
+
+

@@ -444,6 +444,10 @@ async function getTokenInfo(tokenId) {
     console.log(`[TOKEN_INFO] Symbole: ${tokenInfo.symbol}`);
     console.log(`[TOKEN_INFO] Compte Treasury: ${tokenInfo.treasuryAccountId.toString()}`);
     
+    // Vérifier si le token a une clé d'approvisionnement (supplyKey)
+    const hasSupplyKey = Boolean(tokenInfo.supplyKey);
+    console.log(`[TOKEN_INFO] A une supplyKey: ${hasSupplyKey ? 'Oui' : 'Non'}`);
+    
     return {
       success: true,
       tokenId: tokenId,
@@ -452,7 +456,8 @@ async function getTokenInfo(tokenId) {
       treasury: tokenInfo.treasuryAccountId.toString(),
       decimals: tokenInfo.decimals,
       totalSupply: tokenInfo.totalSupply.toString(),
-      supplyType: tokenInfo.supplyType
+      supplyType: tokenInfo.supplyType,
+      hasSupplyKey: hasSupplyKey  // Important pour vérifier si les airdrops sont possibles
     };
   } catch (error) {
     console.error(`[TOKEN_INFO] ❌ Erreur lors de la récupération des informations du token: ${error.message}`);

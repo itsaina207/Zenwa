@@ -1,0 +1,92 @@
+1. Le token doit avoir été créé avec un treasuryAccountId
+Lors de la création (TokenCreateTransaction), vous devez impérativement appeler :
+
+js
+Copier
+Modifier
+new TokenCreateTransaction()
+  .setTokenName("MonToken")
+  .setTokenSymbol("MTK")
+  .setTreasuryAccountId(treasuryAccountId)   // ← essentiel !
+  // …autres paramètres…
+Sans ce treasuryAccountId, le réseau ne sait pas quel compte détient l’offre initiale et refuse toute distribution (INVALID_TRANSACTION_BODY).
+
+2. Le token doit avoir une supplyKey si vous voulez frapper (mint) ou airdropper
+Si vous omettez .setSupplyKey(supplyKey), le token devient figé à son offre initiale et incapable de produire de nouveaux tokens.
+
+En l’absence de clés de gestion (adminKey, supplyKey), certaines transactions de distribution peuvent être invalides. Vérifiez que votre TokenCreateTransaction inclut bien la supplyKey.
+
+3. Le corps de TokenAirdropTransaction doit contenir au moins un transfert valide
+Un TokenAirdropTransaction sans aucun appel à addTokenTransfer (ou addNftTransfer) produira un corps vide, donc invalide :
+
+js
+Copier
+Modifier
+new TokenAirdropTransaction()
+  // .setTokenId(tokenId)            ← (optionnel : si ajouté)
+  .addTokenTransfer(tokenId,
+                    treasuryAccountId,   // expéditeur
+                    recipientAccountId,  // destinataire
+                    amount               // quantité à airdropper
+  )
+  .freezeWith(client);
+Oublier l’un de ces arguments (tokenId, comptes ou montant) déclenche un INVALID_TRANSACTION_BODY.
+
+Idem pour les NFT : utilisez .addNftTransfer(nftId, from, to).
+
+Pourquoi vos logs remontent INVALID_TRANSACTION_BODY
+Transaction vide
+
+Vous avez probablement appelé new TokenAirdropTransaction().freezeWith(client) sans addTokenTransfer ni addNftTransfer.
+
+tokenId manquant ou erroné
+
+Soit vous n’avez pas précisé setTokenId(tokenId) ni dans le constructeur de transfert, soit l’tokenId transmis n’existe pas sur Testnet/Mainnet.
+
+treasuryAccountId incorrect
+
+Le compte que vous utilisez comme expéditeur ne correspond pas au treasuryAccountId défini à la création.
+
+Comment corriger pas à pas
+Vérifiez la création du token
+
+js
+Copier
+Modifier
+const createTx = await new TokenCreateTransaction()
+  .setTokenName("MonToken")
+  .setTokenSymbol("MTK")
+  .setTreasuryAccountId(treasuryAccountId)
+  .setInitialSupply(1_000_000)
+  .setSupplyKey(supplyKey)
+  // … éventuels adminKey, freezeKey, KYCKey…
+  .execute(client);
+Récupérez bien le tokenId
+
+js
+Copier
+Modifier
+const receipt = await createTx.getReceipt(client);
+const tokenId = receipt.tokenId;
+Composez l’airdrop avec un transfert valide
+
+js
+Copier
+Modifier
+const airdropTx = await new TokenAirdropTransaction()
+  .addTokenTransfer(tokenId,
+                    treasuryAccountId,
+                    recipientAccountId,
+                    100      // ex. 100 tokens
+  )
+  .freezeWith(client);
+Signez et envoyez
+
+js
+Copier
+Modifier
+const signed = await airdropTx.sign(supplyKey);
+const response = await signed.execute(client);
+const status = (await response.getReceipt(client)).status;
+console.log("Airdrop status:", status.toString());
+En respectant ces trois prérequis et en vous assurant que chaque appel à addTokenTransfer ou addNftTransfer est bien présent et complet, vos airdrops passeront le pré-check et ne renverront plus INVALID_TRANSACTION_BODY.

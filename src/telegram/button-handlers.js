@@ -224,38 +224,60 @@ async function handleButtonAction(callbackQuery) {
           const hashscanUrl = result.hashscanUrl || `https://hashscan.io/testnet/transaction/${result.transactionId}`;
           const explorerUrl = result.explorerUrl || `https://testnet.hederaexplorer.io/tx/${result.transactionId}`;
           
+          // Afficher plus d'informations sur le token, y compris le symbol et treasury si disponibles
+          const tokenNameDisplay = result.tokenName || airdropInfo?.tokenName || 'Token';
+          const tokenSymbolDisplay = result.tokenSymbol || airdropInfo?.tokenSymbol;
+          const tokenIdDisplay = result.tokenId || airdropInfo?.tokenId || 'Non spécifié';
+          const tokenDisplay = tokenSymbolDisplay ? `${tokenNameDisplay} (${tokenSymbolDisplay})` : tokenNameDisplay;
+          const treasuryId = result.treasuryId || airdropInfo?.treasuryId;
+          
           message = userLang === 'fr'
             ? `✅ *Félicitations! Vous avez réclamé avec succès l'airdrop.*\n\n`
-              + `🔹 *Token:* ${result.tokenName || result.tokenId || airdropInfo?.tokenName || airdropInfo?.tokenId || 'Non spécifié'}\n`
+              + `🔹 *Token:* ${tokenDisplay}\n`
+              + `🔹 *ID du token:* \`${tokenIdDisplay}\`\n`
               + `🔹 *Montant:* ${result.amount || airdropInfo?.amount || 'Non spécifié'}\n`
               + `🔹 *Compte:* \`${accountInfo.accountId}\`\n`
+              + (treasuryId ? `🔹 *Compte Treasury:* \`${treasuryId}\`\n` : '')
               + `🔹 *ID de transaction:* \`${result.transactionId}\`\n\n`
               + `🔍 Voir la transaction sur:\n`
               + `[HashScan](${hashscanUrl}) | [Hedera Explorer](${explorerUrl})\n\n`
               + `💼 Le token a été ajouté à votre portefeuille et est maintenant disponible.`
             : `✅ *Congratulations! You have successfully claimed the airdrop.*\n\n`
-              + `🔹 *Token:* ${result.tokenName || result.tokenId || airdropInfo?.tokenName || airdropInfo?.tokenId || 'Not specified'}\n`
+              + `🔹 *Token:* ${tokenDisplay}\n`
+              + `🔹 *Token ID:* \`${tokenIdDisplay}\`\n`
               + `🔹 *Amount:* ${result.amount || airdropInfo?.amount || 'Not specified'}\n`
               + `🔹 *Account:* \`${accountInfo.accountId}\`\n`
+              + (treasuryId ? `🔹 *Treasury Account:* \`${treasuryId}\`\n` : '')
               + `🔹 *Transaction ID:* \`${result.transactionId}\`\n\n`
               + `🔍 View transaction on:\n`
               + `[HashScan](${hashscanUrl}) | [Hedera Explorer](${explorerUrl})\n\n`
               + `💼 The token has been added to your wallet and is now available.`;
         } else {
           // Réclamation de base de données uniquement
+          // Afficher plus d'informations sur le token, y compris le symbol et treasury si disponibles
+          const tokenNameDisplay = result.tokenName || airdropInfo?.tokenName || 'Token';
+          const tokenSymbolDisplay = result.tokenSymbol || airdropInfo?.tokenSymbol;
+          const tokenIdDisplay = result.tokenId || airdropInfo?.tokenId || 'Non spécifié';
+          const tokenDisplay = tokenSymbolDisplay ? `${tokenNameDisplay} (${tokenSymbolDisplay})` : tokenNameDisplay;
+          const treasuryId = result.treasuryId || airdropInfo?.treasuryId;
+          
           message = userLang === 'fr'
             ? `✅ *Félicitations! Vous avez réclamé avec succès l'airdrop.*\n\n`
-              + `🔹 *Token:* ${result.tokenName || airdropInfo?.tokenName || 'Token'}\n`
-              + `🔹 *ID du token:* \`${result.tokenId || airdropInfo?.tokenId || 'Non spécifié'}\`\n`
+              + `🔹 *Token:* ${tokenDisplay}\n`
+              + `🔹 *ID du token:* \`${tokenIdDisplay}\`\n`
               + `🔹 *Montant:* ${result.amount || airdropInfo?.amount || 'Non spécifié'}\n`
-              + `🔹 *Compte:* \`${accountInfo.accountId}\`\n\n`
-              + `ℹ️ Cet airdrop a été marqué comme réclamé dans notre base de données.`
+              + `🔹 *Compte:* \`${accountInfo.accountId}\`\n`
+              + (treasuryId ? `🔹 *Compte Treasury:* \`${treasuryId}\`\n` : '')
+              + (result.claimedAt ? `🔹 *Réclamé le:* \`${new Date(result.claimedAt).toLocaleString()}\`\n` : '')
+              + `\nℹ️ Cet airdrop a été marqué comme réclamé dans notre base de données.`
             : `✅ *Congratulations! You have successfully claimed the airdrop.*\n\n`
-              + `🔹 *Token:* ${result.tokenName || airdropInfo?.tokenName || 'Token'}\n`
-              + `🔹 *Token ID:* \`${result.tokenId || airdropInfo?.tokenId || 'Not specified'}\`\n`
+              + `🔹 *Token:* ${tokenDisplay}\n`
+              + `🔹 *Token ID:* \`${tokenIdDisplay}\`\n`
               + `🔹 *Amount:* ${result.amount || airdropInfo?.amount || 'Not specified'}\n`
-              + `🔹 *Account:* \`${accountInfo.accountId}\`\n\n`
-              + `ℹ️ This airdrop has been marked as claimed in our database.`;
+              + `🔹 *Account:* \`${accountInfo.accountId}\`\n`
+              + (treasuryId ? `🔹 *Treasury Account:* \`${treasuryId}\`\n` : '')
+              + (result.claimedAt ? `🔹 *Claimed on:* \`${new Date(result.claimedAt).toLocaleString()}\`\n` : '')
+              + `\nℹ️ This airdrop has been marked as claimed in our database.`;
         }
         
         console.log(`[CLAIM] ✅ Envoi du message de succès à l'utilisateur ${userId}`);

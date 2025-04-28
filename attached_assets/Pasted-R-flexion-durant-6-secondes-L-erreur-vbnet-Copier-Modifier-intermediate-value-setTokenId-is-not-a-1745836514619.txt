@@ -1,0 +1,66 @@
+Réflexion durant 6 secondes
+L’erreur
+
+vbnet
+Copier
+Modifier
+(intermediate value).setTokenId is not a function
+vient du fait que TokenAirdropTransaction n’implémente pas de méthode setTokenId(). Vous tentez d’appeler sur l’objet airdrop une fonction qui n’existe pas dans le SDK.
+
+Pourquoi il n’y a pas de setTokenId() sur TokenAirdropTransaction
+TokenCreateTransaction et TokenMintTransaction possèdent setTokenId(tokenId), car ce sont des transactions « globales » qui opèrent sur un seul token à la fois.
+
+TokenAirdropTransaction, en revanche, est conçue pour distribuer plusieurs transferts de token (ou NFT) dans un seul appel, d’où l’absence de méthode générique setTokenId().
+
+Comment spécifier votre token dans un airdrop
+Vous devez indiquer le token à chaque transfert, en utilisant :
+
+js
+Copier
+Modifier
+// Mauvais :
+// new TokenAirdropTransaction()
+//   .setTokenId(tokenId)           // ❌ n’existe pas !
+//   .addTokenTransfer(…)
+
+// Correct :
+const airdropTx = await new TokenAirdropTransaction()
+  .addTokenTransfer(
+    tokenId,             // ← ici, le TokenId
+    treasuryAccountId,   // expéditeur (généralement le treasury)
+    recipientAccountId,  // destinataire
+    100                  // quantité à airdropper
+  )
+  // si vous avez plusieurs destinataires, répétez addTokenTransfer(...)
+  .freezeWith(client);
+Chaque appel à addTokenTransfer(tokenId, from, to, amount) :
+
+tokenId : l’identifiant de votre token (fongible).
+
+from : le compte émetteur (votre treasury).
+
+to : le compte destinataire.
+
+amount : le nombre de tokens à envoyer. 
+Hedera
+pkg.go.dev
+
+Pour les NFT
+Même principe avec addNftTransfer(nftId, from, to) :
+
+js
+Copier
+Modifier
+const airdropNft = await new TokenAirdropTransaction()
+  .addNftTransfer(
+    nftId,               // identifiant du NFT
+    treasuryAccountId,   // compte treasury
+    recipientAccountId   // destinataire
+  )
+  .freezeWith(client);
+En résumé
+Ne cherchez pas de méthode setTokenId() sur TokenAirdropTransaction.
+
+Spécifiez toujours le token via les paramètres de addTokenTransfer ou addNftTransfer.
+
+Freeze, signez ensuite et exécutez votre transaction : elle passera le pré-check sans INVALID_TRANSACTION_BODY ni erreur de fonction manquante.

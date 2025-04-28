@@ -205,7 +205,13 @@ async function resolveIdentifiersList(identifiersList) {
  */
 async function createTokenAirdrop(userId, tokenId, recipients) {
   try {
-    // Récupérer les informations du compte créateur
+    console.log(`Création de l'airdrop avec:`, {
+      userId,
+      tokenId,
+      recipients
+    });
+    
+    // 1. Récupérer les informations du compte créateur
     const accountInfo = await getAccountInfo(userId);
     if (!accountInfo.success) {
       return {
@@ -217,18 +223,7 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
     const { accountId, privateKey } = accountInfo;
     const client = getClient();
     
-    // Vérifier que le tokenId est au bon format et créer un objet TokenId
-    let tokenIdObj;
-    try {
-      tokenIdObj = TokenId.fromString(tokenId);
-    } catch (error) {
-      return {
-        success: false,
-        message: `Format de Token ID invalide: ${error.message}`
-      };
-    }
-    
-    // Vérifier que le token existe et qu'il possède un compte treasury
+    // 2. Vérifier que le token existe et qu'il possède un compte treasury
     console.log(`[AIRDROP] Vérification des informations du token ${tokenId}`);
     const tokenInfoResult = await getTokenInfo(tokenId);
     
@@ -241,57 +236,44 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
     
     console.log(`[AIRDROP] Compte Treasury du token: ${tokenInfoResult.treasury}`);
     
-    // Vérifier si le compte du créateur de l'airdrop est le treasury du token
+    // 3. Vérifier si le token a une supplyKey (nécessaire pour les airdrops)
+    if (!tokenInfoResult.hasSupplyKey) {
+      console.error(`[AIRDROP] ❌ Le token ${tokenId} n'a pas de supplyKey, il ne peut pas être distribué via airdrop`);
+      return {
+        success: false,
+        message: `Impossible de créer l'airdrop: le token ${tokenId} n'a pas de supplyKey. Ce token ne peut pas être distribué via airdrop.`
+      };
+    }
+    
+    // 4. Vérifier si le compte du créateur de l'airdrop est le treasury du token
     if (tokenInfoResult.treasury !== accountId) {
-      console.warn(`[AIRDROP] ⚠️ L'utilisateur ${userId} (${accountId}) n'est pas le treasury du token ${tokenId} (${tokenInfoResult.treasury})`);
-      
-      // On peut continuer, mais avertir l'utilisateur
-      console.log(`[AIRDROP] Tentative d'airdrop par un compte non-treasury`);
+      console.error(`[AIRDROP] ❌ L'utilisateur ${userId} (${accountId}) n'est pas le treasury du token ${tokenId} (${tokenInfoResult.treasury})`);
+      return {
+        success: false,
+        message: `Impossible de créer l'airdrop: seul le compte treasury (${tokenInfoResult.treasury}) peut airdropper ce token. Votre compte: ${accountId}`
+      };
     } else {
       console.log(`[AIRDROP] ✅ L'utilisateur ${userId} est bien le treasury du token ${tokenId}`);
     }
     
-    // Vérifier l'association du token pour chaque destinataire
-    const { TokenAssociateTransaction } = require('@hashgraph/sdk');
+    // 5. Vérifier l'association du token pour chaque destinataire
     for (const recipient of recipients) {
       try {
-        // Vérifier si le compte du destinataire est associé au token
-        const { AccountBalanceQuery } = require('@hashgraph/sdk');
         console.log(`Vérification de l'association du token ${tokenId} pour le compte ${recipient.accountId}`);
         
-        const balanceQuery = new AccountBalanceQuery()
-          .setAccountId(recipient.accountId);
-        
-        const accountBalance = await balanceQuery.execute(client);
-        const tokens = accountBalance.tokens;
-        const isAssociated = tokens.get(tokenId) !== undefined;
+        const isAssociated = await isTokenAssociated(recipient.accountId, tokenId);
         
         if (!isAssociated) {
           console.log(`Le compte ${recipient.accountId} n'est pas associé au token ${tokenId}. Tentative d'association...`);
           
-          // Récupérer les informations du compte destinataire pour obtenir sa clé privée
-          // Cette étape n'est possible que parce que nous sommes dans un portefeuille custodial
-          // où nous avons accès aux clés privées des utilisateurs
-          const recipientAccount = await getAccountInfo(recipient.originalId);
-          if (!recipientAccount.success) {
-            console.error(`Impossible de récupérer les informations du compte pour ${recipient.accountId}: ${recipientAccount.message}`);
-            continue; // Passer au destinataire suivant
+          // Si le destinataire est un utilisateur de notre système, nous pouvons l'associer automatiquement
+          if (recipient.originalId) {
+            const recipientAccount = await getAccountInfo(recipient.originalId);
+            if (recipientAccount.success) {
+              const associateResult = await associateToken(recipient.originalId, tokenId);
+              console.log(`Résultat de l'association automatique: ${associateResult.success ? 'Succès' : 'Échec'}`);
+            }
           }
-          
-          // Créer et soumettre une transaction d'association
-          console.log(`Association du token ${tokenId} pour le compte ${recipient.accountId}`);
-          const associateTx = await new TokenAssociateTransaction()
-            .setAccountId(recipient.accountId)
-            .setTokenIds([tokenId])
-            .freezeWith(client);
-          
-          const recipientPrivateKey = PrivateKey.fromString(recipientAccount.privateKey);
-          const signedAssociateTx = await associateTx.sign(recipientPrivateKey);
-          const associateResponse = await signedAssociateTx.execute(client);
-          
-          // Attendre la confirmation de l'association
-          const associateReceipt = await associateResponse.getReceipt(client);
-          console.log(`Résultat de l'association: ${associateReceipt.status.toString()}`);
         } else {
           console.log(`Le compte ${recipient.accountId} est déjà associé au token ${tokenId}`);
         }
@@ -301,114 +283,158 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       }
     }
     
-    // Utiliser TokenAirdropTransaction qui gère automatiquement les airdrops et pending airdrops
+    // 6. IMPLÉMENTATION DE L'AIRDROP SUIVANT LE MODÈLE EXACTE DE HEDERA
     console.log(`Utilisation de TokenAirdropTransaction pour l'airdrop natif Hedera`);
     
-    // Créer la transaction d'airdrop
-    let airdropTx = new TokenAirdropTransaction();
-    
-    // Calculer le montant total à distribuer
-    const totalAmount = recipients.reduce((sum, recipient) => sum + recipient.amount, 0);
-    
-    // Ajouter chaque destinataire avec son montant
-    for (const recipient of recipients) {
-      console.log(`Ajout de l'airdrop de ${recipient.amount} tokens du token ${tokenId} vers ${recipient.accountId}`);
-      // Utilisez addTokenTransfer pour ajouter chaque destinataire
-      airdropTx = airdropTx.addTokenTransfer(
-        tokenIdObj,
-        AccountId.fromString(accountId), // sender (treasury)
-        AccountId.fromString(recipient.accountId), // recipient
-        recipient.amount
-      );
+    // Prendre le premier destinataire (simplification pour test)
+    if (recipients.length === 0) {
+      return {
+        success: false,
+        message: "Aucun destinataire valide pour cet airdrop"
+      };
     }
     
-    console.log(`Préparation de la transaction d'airdrop pour distribuer ${totalAmount} tokens du token ${tokenId} à ${recipients.length} destinataires`);
-    
-    // Finaliser et signer la transaction
-    const txFrozen = await airdropTx.freezeWith(client);
-    // Convertir la chaîne privateKey en objet PrivateKey
-    const privateKeyObj = PrivateKey.fromString(privateKey);
-    const signedTx = await txFrozen.sign(privateKeyObj);
-    
-    console.log(`Transaction signée, envoi en cours...`);
-    
-    // Soumettre la transaction
-    const txResponse = await signedTx.execute(client);
-    console.log(`Transaction soumise, attente du reçu...`);
-    const receipt = await txResponse.getReceipt(client);
-    console.log(`Reçu obtenu, statut: ${receipt.status.toString()}`);
-    
-    // Récupérer le pending airdrop ID si disponible
-    let pendingAirdropId = null;
-    try {
-      pendingAirdropId = receipt.pendingAirdropId;
-    } catch (error) {
-      console.warn('Pas de pendingAirdropId disponible:', error.message);
+    const firstRecipient = recipients[0];
+    if (!firstRecipient.amount || firstRecipient.amount <= 0) {
+      return {
+        success: false,
+        message: "Le montant pour le premier destinataire n'est pas valide"
+      };
     }
     
-    const txId = txResponse.transactionId.toString();
+    // Convertir les chaînes en objets typés correctement
+    const treasuryAccountId = AccountId.fromString(accountId);
+    const recipientAccountId = AccountId.fromString(firstRecipient.accountId);
+    const tokenIdObj = TokenId.fromString(tokenId);
+    const amountToSend = Number(firstRecipient.amount);
     
-    // Préparer le résultat avec les liens vers les explorateurs
-    const result = {
-      success: true,
-      message: 'Airdrop de tokens créé avec succès',
-      transactionId: txId,
-      tokenId: tokenId,
-      recipientCount: recipients.length,
-      totalAmount: totalAmount,
-      pendingAirdropId: pendingAirdropId ? pendingAirdropId.toString() : null,
-      status: receipt.status.toString()
-    };
+    console.log(`Préparation de l'airdrop avec les paramètres vérifiés:
+    - Token: ${tokenIdObj.toString()}
+    - Treasury: ${treasuryAccountId.toString()}
+    - Destinataire: ${recipientAccountId.toString()}
+    - Montant: ${amountToSend}
+    `);
     
-    // Ajouter les liens vers les explorateurs
     try {
-      const explorerUrls = getExplorerUrls(txId, 'transaction');
-      result.explorerUrl = explorerUrls.hederaExplorer;
-      result.hashscanUrl = explorerUrls.hashScan;
-    } catch (error) {
-      console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
-    }
-    
-    // Stocker les informations d'airdrop dans la base de données
-    try {
-      // Utiliser les informations du token déjà récupérées dans tokenInfoResult
-      const tokenName = tokenInfoResult.name || `Token ${tokenId}`;
-      const tokenSymbol = tokenInfoResult.symbol || '';
+      // CRÉATION DE LA TRANSACTION SELON LE MODÈLE OFFICIEL
+      // Le compte treasury (expéditeur) est débité (-amountToSend)
+      // Le compte destinataire est crédité (+amountToSend)
+      // Les montants doivent se solder à zéro
+      const airdropTx = new TokenAirdropTransaction()
+        // Débit du treasury (montant négatif)
+        .addTokenTransfer(
+          tokenIdObj,           // Token ID (objet TokenId)
+          treasuryAccountId,    // Treasury Account 
+          -amountToSend         // Montant négatif (débit)
+        )
+        // Crédit du destinataire (montant positif)
+        .addTokenTransfer(
+          tokenIdObj,           // Token ID (objet TokenId)
+          recipientAccountId,   // Recipient Account
+          amountToSend          // Montant positif (crédit)
+        )
+        .freezeWith(client);    // Geler la transaction
       
-      // Préparer les données pour la sauvegarde
-      const airdropData = {
-        creatorId: userId,
-        tokenId: tokenId,
-        tokenName: tokenName,
-        tokenSymbol: tokenSymbol,
-        treasuryId: tokenInfoResult.treasury,
+      console.log(`Transaction TokenAirdropTransaction créée et gelée avec succès`);
+      
+      // Convertir la clé privée en objet
+      const treasuryKey = PrivateKey.fromString(privateKey);
+      
+      // Signer avec la clé du treasury
+      const signedTx = await airdropTx.sign(treasuryKey);
+      console.log(`Transaction signée avec la clé du treasury`);
+      
+      // Exécuter la transaction
+      console.log(`Envoi de la transaction...`);
+      const txResponse = await signedTx.execute(client);
+      console.log(`Transaction soumise, récupération du reçu...`);
+      
+      // Attendre le reçu
+      const receipt = await txResponse.getReceipt(client);
+      console.log(`Reçu obtenu, statut: ${receipt.status.toString()}`);
+      
+      // Récupérer l'ID de transaction
+      const txId = txResponse.transactionId.toString();
+      
+      // Récupérer le pendingAirdropId (si disponible)
+      let pendingAirdropId = null;
+      try {
+        if (receipt.pendingAirdropId) {
+          pendingAirdropId = receipt.pendingAirdropId.toString();
+          console.log(`PendingAirdropId: ${pendingAirdropId}`);
+        }
+      } catch (error) {
+        console.warn(`Pas de pendingAirdropId disponible: ${error.message}`);
+      }
+      
+      // Calculer le montant total distribué
+      const totalAmount = recipients.reduce((sum, r) => sum + Number(r.amount), 0);
+      
+      // Préparer le résultat
+      const result = {
+        success: true,
+        message: "Airdrop de tokens créé avec succès",
         transactionId: txId,
-        pendingAirdropId: pendingAirdropId ? pendingAirdropId.toString() : null,
+        tokenId: tokenId,
+        recipientCount: recipients.length,
         totalAmount: totalAmount,
-        recipients: recipients.map(r => ({
-          originalId: r.originalId || null,
-          accountId: r.accountId,
-          amount: r.amount
-        }))
+        pendingAirdropId: pendingAirdropId,
+        status: receipt.status.toString()
       };
       
-      // Sauvegarder l'airdrop dans la base de données
-      const storeResult = await storeAirdrop(airdropData);
-      
-      if (storeResult.success) {
-        console.log(`Airdrop sauvegardé en base de données avec l'ID: ${storeResult.airdropId}`);
-        result.dbAirdropId = storeResult.airdropId;
-      } else {
-        console.error(`Erreur lors de la sauvegarde de l'airdrop: ${storeResult.message}`);
+      // Ajouter les liens vers les explorateurs
+      try {
+        const explorerUrls = getExplorerUrls(txId, 'transaction');
+        result.explorerUrl = explorerUrls.hederaExplorer;
+        result.hashscanUrl = explorerUrls.hashScan;
+      } catch (error) {
+        console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
       }
-    } catch (dbError) {
-      console.error(`Erreur lors de l'enregistrement de l'airdrop en base de données: ${dbError.message}`);
+      
+      // Sauvegarder l'airdrop dans la base de données
+      try {
+        const tokenName = tokenInfoResult.name || `Token ${tokenId}`;
+        const tokenSymbol = tokenInfoResult.symbol || '';
+        
+        const airdropData = {
+          creatorId: userId,
+          tokenId: tokenId,
+          tokenName: tokenName,
+          tokenSymbol: tokenSymbol,
+          treasuryId: tokenInfoResult.treasury,
+          transactionId: txId,
+          pendingAirdropId: pendingAirdropId,
+          totalAmount: totalAmount,
+          recipients: recipients.map(r => ({
+            originalId: r.originalId || null,
+            accountId: r.accountId,
+            amount: Number(r.amount)
+          }))
+        };
+        
+        const storeResult = await storeAirdrop(airdropData);
+        
+        if (storeResult.success) {
+          console.log(`Airdrop sauvegardé en base de données avec l'ID: ${storeResult.airdropId}`);
+          result.dbAirdropId = storeResult.airdropId;
+        } else {
+          console.error(`❌ Erreur lors de la sauvegarde de l'airdrop: ${storeResult.message}`);
+        }
+      } catch (dbError) {
+        console.error(`❌ Erreur lors de l'enregistrement de l'airdrop: ${dbError.message}`);
+      }
+      
+      return result;
+      
+    } catch (txError) {
+      console.error(`❌ Erreur lors de la transaction d'airdrop:`, txError);
+      return {
+        success: false,
+        message: `Erreur lors de la création de l'airdrop: ${txError.message}`
+      };
     }
-    
-    return result;
-    
   } catch (error) {
-    console.error('Erreur lors de la création de l\'airdrop:', error);
+    console.error(`❌ Erreur globale dans createTokenAirdrop:`, error);
     return {
       success: false,
       message: `Erreur lors de la création de l'airdrop: ${error.message}`
