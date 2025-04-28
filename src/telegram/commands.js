@@ -4,7 +4,7 @@
 
 const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
-const { mintToken, sendToken, associateToken } = require('../hedera/tokens');
+const { mintToken, sendToken, associateToken, executeAirdropTransfer } = require('../hedera/tokens');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera/topic-management');
 const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
 const { 

@@ -11,6 +11,8 @@ const {
   AccountBalanceQuery,
   PrivateKey,
   AccountId,
+  TokenAirdropTransaction,
+  TokenInfoQuery
 } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
 const { getWalletByUserId } = require('../storage/userWallets');
@@ -256,6 +258,145 @@ async function getTokenIdByNameOrSymbol(userId, nameOrSymbol) {
   } catch (error) {
     console.error(`Error getting token ID by name: ${error.message}`);
     return null;
+  }
+}
+
+/**
+ * Exécuter un transfert forcé d'airdrop de tokens
+ * Cette fonction utilise TokenAirdropTransaction pour transférer des tokens même à des comptes non associés
+ * en créant un "pending airdrop" que l'utilisateur pourra réclamer plus tard
+ * 
+ * @param {string} fromUserId - ID Telegram de l'expéditeur (admin ou propriétaire du token)
+ * @param {string} toAccountId - ID du compte destinataire Hedera
+ * @param {string} tokenId - ID du token à transférer
+ * @param {number} amount - Montant de tokens à transférer
+ * @returns {Promise<object>} Résultat de l'opération
+ */
+async function executeAirdropTransfer(fromUserId, toAccountId, tokenId, amount) {
+  try {
+    console.log(`[AIRDROP_TRANSFER] 🚀 Début du transfert forcé d'airdrop:
+      📌 Expéditeur: ${fromUserId}
+      📌 Destinataire: ${toAccountId}
+      📌 Token: ${tokenId}
+      📌 Montant: ${amount}
+    `);
+    
+    const client = getClient();
+    const wallet = await getWalletByUserId(fromUserId);
+    
+    if (!wallet) {
+      return {
+        success: false,
+        message: 'Aucun wallet trouvé pour l\'expéditeur. Créez-en un d\'abord avec /createwallet',
+      };
+    }
+    
+    // Vérifier que le token existe et appartient à l'expéditeur (treasury)
+    console.log(`[AIRDROP_TRANSFER] Vérification des informations du token ${tokenId}`);
+    try {
+      const tokenInfo = await new TokenInfoQuery()
+        .setTokenId(tokenId)
+        .execute(client);
+      
+      console.log(`[AIRDROP_TRANSFER] Nom du token: ${tokenInfo.name}`);
+      console.log(`[AIRDROP_TRANSFER] Symbole: ${tokenInfo.symbol}`);
+      console.log(`[AIRDROP_TRANSFER] Compte Treasury: ${tokenInfo.treasuryAccountId.toString()}`);
+      
+      // Vérifier si l'utilisateur est le propriétaire du token (treasury account)
+      if (tokenInfo.treasuryAccountId.toString() !== wallet.accountId) {
+        console.log(`[AIRDROP_TRANSFER] ⚠️ L'utilisateur ${fromUserId} (${wallet.accountId}) n'est pas le propriétaire du token ${tokenId} (treasury: ${tokenInfo.treasuryAccountId})`);
+        
+        // On peut autoriser le transfert quand même, mais avertir que ce n'est pas le treasury
+        console.log(`[AIRDROP_TRANSFER] Tentative de transfert malgré que l'utilisateur n'est pas le treasury`);
+      } else {
+        console.log(`[AIRDROP_TRANSFER] ✅ L'utilisateur ${fromUserId} est bien le propriétaire du token ${tokenId}`);
+      }
+    } catch (tokenInfoError) {
+      console.error(`[AIRDROP_TRANSFER] ❌ Erreur lors de la récupération des informations du token: ${tokenInfoError.message}`);
+      // On continue quand même car l'erreur pourrait être due à un manque de permission plutôt qu'à l'inexistence du token
+    }
+    
+    // Vérifier si le token est déjà associé au compte destinataire
+    const isAssociated = await isTokenAssociated(toAccountId, tokenId);
+    console.log(`[AIRDROP_TRANSFER] Le compte ${toAccountId} est-il associé au token ${tokenId}? ${isAssociated ? 'Oui' : 'Non'}`);
+    
+    // Utiliser TokenAirdropTransaction si le compte n'est pas associé
+    // Cela créera un "pending airdrop" que l'utilisateur pourra réclamer après avoir associé le token
+    console.log(`[AIRDROP_TRANSFER] Création d'une transaction ${isAssociated ? 'TransferTransaction' : 'TokenAirdropTransaction'}`);
+    
+    let transaction;
+    let pendingAirdropId = null;
+    
+    if (!isAssociated) {
+      // Utiliser TokenAirdropTransaction pour créer un "pending airdrop"
+      console.log(`[AIRDROP_TRANSFER] Préparation d'un airdrop en attente (pending airdrop) pour ${toAccountId}`);
+      
+      transaction = new TokenAirdropTransaction()
+        .addTokenTransfer(
+          tokenId,
+          wallet.accountId, // Compte expéditeur (treasury)
+          toAccountId,      // Compte destinataire
+          amount            // Montant à transférer
+        )
+        .freezeWith(client);
+    } else {
+      // Utiliser TransferTransaction standard pour un transfert direct
+      console.log(`[AIRDROP_TRANSFER] Préparation d'un transfert direct pour ${toAccountId}`);
+      
+      transaction = new TransferTransaction()
+        .addTokenTransfer(tokenId, wallet.accountId, -amount)
+        .addTokenTransfer(tokenId, toAccountId, amount)
+        .freezeWith(client);
+    }
+    
+    // Signer avec la clé privée de l'expéditeur
+    console.log(`[AIRDROP_TRANSFER] Signature de la transaction avec la clé privée de ${wallet.accountId}`);
+    const privateKey = PrivateKey.fromString(wallet.privateKey);
+    const signedTx = await transaction.sign(privateKey);
+    
+    // Exécuter la transaction
+    console.log(`[AIRDROP_TRANSFER] Exécution de la transaction`);
+    const txResponse = await signedTx.execute(client);
+    console.log(`[AIRDROP_TRANSFER] Transaction soumise, attente du reçu...`);
+    const receipt = await txResponse.getReceipt(client);
+    
+    const txId = txResponse.transactionId.toString();
+    console.log(`[AIRDROP_TRANSFER] Transaction terminée: ${txId}`);
+    console.log(`[AIRDROP_TRANSFER] Statut: ${receipt.status.toString()}`);
+    
+    // Pour les TokenAirdropTransaction, récupérer le pendingAirdropId s'il existe
+    if (!isAssociated && receipt.pendingAirdropId) {
+      pendingAirdropId = receipt.pendingAirdropId.toString();
+      console.log(`[AIRDROP_TRANSFER] Pending Airdrop ID: ${pendingAirdropId}`);
+    }
+    
+    // Générer les URLs vers les explorateurs
+    const { getExplorerUrls } = require('../utils/explorer');
+    const explorerUrls = getExplorerUrls(txId, 'transaction');
+    
+    // Construire le résultat
+    return {
+      success: true,
+      message: isAssociated 
+        ? `✅ ${amount} tokens du token ${tokenId} ont été transférés directement à ${toAccountId}` 
+        : `✅ Airdrop de ${amount} tokens du token ${tokenId} créé pour ${toAccountId}. L'utilisateur devra l'associer avant de pouvoir le réclamer.`,
+      tokenId,
+      amount,
+      fromAccount: wallet.accountId,
+      toAccount: toAccountId,
+      transactionId: txId,
+      isPendingAirdrop: !isAssociated,
+      pendingAirdropId: pendingAirdropId,
+      explorerUrl: explorerUrls.hederaExplorer,
+      hashscanUrl: explorerUrls.hashScan
+    };
+  } catch (error) {
+    console.error(`[AIRDROP_TRANSFER] ❌ Erreur lors du transfert d'airdrop: ${error.message}`);
+    console.error(error.stack);
+    return {
+      success: false,
+      message: `Échec du transfert d'airdrop: ${error.message}`,
+    };
   }
 }
 
