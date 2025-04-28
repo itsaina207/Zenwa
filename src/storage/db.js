@@ -28,6 +28,8 @@ const pool = new Pool({
         creator_id TEXT NOT NULL,
         token_id TEXT NOT NULL,
         token_name TEXT,
+        token_symbol TEXT,
+        treasury_id TEXT,
         transaction_id TEXT NOT NULL,
         pending_airdrop_id TEXT,
         total_amount BIGINT NOT NULL,
@@ -35,6 +37,35 @@ const pool = new Pool({
         status TEXT DEFAULT 'ACTIVE'
       )
     `);
+    
+    // Ajouter les colonnes manquantes si la table existe déjà
+    try {
+      // Vérifier si la colonne token_symbol existe déjà
+      const checkTokenSymbol = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'airdrops' AND column_name = 'token_symbol'
+      `);
+      
+      if (checkTokenSymbol.rows.length === 0) {
+        await client.query(`ALTER TABLE airdrops ADD COLUMN token_symbol TEXT`);
+        console.log('Colonne token_symbol ajoutée à la table airdrops');
+      }
+      
+      // Vérifier si la colonne treasury_id existe déjà
+      const checkTreasuryId = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'airdrops' AND column_name = 'treasury_id'
+      `);
+      
+      if (checkTreasuryId.rows.length === 0) {
+        await client.query(`ALTER TABLE airdrops ADD COLUMN treasury_id TEXT`);
+        console.log('Colonne treasury_id ajoutée à la table airdrops');
+      }
+    } catch (alterError) {
+      console.error('Erreur lors de la modification de la table airdrops:', alterError);
+    }
     
     // Créer la table pour les destinataires d'airdrop si elle n'existe pas déjà
     await client.query(`
