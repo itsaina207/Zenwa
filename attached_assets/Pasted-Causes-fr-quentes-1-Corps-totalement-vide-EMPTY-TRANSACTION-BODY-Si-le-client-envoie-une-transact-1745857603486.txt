@@ -1,0 +1,100 @@
+Causes fréquentes
+1. Corps totalement vide (EMPTY_TRANSACTION_BODY)
+Si le client envoie une transaction sans aucune donnée dans son corps, le nœud renvoie INVALID_TRANSACTION_BODY.
+
+La variante EMPTY_TRANSACTION_BODY décrit un cas où aucun champ n’est fourni 
+Hedera
+.
+
+2. Absence ou invalidité de la partie “freeze”
+Tout transaction JS/Java Hedera doit être gelée (freezeWith(client)) après avoir rempli tous les champs.
+
+L’erreur associée FREEZE_TRANSACTION_BODY_NOT_FOUND apparaît si le gelage est manquant ou incorrect .
+
+3. Champs manquants ou mal typés
+Les transactions Hedera ont un TransactionBody qui exige, entre autres, un transactionValidStart, un memo, un transactionFee, etc.
+
+Une mauvaise conversion de types (string vs number, IDs non transformés en objets AccountId/TokenId) peut vider ou corrompre ce corps 
+Hedera
+.
+
+4. Liste des transferts vide ou incorrecte
+Pour une TokenAirdropTransaction, il faut au moins un appel valide à addTokenTransfer(...) ou addNftTransfer(...).
+
+Sans ces appels, la section tokenTransfers est absente, d’où INVALID_TRANSACTION_BODY .
+
+5. Configuration du client incomplète
+Si client.setOperator(...) n’est pas appelé avant le freezeWith, le SDK n’injecte pas le transactionID ni la liste nodeAccountIds dans le corps, le rendant invalide .
+
+Diagnostic pas à pas
+Activer les logs DEBUG
+
+js
+Copier
+Modifier
+client.setLogLevel(LogLevel.DEBUG);
+Vous verrez la structure Protobuf exacte envoyée au nœud .
+
+Inspecter toString() du transaction
+
+js
+Copier
+Modifier
+console.log(airdropTx.toString());
+Vérifiez la présence de la section tokenTransfers et des champs obligatoires du TransactionBody .
+
+Vérifier chaque champ
+
+tokenId doit être TokenId.fromString(...)
+
+accountId doit être AccountId.fromString(...)
+
+amount doit être un Number, jamais une string
+
+transactionValidDuration et memo ne doivent pas être omis 
+Hedera
+.
+
+Solutions et bonnes pratiques
+Ajouter vos transferts
+
+js
+Copier
+Modifier
+new TokenAirdropTransaction()
+  .addTokenTransfer(tokenId, treasuryAccount, -amount)
+  .addTokenTransfer(tokenId, recipientAccount, amount)
+  .freezeWith(client);
+Geler après remplissage
+
+js
+Copier
+Modifier
+.freezeWith(client);
+– Toujours après tous les addTokenTransfer et avant la signature .
+
+Configurer l’opérateur
+
+js
+Copier
+Modifier
+Client.forTestnet()
+  .setOperator(treasuryId, treasuryKey);
+Tester un cas minimal
+
+Un seul destinataire, petit montant
+
+Utile pour isoler l’erreur et valider le corps de la transaction
+
+Vérifier les clés du token
+
+Assurez-vous que le token possède un supplyKey et que le compte créateur est bien le treasury .
+
+Que signifie le node account id 0.0.8 ?
+Il s’agit simplement du nœud Hedera (dans la liste nodeAccountIds) qui a rejeté le precheck. En général, réessayer ou laisser le SDK gérer la sélection de nœuds résout ce point .
+
+En résumé, INVALID_TRANSACTION_BODY indique un défaut de construction de la transaction : champs manquants, corps vide ou gelage mal positionné. Un audit systématique du dump Protobuf (via logs DEBUG et toString()) permet de repérer le champ fautif et de corriger rapidement.
+
+
+
+Sources
