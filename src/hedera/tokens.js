@@ -456,6 +456,137 @@ async function associateToken(userId, tokenId) {
   }
 }
 
+/**
+ * Effectuer un transfert direct de token pour la résolution d'airdrop
+ * @param {string} fromUserId - ID de l'utilisateur qui envoie le token (administrateur)
+ * @param {string} toAccountId - ID du compte destinataire
+ * @param {string} tokenId - ID du token à transférer
+ * @param {number} amount - Montant à transférer
+ * @returns {Promise<object>} Résultat du transfert
+ */
+async function executeAirdropTransfer(fromUserId, toAccountId, tokenId, amount) {
+  try {
+    console.log(`[AIRDROP_TRANSFER] Démarrage du transfert direct de ${amount} tokens ${tokenId} vers ${toAccountId}`);
+    
+    // Récupérer les informations du compte administrateur
+    const accountInfo = await getAccountInfo(fromUserId);
+    if (!accountInfo.success) {
+      return {
+        success: false,
+        message: `Impossible de récupérer les informations de votre compte: ${accountInfo.message}`
+      };
+    }
+
+    const { accountId, privateKey } = accountInfo;
+    console.log(`[AIRDROP_TRANSFER] ✅ Compte administrateur trouvé: ${accountId}`);
+    
+    // Vérifier que le token est associé au compte destinataire
+    const isAssociated = await isTokenAssociated(toAccountId, tokenId);
+    if (!isAssociated) {
+      console.log(`[AIRDROP_TRANSFER] ⚠️ Le compte ${toAccountId} n'est pas associé au token ${tokenId}. Tentative d'association...`);
+      
+      // Tenter de trouver les informations du compte pour l'associer
+      const userIdFromAccount = await getUserIdFromAccount(toAccountId);
+      if (!userIdFromAccount) {
+        return {
+          success: false,
+          message: `Impossible de trouver l'utilisateur associé au compte ${toAccountId} pour l'association de token`
+        };
+      }
+      
+      const associateResult = await associateToken(userIdFromAccount, tokenId);
+      if (!associateResult.success) {
+        return {
+          success: false,
+          message: `Impossible d'associer le token ${tokenId} au compte ${toAccountId}: ${associateResult.message}`
+        };
+      }
+      
+      console.log(`[AIRDROP_TRANSFER] ✅ Token ${tokenId} associé avec succès au compte ${toAccountId}`);
+    } else {
+      console.log(`[AIRDROP_TRANSFER] ✅ Le compte ${toAccountId} est déjà associé au token ${tokenId}`);
+    }
+    
+    // Initialiser le client Hedera
+    const client = getClient();
+    
+    // Créer un objet TokenId à partir de la chaîne
+    const tokenIdObj = TokenId.fromString(tokenId);
+    
+    // Créer la transaction de transfert
+    console.log(`[AIRDROP_TRANSFER] Création de la transaction de transfert`);
+    const transaction = new TransferTransaction()
+      .addTokenTransfer(tokenIdObj, accountId, -amount)
+      .addTokenTransfer(tokenIdObj, toAccountId, amount)
+      .freezeWith(client);
+    
+    // Signer avec la clé privée de l'administrateur
+    const privateKeyObj = PrivateKey.fromString(privateKey);
+    const signedTx = await transaction.sign(privateKeyObj);
+    
+    // Exécuter la transaction
+    console.log(`[AIRDROP_TRANSFER] Exécution de la transaction de transfert`);
+    const txResponse = await signedTx.execute(client);
+    const receipt = await txResponse.getReceipt(client);
+    
+    if (receipt.status.toString() !== 'SUCCESS') {
+      return {
+        success: false,
+        message: `La transaction a échoué avec le statut: ${receipt.status.toString()}`
+      };
+    }
+    
+    const txId = txResponse.transactionId.toString();
+    console.log(`[AIRDROP_TRANSFER] ✅ Transfert réussi, transaction ID: ${txId}`);
+    
+    // Générer les URLs des explorateurs
+    const explorerUrls = getExplorerUrls(txId, 'transaction');
+    
+    return {
+      success: true,
+      message: `${amount} tokens ${tokenId} ont été envoyés avec succès à ${toAccountId}`,
+      transactionId: txId,
+      fromAccount: accountId,
+      toAccount: toAccountId,
+      tokenId: tokenId,
+      amount: amount,
+      explorerUrl: explorerUrls.hederaExplorer,
+      hashscanUrl: explorerUrls.hashScan
+    };
+  } catch (error) {
+    console.error(`[AIRDROP_TRANSFER] ❌ Erreur lors du transfert de token: ${error.message}`);
+    return {
+      success: false,
+      message: `Erreur lors du transfert de token: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Recherche l'ID utilisateur Telegram à partir d'un ID de compte Hedera
+ * @param {string} accountId - ID du compte Hedera
+ * @returns {Promise<string|null>} ID utilisateur Telegram ou null si non trouvé
+ */
+async function getUserIdFromAccount(accountId) {
+  try {
+    const { query } = require('../storage/db');
+    
+    const result = await query(
+      'SELECT user_id FROM user_wallets WHERE account_id = $1',
+      [accountId]
+    );
+    
+    if (result.rows.length > 0) {
+      return result.rows[0].user_id;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Erreur lors de la recherche de l'ID utilisateur: ${error.message}`);
+    return null;
+  }
+}
+
 module.exports = {
   mintToken,
   sendToken,
@@ -463,5 +594,6 @@ module.exports = {
   getTokenIdByNameOrSymbol,
   getUserTokens,
   associateToken,
-  isTokenAssociated
+  isTokenAssociated,
+  executeAirdropTransfer
 };
