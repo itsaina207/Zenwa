@@ -1,0 +1,111 @@
+1. Vérifiez les types de vos variables
+Avant même d’appeler addTokenTransfer, assurez-vous que :
+
+tokenId est un TokenId, pas une string :
+
+js
+Copier
+Modifier
+const tokenId = TokenId.fromString("0.0.12345");
+treasuryId et recipientId sont des AccountId, pas des strings brutes.
+
+amount est un number (ou un JavaScript Long), jamais une string.
+
+2. Inspectez vraiment le « body » de la transaction
+Ajoutez juste après votre appel à .freezeWith(client) ce petit bloc :
+
+js
+Copier
+Modifier
+// Active le debug pour mieux voir ce qu'on envoie
+client.setLogLevel(LogLevel.DEBUG);
+
+// Freeze puis log
+const frozen = await new TokenAirdropTransaction()
+  .addTokenTransfer(tokenId, treasuryId, recipientId, amount)
+  .freezeWith(client);
+
+// Affiche dans la console la structure Protobuf
+console.log("Airdrop tx toString():\n", frozen.toString());
+Dans la sortie, cherchez une section tokenTransfers. Vous devriez voir quelque chose comme :
+
+yaml
+Copier
+Modifier
+tokenTransfers {
+  token: { shardNum: 0, realmNum: 0, tokenNum: 12345 }
+  transfers {
+    accountID { shardNum: 0, realmNum: 0, accountNum: 11111 }
+    amount: -100
+  }
+  transfers {
+    accountID { shardNum: 0, realmNum: 0, accountNum: 22222 }
+    amount: 100
+  }
+}
+Si tokenTransfers est absent ou vide, cela confirme que l’un de vos addTokenTransfer() ne s’est pas bien appliqué.
+
+En copiant-collant ici cette partie, je pourrai vous indiquer plus précisément ce qui manque.
+
+3. Exemple complet minimal à tester
+Copiez-collez ce script de test, en remplaçant uniquement les IDs et la clé :
+
+js
+Copier
+Modifier
+import {
+  Client,
+  TokenAirdropTransaction,
+  TokenId,
+  AccountId,
+  PrivateKey,
+  LogLevel
+} from "@hashgraph/sdk";
+
+async function testAirdrop() {
+  // 1) Params
+  const treasuryId      = AccountId.fromString("0.0.TREASURY");
+  const treasuryKey     = PrivateKey.fromString("VOTRE_CLE_PRIVEE");
+  const recipientId     = AccountId.fromString("0.0.RECIPIENT");
+  const tokenId         = TokenId.fromString("0.0.VOTRE_TOKEN");
+  const amountToSend    = 50;
+
+  // 2) Client
+  const client = Client.forTestnet()
+    .setOperator(treasuryId, treasuryKey)
+    .setLogLevel(LogLevel.DEBUG);
+
+  // 3) Build & freeze
+  const airdropTx = await new TokenAirdropTransaction()
+    .addTokenTransfer(tokenId, treasuryId, recipientId, amountToSend)
+    .setMaxTransactionFee(new Hbar(1))
+    .freezeWith(client);
+
+  // 4) Debug print
+  console.log("---- TRANSACTION BODY ----");
+  console.log(airdropTx.toString());
+  console.log("--------------------------");
+
+  // 5) Sign & send
+  const signed = await airdropTx.sign(treasuryKey);
+  const resp   = await signed.execute(client);
+  const receipt = await resp.getReceipt(client);
+  console.log("Airdrop status:", receipt.status.toString());
+}
+
+testAirdrop().catch(console.error);
+Regardez le bloc ---- TRANSACTION BODY ---- :
+
+Si vous ne voyez aucune tokenTransfers, alors l’appel à .addTokenTransfer n’a pas été pris en compte.
+
+Collaborez ici en copiant ce bloc : je vous indiquerai exactement le champ manquant ou mal typé.
+
+En procédant ainsi, nous pourrons enfin isoler pourquoi votre transaction est toujours considérée comme vide par le nœud, et la faire passer le pré-check avec succès.
+
+
+
+
+
+
+
+

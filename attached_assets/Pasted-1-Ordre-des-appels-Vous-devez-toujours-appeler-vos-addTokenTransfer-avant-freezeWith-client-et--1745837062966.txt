@@ -1,0 +1,79 @@
+1. Ordre des appels
+Vous devez toujours appeler vos addTokenTransfer(…) avant freezeWith(client) et avant toute signature.
+
+js
+Copier
+Modifier
+new TokenAirdropTransaction()
+  .addTokenTransfer(tokenId, treasuryAccount, recipientAccount, amount)
+  .freezeWith(client)
+  .sign(treasuryKey)
+  .execute(client);
+C’est le modèle officiel du tutorial “Frictionless Airdrop” 
+GitHub
+
+2. Paramètres COMPLETS et valides
+Un seul champ manquant ou mal typé (string au lieu de number, mauvais AccountId/TokenId…) vide la transaction :
+
+tokenId : récupéré par tokenCreateTx.getReceipt(…).tokenId
+
+treasuryAccount : celui que vous avez passé à setTreasuryAccountId(…)
+
+recipientAccount : AccountId.fromString("0.0.x")
+
+amount : un entier JavaScript (e.g. 100), pas une string 
+Hedera
+
+3. Ne cherchez pas setTokenId()
+Contrairement à d’autres transactions, TokenAirdropTransaction n’a pas de méthode .setTokenId().
+Le token doit être fourni à chaque appel de
+
+js
+Copier
+Modifier
+.addTokenTransfer(tokenId, from, to, amount)
+Sinon, le corps reste vide 
+Hedera
+
+4. Activez les logs et inspectez le corps
+Pour voir exactement ce qui est envoyé au nœud :
+
+js
+Copier
+Modifier
+client.setLogLevel(LogLevel.DEBUG);
+console.log(airdropTx.toString());
+Cherchez la section tokenTransfers : si elle est vide, c’est qu’il y a un problème d’ordre ou de paramètre manquant 
+Hedera
+
+5. Mini-snippet de debug
+Remplacez les IDs et clés, puis exécutez :
+
+js
+Copier
+Modifier
+// 1) Init client et opérateur (treasury)
+client.setLogLevel(LogLevel.DEBUG);
+client.setOperator(treasuryId, treasuryKey);
+
+// 2) Création transaction
+const airdropTx = new TokenAirdropTransaction()
+  .addTokenTransfer(
+    TokenId.fromString("0.0.YOUR_TOKEN_ID"),
+    AccountId.fromString("0.0.YOUR_TREASURY_ID"),
+    AccountId.fromString("0.0.YOUR_RECIPIENT_ID"),
+    100
+  )
+  .freezeWith(client);
+
+// 3) Affichage du corps
+console.log(airdropTx.toString());
+
+// 4) Exécution
+const resp = await airdropTx.sign(treasuryKey).execute(client);
+console.log("Status:", (await resp.getReceipt(client)).status.toString());
+Inspectez la sortie JSON de toString().
+
+Si tokenTransfers est absent ou vide, corrigez l’ordre/les valeurs.
+
+Si ça persiste, copiez ici ce JSON : on identifiera ensemble le champ manquant.
