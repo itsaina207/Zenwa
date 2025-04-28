@@ -151,12 +151,6 @@ async function handleButtonAction(callbackQuery) {
           }
             
           await bot.sendMessage(chatId, errorMessage);
-        } else {
-          const message = userLang === 'fr' ?
-            `❌ Erreur lors de la finalisation de l'airdrop: ${result.message}` :
-            `❌ Error finalizing airdrop: ${result.message}`;
-          
-          await bot.sendMessage(chatId, message);
         }
       } catch (error) {
         console.error(`Error in airdrop_finalize:`, error);
@@ -303,15 +297,25 @@ async function handleButtonAction(callbackQuery) {
         await bot.deleteMessage(chatId, processingMsg.message_id);
         await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
       } else {
-        const errorMessage = userLang === 'fr'
-          ? `❌ *Erreur lors de la réclamation de l'airdrop:*\n\n${result.message}\n\n`
-            + (result.message.includes('token') && result.message.includes('associat') 
-               ? "💡 *Conseil:* Vous pouvez essayer d'associer manuellement le token avec la commande `/associate [tokenId]`." 
-               : "")
-          : `❌ *Error claiming airdrop:*\n\n${result.message}\n\n`
-            + (result.message.includes('token') && result.message.includes('associat') 
-               ? "💡 *Tip:* You can try to manually associate the token with the command `/associate [tokenId]`."
-               : "");
+        let errorMessage;
+        
+        // Vérifier si c'est une erreur de solde insuffisant
+        if (result.errorType === 'INSUFFICIENT_BALANCE') {
+          // Message spécifique pour le solde insuffisant
+          errorMessage = userLang === 'fr'
+            ? `⚠️ *Solde HBAR insuffisant*\n\nVous avez seulement ${result.currentBalance} HBAR, mais il vous faut au moins ${result.requiredBalance} HBAR pour cette opération.\n\nVeuillez recharger votre compte et réessayer.`
+            : `⚠️ *Insufficient HBAR balance*\n\nYou only have ${result.currentBalance} HBAR, but you need at least ${result.requiredBalance} HBAR for this operation.\n\nPlease top up your account and try again.`;
+        } else if (result.message.includes('token') && result.message.includes('associat')) {
+          // Message spécifique pour problème d'association de token
+          errorMessage = userLang === 'fr'
+            ? `❌ *Erreur lors de la réclamation de l'airdrop:*\n\n${result.message}\n\n💡 *Conseil:* Vous pouvez essayer d'associer manuellement le token avec la commande \`/associate [tokenId]\`.`
+            : `❌ *Error claiming airdrop:*\n\n${result.message}\n\n💡 *Tip:* You can try to manually associate the token with the command \`/associate [tokenId]\`.`;
+        } else {
+          // Message d'erreur générique
+          errorMessage = userLang === 'fr'
+            ? `❌ *Erreur lors de la réclamation de l'airdrop:*\n\n${result.message}`
+            : `❌ *Error claiming airdrop:*\n\n${result.message}`;
+        }
         
         console.error(`[CLAIM] ❌ Échec de la réclamation pour l'utilisateur ${userId}: ${result.message}`);
         await bot.deleteMessage(chatId, processingMsg.message_id);
