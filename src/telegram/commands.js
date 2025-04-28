@@ -65,6 +65,14 @@ const ASSOCIATE_STATES = {
   NONE: 'NONE'
 };
 
+// Possible states for the /forcetransfer command
+const FORCE_TRANSFER_STATES = {
+  WAITING_FOR_RECIPIENT: 'WAITING_FOR_RECIPIENT',
+  WAITING_FOR_TOKEN_ID: 'WAITING_FOR_TOKEN_ID',
+  WAITING_FOR_AMOUNT: 'WAITING_FOR_AMOUNT',
+  NONE: 'NONE'
+};
+
 /**
  * Handles the /start command
  * @param {TelegramBot} bot - Telegram bot instance
@@ -1158,6 +1166,12 @@ function registerCommands(bot) {
           return;
         }
         
+        // Vérifier si nous sommes dans une conversation de transfert forcé
+        if (Object.values(FORCE_TRANSFER_STATES).includes(userInfo.state)) {
+          const handled = await handleForceTransferConversation(bot, msg);
+          if (handled) return;
+        }
+        
         // Vérifier si nous sommes dans une conversation d'airdrop, de campagne ou de réclamation
         if (userInfo.state && 
             (userInfo.state.toString().startsWith('waiting_for_') || 
@@ -1187,6 +1201,7 @@ function registerCommands(bot) {
     { command: "airdrop", description: "Créer un airdrop de tokens" },
     { command: "claim", description: "Réclamer des tokens" },
     { command: "claimairdrop", description: "Réclamer des tokens d'un airdrop" },
+    { command: "forcetransfer", description: "Transférer un token directement (Admin)" },
     { command: "setlang", description: "Changer la langue (FR/EN)" },
     { command: "help", description: "Afficher de l'aide" },
   ]);
@@ -1415,6 +1430,171 @@ Vous pouvez maintenant recevoir ce token dans votre portefeuille.
   }
 }
 
+/**
+ * Handles the /forcetransfer command (Admin only)
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ */
+async function handleForceTransfer(bot, msg) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
+  
+  // Vérification des permissions d'administrateur (à adapter selon votre système)
+  // Dans cet exemple, toute personne peut utiliser la commande pour simplifier les tests
+  
+  // Réinitialiser l'état pour commencer un nouveau transfert forcé
+  userState.set(userId, {
+    state: FORCE_TRANSFER_STATES.WAITING_FOR_RECIPIENT,
+    chatId: chatId,
+    forceTransfer: {
+      recipient: null,
+      tokenId: null,
+      amount: null
+    }
+  });
+  
+  // Demander le destinataire
+  await bot.sendMessage(
+    chatId, 
+    "À quel compte Hedera souhaitez-vous envoyer des tokens? (ID Hedera, ID Telegram, nom d'utilisateur ou numéro de téléphone)",
+    { reply_markup: { force_reply: true } }
+  );
+}
+
+/**
+ * Handle conversation flow for force transfer
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ * @returns {Promise<boolean>} True if the message was handled as part of a force transfer conversation
+ */
+async function handleForceTransferConversation(bot, msg) {
+  const userId = msg.from.id.toString();
+  const userInfo = userState.get(userId);
+  const msgChatId = msg.chat.id;
+  const text = msg.text.trim();
+  
+  // Vérifier si l'utilisateur est dans une conversation de transfert forcé
+  if (!userInfo || !Object.values(FORCE_TRANSFER_STATES).includes(userInfo.state)) {
+    return false;
+  }
+  
+  const currentChatId = userInfo.chatId;
+  
+  switch (userInfo.state) {
+    case FORCE_TRANSFER_STATES.WAITING_FOR_RECIPIENT:
+      // L'utilisateur a entré un identifiant de destinataire
+      await bot.sendMessage(currentChatId, `Recherche du compte pour: ${text}...`);
+      
+      // Résoudre l'identifiant fourni en un ID de compte Hedera
+      const { resolveToAccountId } = require('../hedera/airdrop');
+      const accountId = await resolveToAccountId(text);
+      
+      if (!accountId) {
+        await bot.sendMessage(
+          currentChatId,
+          `❌ Impossible de trouver un compte Hedera pour l'identifiant "${text}". Veuillez réessayer avec un autre identifiant:`,
+          { reply_markup: { force_reply: true } }
+        );
+        return true;
+      }
+      
+      // Mettre à jour l'état avec le destinataire et passer à l'étape suivante
+      userInfo.forceTransfer.recipient = accountId;
+      userInfo.state = FORCE_TRANSFER_STATES.WAITING_FOR_TOKEN_ID;
+      userState.set(userId, userInfo);
+      
+      await bot.sendMessage(
+        currentChatId,
+        `✅ Compte trouvé: ${accountId}\n\nEntrez maintenant l'ID du token à transférer (format: 0.0.xxxx):`,
+        { reply_markup: { force_reply: true } }
+      );
+      break;
+      
+    case FORCE_TRANSFER_STATES.WAITING_FOR_TOKEN_ID:
+      // L'utilisateur a entré un ID de token
+      // Vérifier le format du token ID
+      if (!text.match(/^\d+\.\d+\.\d+$/)) {
+        await bot.sendMessage(
+          currentChatId,
+          "Format de Token ID invalide. Le format attendu est 0.0.xxxx. Veuillez réessayer:",
+          { reply_markup: { force_reply: true } }
+        );
+        return true;
+      }
+      
+      // Mettre à jour l'état avec le token ID et passer à l'étape suivante
+      userInfo.forceTransfer.tokenId = text;
+      userInfo.state = FORCE_TRANSFER_STATES.WAITING_FOR_AMOUNT;
+      userState.set(userId, userInfo);
+      
+      await bot.sendMessage(
+        currentChatId,
+        `Combien de tokens ${text} souhaitez-vous transférer à ${userInfo.forceTransfer.recipient}?`,
+        { reply_markup: { force_reply: true } }
+      );
+      break;
+      
+    case FORCE_TRANSFER_STATES.WAITING_FOR_AMOUNT:
+      // L'utilisateur a entré un montant
+      const amount = parseInt(text, 10);
+      
+      if (isNaN(amount) || amount <= 0) {
+        await bot.sendMessage(
+          currentChatId,
+          "Le montant doit être un nombre entier positif. Veuillez réessayer:",
+          { reply_markup: { force_reply: true } }
+        );
+        return true;
+      }
+      
+      // Réinitialiser l'état
+      const recipientId = userInfo.forceTransfer.recipient;
+      const tokenId = userInfo.forceTransfer.tokenId;
+      userState.set(userId, { state: FORCE_TRANSFER_STATES.NONE });
+      
+      // Exécuter le transfert direct
+      await bot.sendMessage(
+        currentChatId,
+        `🔄 Transfert de ${amount} tokens ${tokenId} vers ${recipientId} en cours...`
+      );
+      
+      try {
+        const { executeAirdropTransfer } = require('../hedera/tokens');
+        const result = await executeAirdropTransfer(userId, recipientId, tokenId, amount);
+        
+        if (result.success) {
+          const message = `
+✅ ${result.message}
+
+*Détails du transfert:*
+De: \`${result.fromAccount}\`
+À: \`${result.toAccount}\`
+Token ID: \`${result.tokenId}\`
+Montant: ${result.amount}
+
+*Transaction:*
+[Voir sur Hedera Explorer](${result.explorerUrl})
+[Voir sur HashScan](${result.hashscanUrl})
+
+Le destinataire peut maintenant réclamer son airdrop s'il apparaît dans ses airdrops disponibles.
+`;
+          await bot.sendMessage(currentChatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(currentChatId, `❌ ${result.message}`);
+        }
+      } catch (error) {
+        console.error('Erreur lors du transfert forcé:', error);
+        await bot.sendMessage(
+          currentChatId,
+          `❌ Une erreur s'est produite lors du transfert: ${error.message}`
+        );
+      }
+      break;
+  }
+  
+  return true;
+}
+
 module.exports = {
   registerCommands,
   handleStart,
@@ -1432,6 +1612,9 @@ module.exports = {
   // Fonctions d'association de token
   handleAssociate,
   handleAssociateConversation,
+  // Fonction de transfert forcé pour admin
+  handleForceTransfer,
+  handleForceTransferConversation,
   // Exporter les fonctions d'airdrop pour qu'elles soient disponibles ailleurs
   handleAirdrop,
   handleClaimAirdrop,
@@ -1441,6 +1624,7 @@ module.exports = {
   SEND_STATES,
   MINT_STATES,
   ASSOCIATE_STATES,
+  FORCE_TRANSFER_STATES,
   AIRDROP_STATES,
   CAMPAIGN_STATES,
   CLAIM_STATES,
