@@ -8,7 +8,10 @@ const {
   TokenClaimAirdropTransaction,
   TokenId,
   PendingAirdropId,
-  PrivateKey
+  PrivateKey,
+  TransferTransaction,
+  AccountId,
+  AccountBalanceQuery
 } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
