@@ -332,6 +332,7 @@ async function executeAirdropTransfer(fromUserId, toAccountId, tokenId, amount) 
       console.log(`[AIRDROP_TRANSFER] Préparation d'un airdrop en attente (pending airdrop) pour ${toAccountId}`);
       
       transaction = new TokenAirdropTransaction()
+        .setMaxTransactionFee(new Hbar(0.05)) // Limitation des frais à 0.05 HBAR pour éviter INSUFFICIENT_PAYER_BALANCE
         .addTokenTransfer(
           tokenId,
           wallet.accountId, // Compte expéditeur (treasury)
