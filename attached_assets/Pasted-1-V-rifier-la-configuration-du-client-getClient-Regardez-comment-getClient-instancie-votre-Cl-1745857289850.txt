@@ -1,0 +1,78 @@
+1. Vérifier la configuration du client (getClient())
+Regardez comment getClient() instancie votre Client :
+
+Réseau : si vous ne faites pas explicitement Client.forTestnet() (ou Client.forName(…) avec HEDERA_NETWORK=testnet), vous risquez d’envoyer votre airdrop sur mainnet (node 0.0.3, 0.0.8, etc.), alors que votre token n’existe que sur testnet.
+
+Opérateur : il faut impérativement avoir fait .setOperator(treasuryId, treasuryKey) avant tout appel à .freezeWith(client) pour que le transactionId soit bien généré.
+
+Action : ouvrez la fonction getClient() et assurez-vous qu’elle fait quelque chose comme :
+
+js
+Copier
+Modifier
+import { Client, PrivateKey, AccountId } from "@hashgraph/sdk";
+function getClient() {
+  const network = process.env.HEDERA_NETWORK || "testnet";
+  return Client.forName(network)
+    .setOperator(
+      AccountId.fromString(process.env.MY_ACCOUNT_ID),
+      PrivateKey.fromString(process.env.MY_PRIVATE_KEY)
+    );
+}
+2. Inspecter le corps de la transaction juste après le freeze
+Ajoutez, juste après votre .freezeWith(client) :
+
+js
+Copier
+Modifier
+console.log(">>> Transaction body:\n", airdropTx.toString());
+Dans la sortie, vous devez voir une section tokenTransfers { … } listant à minima deux transferts (débit treasury et crédit recipient).
+
+Si tokenTransfers est absent ou vide, c’est que votre addTokenTransfer(...) n’a pas été pris en compte.
+
+Copiez-collez-nous cette sortie si nécessaire, on identifiera alors précisément quel champ manque. 
+YouTube
+
+3. Confirmer le typage et la syntaxe des appels
+Même si vous avez déjà converti vos chaînes en objets typés, revérifiez :
+
+js
+Copier
+Modifier
+const treasuryAccountId   = AccountId.fromString(accountId);      // "0.0.x"
+const recipientAccountId  = AccountId.fromString(firstRecipient.accountId);
+const tokenIdObj          = TokenId.fromString(tokenId);         // "0.0.y"
+const amountToSend        = Number(firstRecipient.amount);       //  integer
+Puis :
+
+js
+Copier
+Modifier
+const airdropTx = new TokenAirdropTransaction()
+  .addTokenTransfer(tokenIdObj, treasuryAccountId, -amountToSend)
+  .addTokenTransfer(tokenIdObj, recipientAccountId, amountToSend)
+  .freezeWith(client);
+– Tout argument undefined ou mal typé fera vider la liste des transferts.
+
+4. Version du SDK et méthode disponible
+Vous mentionnez @hashgraph/sdk v2.46.0 :
+
+TokenAirdropTransaction n’a pas de .setTokenId().
+
+Tous les transferts doivent être injectés via addTokenTransfer ou addNftTransfer avant le freeze.
+
+Si vous étiez parti d’un exemple plus ancien, assurez-vous que votre version locale du SDK est bien >= 2.43 (où addTokenTransfer fonctionne comme attendu).
+
+En résumé et prochaines étapes
+Validez que getClient() pointe bien sur testnet et set l’opérateur.
+
+Logguez le corps de la transaction avec toString() pour vous assurer que tokenTransfers contient bien vos deux entrées.
+
+Vérifiez que ni tokenId, ni accountId, ni amount ne soient undefined au moment de l’appel.
+
+Une fois que vous aurez le dump de airdropTx.toString(), collez-le ici ; on repèrera immédiatement si c’est un manque de transfert, un mauvais ID ou un problème réseau.
+
+
+
+
+Sources

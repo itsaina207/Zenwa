@@ -1,0 +1,111 @@
+Résumé
+Sur Hedera, le compte payeur (payer) est totalement distinct du ou des comptes expéditeur/destinataire et se définit via le TransactionId. Cela signifie que vous pouvez faire prendre en charge les frais réseau par un compte maître de votre choix, à la manière d’un relayer dans les meta-transactions, tout en conservant la logique métier standard de HAPI. En pratique, il suffit de construire votre transaction en fixant comme payer le compte maître, puis de la geler, d’y ajouter toutes les signatures requises (payeur, expéditeur de jetons, etc.) et enfin de la soumettre. Pour aller plus loin, vous pouvez déployer un mécanisme de délégation de transferts via les allowances ou même exploiter le type EthereumTransaction issu du HIP-410 pour des transactions Ethereum « gasless » sur Hedera. 
+Hedera
+Hedera
+ 
+docs.tuum.tech
+GitHub
+ 
+GitHub
+Hedera
+
+1. Définir le compte payeur
+1.1 TransactionId et panneau de frais
+Dans HAPI, TransactionId inclut l’ID du compte qui paie les frais (payerAccountId) et l’horodatage de début de validité 
+Hedera
+.
+
+Exemple JavaScript :
+
+js
+Copier
+Modifier
+const txId = TransactionId.withValidStart(
+  AccountId.fromString("0.0.MASTER_ID"), // payer = compte maître
+  Timestamp.now()
+);
+const tx = new CryptoTransferTransaction({transactionId: txId})
+  .addHbarTransfer(fromId, -amount)
+  .addHbarTransfer(toId, amount)
+  .freezeWith(client);
+1.2 Signatures requises
+Le compte payeur doit signer la transaction pour autoriser le débit des frais, et tout autre compte dont le solde est modifié doit aussi signer (par ex. l’expéditeur de jetons) 
+Hedera
+.
+
+Une fois gelée (.freezeWith(client)), vous pouvez enchaîner les signatures :
+
+signatures métiers (expéditeur)
+
+signature du payeur (maître)
+
+exécution (.execute(client))
+
+2. Simuler des meta-transactions via les allowances
+2.1 Principe des Allowances
+La transaction AccountAllowanceApproveTransaction() permet au propriétaire d’un compte de déléguer un droit de dépense à un tiers (spender) pour un montant donné 
+docs.tuum.tech
+.
+
+Une fois l’allowance définie, le tiers (votre service maître) peut lancer un CryptoTransferTransaction payée par son propre compte, sans que l’utilisateur final ne doive détenir d’HBAR ni signer de nouvelles transactions.
+
+2.2 API Snap pour les allowances
+Le Hedera Wallet Snap pour MetaMask expose des méthodes pour créer et supprimer facilement ces allowances via l’API approveHbarAllowance ou approveTokenAllowance 
+GitHub
+.
+
+3. Meta-transactions Ethereum avec HIP-410
+3.1 Présentation du HIP-410
+Le HIP-410 a introduit un nouveau type de transaction, EthereumTransaction, qui enveloppe une transaction Ethereum signée en RLP et l’exécute sur Hedera en HAPI 
+GitHub
+.
+
+3.2 Paiement des frais par le maître
+Par défaut, c’est l’alias ECDSA (compte Ethereum) qui paie les frais en HBAR, mais vous pouvez définir un maxAllowance qui permet à un opérateur Hedera (votre compte maître) de prendre le relais et de couvrir les frais restants jusqu’à ce plafond 
+Hedera
+.
+
+Workflow :
+
+L’utilisateur signe son tx Ethereum (hors-chaîne).
+
+Votre backend enveloppe ce RLP dans un EthereumTransaction, fixe le payer à votre compte maître et configure maxAllowance.
+
+Votre back-end signe en tant que payer et soumet, garantissant une UX « zero-gas » pour l’utilisateur.
+
+En pratique
+Oui, vous pouvez faire en sorte que le compte maître paie les frais, soit en désignant ce compte comme payer dans le TransactionId, soit en utilisant les allowances pour déléguer les transferts, ou encore via le type EthereumTransaction pour des meta-transactions Ethereum sur Hedera.
+
+Points clés à respecter :
+
+Toujours geler la transaction après avoir ajouté tous les transferts/allowances.
+
+Obtenir toutes les signatures nécessaires avant exécution.
+
+Surveiller les solde HBAR du payeur pour éviter INSUFFICIENT_PAYER_BALANCE.
+
+
+
+
+
+Sources
+
+
+
+
+
+
+
+
+
+
+
+Rechercher
+
+Recherche approfondie
+
+Créer une image
+
+
+
+ChatGPT peut faire des erreurs. Envisagez de vérifier les informations importantes.

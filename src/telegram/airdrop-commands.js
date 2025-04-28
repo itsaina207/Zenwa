@@ -56,19 +56,62 @@ async function handleAirdrop(bot, msg) {
   const userId = msg.from.id.toString();
   const userLang = getUserLanguage(userId);
   
-  // Initialiser l'état de l'utilisateur
-  userState.set(userId, {
-    state: AIRDROP_STATES.WAITING_FOR_TOKEN_ID,
-    airdropInfo: {
-      recipients: []
-    }
-  });
+  // Récupérer les tokens de l'utilisateur pour les afficher comme aide
+  const { getAccountInfo } = require('../hedera/account');
+  const { getTokenBalances } = require('../hedera/balance');
   
-  const message = userLang === 'fr' 
-    ? "Vous allez créer un airdrop de tokens.\n\nVeuillez d'abord indiquer l'ID du token à distribuer (format: 0.0.X):"
-    : "You are going to create a token airdrop.\n\nPlease provide the token ID to distribute (format: 0.0.X):";
+  try {
+    // Récupérer les informations du compte de l'utilisateur
+    const accountInfo = await getAccountInfo(userId);
     
-  await bot.sendMessage(chatId, message);
+    if (accountInfo.success) {
+      // Récupérer les balances de tokens
+      const { accountId } = accountInfo;
+      const tokensResult = await getTokenBalances(accountId);
+      
+      // Initialiser l'état de l'utilisateur
+      userState.set(userId, {
+        state: AIRDROP_STATES.WAITING_FOR_TOKEN_ID,
+        airdropInfo: {
+          recipients: []
+        }
+      });
+      
+      let tokenListMessage = '';
+      
+      if (tokensResult.success && Object.keys(tokensResult.tokens).length > 0) {
+        tokenListMessage = userLang === 'fr' 
+          ? "\n\n📋 Voici vos tokens disponibles :\n"
+          : "\n\n📋 Here are your available tokens:\n";
+          
+        for (const [tokenId, balance] of Object.entries(tokensResult.tokens)) {
+          tokenListMessage += `${tokenId} - ${balance} unités\n`;
+        }
+      }
+      
+      const message = userLang === 'fr' 
+        ? `Vous allez créer un airdrop de tokens.\n\n⚠️ IMPORTANT: Veuillez indiquer l'ID du token à distribuer au format EXACT 0.0.X (exemple: 0.0.12345).\n\nAttention: n'utilisez PAS le nom ou le symbole du token, uniquement son identifiant numérique sur Hedera.${tokenListMessage}`
+        : `You are going to create a token airdrop.\n\n⚠️ IMPORTANT: Please provide the EXACT token ID to distribute in the format 0.0.X (example: 0.0.12345).\n\nWarning: do NOT use the token name or symbol, only its numeric identifier on Hedera.${tokenListMessage}`;
+        
+      await bot.sendMessage(chatId, message);
+    } else {
+      // Gestion du cas où l'utilisateur n'a pas de compte
+      const message = userLang === 'fr' 
+        ? "Vous allez créer un airdrop de tokens.\n\n⚠️ IMPORTANT: Veuillez indiquer l'ID du token à distribuer au format EXACT 0.0.X (exemple: 0.0.12345).\n\nAttention: n'utilisez PAS le nom ou le symbole du token, uniquement son identifiant numérique sur Hedera."
+        : "You are going to create a token airdrop.\n\n⚠️ IMPORTANT: Please provide the EXACT token ID to distribute in the format 0.0.X (example: 0.0.12345).\n\nWarning: do NOT use the token name or symbol, only its numeric identifier on Hedera.";
+        
+      await bot.sendMessage(chatId, message);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la récupération des tokens pour affichage:', error);
+    
+    // Fallback au message standard en cas d'erreur
+    const message = userLang === 'fr' 
+      ? "Vous allez créer un airdrop de tokens.\n\n⚠️ IMPORTANT: Veuillez indiquer l'ID du token à distribuer au format EXACT 0.0.X (exemple: 0.0.12345).\n\nAttention: n'utilisez PAS le nom ou le symbole du token, uniquement son identifiant numérique sur Hedera."
+      : "You are going to create a token airdrop.\n\n⚠️ IMPORTANT: Please provide the EXACT token ID to distribute in the format 0.0.X (example: 0.0.12345).\n\nWarning: do NOT use the token name or symbol, only its numeric identifier on Hedera.";
+      
+    await bot.sendMessage(chatId, message);
+  }
 }
 
 /**
@@ -88,8 +131,8 @@ async function handleCampaign(bot, msg) {
   });
   
   const message = userLang === 'fr' 
-    ? "Vous allez créer une campagne de distribution de tokens.\n\nVeuillez d'abord indiquer l'ID du token à distribuer (format: 0.0.X):"
-    : "You are going to create a token distribution campaign.\n\nPlease provide the token ID to distribute (format: 0.0.X):";
+    ? "Vous allez créer une campagne de distribution de tokens.\n\n⚠️ IMPORTANT: Veuillez indiquer l'ID du token à distribuer au format EXACT 0.0.X (exemple: 0.0.12345).\n\nAttention: n'utilisez PAS le nom ou le symbole du token, uniquement son identifiant numérique sur Hedera."
+    : "You are going to create a token distribution campaign.\n\n⚠️ IMPORTANT: Please provide the EXACT token ID to distribute in the format 0.0.X (example: 0.0.12345).\n\nWarning: do NOT use the token name or symbol, only its numeric identifier on Hedera.";
     
   await bot.sendMessage(chatId, message);
 }

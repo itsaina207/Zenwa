@@ -11,7 +11,9 @@ const {
   PrivateKey,
   TransferTransaction,
   AccountId,
-  AccountBalanceQuery
+  AccountBalanceQuery,
+  Hbar,
+  TransactionId
 } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
@@ -211,6 +213,15 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       recipients
     });
     
+    // Vérifier le format du token ID (doit être au format 0.0.X)
+    if (!tokenId.match(/^\d+\.\d+\.\d+$/)) {
+      console.error(`[AIRDROP] ❌ Format d'ID de token invalide: ${tokenId}. Le format attendu est 0.0.X`);
+      return {
+        success: false,
+        message: `Format d'ID de token invalide: ${tokenId}. Le format attendu est 0.0.X (par exemple 0.0.12345)`
+      };
+    }
+    
     // 1. Récupérer les informations du compte créateur
     const accountInfo = await getAccountInfo(userId);
     if (!accountInfo.success) {
@@ -316,41 +327,164 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
     `);
     
     try {
-      // CRÉATION DE LA TRANSACTION SELON LE MODÈLE OFFICIEL
-      // Le compte treasury (expéditeur) est débité (-amountToSend)
-      // Le compte destinataire est crédité (+amountToSend)
-      // Les montants doivent se solder à zéro
-      const airdropTx = new TokenAirdropTransaction()
-        // Débit du treasury (montant négatif)
-        .addTokenTransfer(
-          tokenIdObj,           // Token ID (objet TokenId)
-          treasuryAccountId,    // Treasury Account 
-          -amountToSend         // Montant négatif (débit)
-        )
-        // Crédit du destinataire (montant positif)
-        .addTokenTransfer(
-          tokenIdObj,           // Token ID (objet TokenId)
-          recipientAccountId,   // Recipient Account
-          amountToSend          // Montant positif (crédit)
-        )
-        .freezeWith(client);    // Geler la transaction
+      // Vérifions d'abord si notre client est correctement configuré
+      console.log(`[CLIENT_CHECK] Vérification de la configuration du client:`);
+      console.log(`- Network: ${process.env.HEDERA_NETWORK || 'testnet'}`);
       
-      console.log(`Transaction TokenAirdropTransaction créée et gelée avec succès`);
+      // Confirmation des types et valeurs avant l'appel
+      console.log(`[PARAM_CHECK] Vérification des paramètres avant création de la transaction:`);
+      console.log(`- TokenId: ${tokenIdObj.toString()} (type: ${typeof tokenIdObj})`);
+      console.log(`- Treasury: ${treasuryAccountId.toString()} (type: ${typeof treasuryAccountId})`);
+      console.log(`- Recipient: ${recipientAccountId.toString()} (type: ${typeof recipientAccountId})`);
+      console.log(`- Amount: ${amountToSend} (type: ${typeof amountToSend})`);
+      
+      // CRÉATION DE LA TRANSACTION SELON LE MODÈLE OFFICIEL
+      console.log(`[TX_CREATE] Création de la transaction avec la structure officielle`);
+      
+      // Important: Création du client spécifique pour cette transaction
+      // pour être sûr que l'opérateur est correctement défini
+      const txClient = getClient();
+      
+      // Utiliser le compte opérateur par défaut du fichier .env comme payeur des frais
+      // mais conserver le compte treasury comme expéditeur des tokens
+      console.log(`[TX_CLIENT] Préparation du client pour la transaction`);
+      
+      // Obtenir le compte admin depuis les variables d'environnement
+      const adminAccountId = process.env.HEDERA_AI_KIT_ACCOUNT_ID;
+      const adminPrivateKey = process.env.HEDERA_AI_KIT_PRIVATE_KEY;
+      
+      // Vérifier si les variables d'environnement sont disponibles
+      if (!adminAccountId || !adminPrivateKey) {
+        console.error(`[TX_CLIENT] ❌ Variables d'environnement manquantes pour le compte admin`);
+        // Utiliser le compte treasury comme payeur (fallback)
+        txClient.setOperator(treasuryAccountId, PrivateKey.fromString(privateKey));
+        console.log(`[TX_CLIENT] Client configuré avec opérateur fallback (treasury): ${treasuryAccountId.toString()}`);
+      } else {
+        // Configurer le client avec le compte admin comme payeur
+        try {
+          const adminAccId = AccountId.fromString(adminAccountId);
+          const adminKey = PrivateKey.fromString(adminPrivateKey);
+          txClient.setOperator(adminAccId, adminKey);
+          console.log(`[TX_CLIENT] Client configuré avec opérateur admin: ${adminAccId.toString()}`);
+        } catch (e) {
+          console.error(`[TX_CLIENT] ❌ Erreur lors de la configuration de l'opérateur admin: ${e.message}`);
+          // Fallback au compte treasury
+          txClient.setOperator(treasuryAccountId, PrivateKey.fromString(privateKey));
+          console.log(`[TX_CLIENT] Client configuré avec opérateur fallback (treasury): ${treasuryAccountId.toString()}`);
+        }
+      }
+      
+      // Vérifier le solde HBAR du compte treasury
+      try {
+        console.log(`[BALANCE_CHECK] Vérification du solde HBAR de ${treasuryAccountId.toString()}`);
+        const balanceQuery = new AccountBalanceQuery()
+          .setAccountId(treasuryAccountId);
+          
+        const balance = await balanceQuery.execute(txClient);
+        const hbarBalance = balance.hbars.toTinybars().toNumber() / 100_000_000;
+        
+        console.log(`[BALANCE_CHECK] Solde HBAR du compte treasury: ${hbarBalance} HBAR`);
+        
+        if (hbarBalance < 0.1) {
+          console.warn(`[BALANCE_CHECK] ⚠️ AVERTISSEMENT: Le solde du compte treasury (${hbarBalance} HBAR) est très bas. Les transactions pourraient échouer pour cause de solde insuffisant.`);
+        }
+      } catch (balanceErr) {
+        console.error(`[BALANCE_CHECK] Erreur lors de la vérification du solde: ${balanceErr.message}`);
+      }
+      
+      // Création de la transaction avec le client correctement configuré
+      // Si nous avons un compte admin, utiliser un TransactionId spécifique
+      let airdropTx;
+      
+      // Simplifier et revenir à une approche plus directe en utilisant l'ID du treasury comme ID de transaction
+      // L'utilisateur devra s'assurer que le compte treasury a suffisamment de HBAR
+      console.log(`[TX_ID] Simplification - utilisation du treasury comme payeur`);
+      
+      // Toujours créer la transaction avec le même compte treasury comme payeur
+      airdropTx = new TokenAirdropTransaction()
+        .setTransactionMemo(`Airdrop Token ${tokenIdObj.toString()} from ${treasuryAccountId.toString()} to ${recipientAccountId.toString()}`)
+        .setMaxTransactionFee(new Hbar(0.1)); // Limiter les frais de transaction au minimum
+      
+      console.log(`[TX_CONFIG] Utilisation du treasury comme payeur, avec des frais minimaux (0.1 HBAR)`);
+      
+      // Réinitialiser le client avec le treasury comme opérateur
+      txClient.setOperator(treasuryAccountId, PrivateKey.fromString(privateKey));
+      console.log(`[TX_CLIENT] Client réinitialisé avec le treasury comme opérateur unique: ${treasuryAccountId.toString()}`);
+      
+      
+      console.log(`[TX_MEMO] Ajout d'un memo à la transaction`);
+      console.log(`[TX_CONFIG] Frais de transaction limités à 0.5 HBAR`);
+      
+      // Ajouter le premier transfert (débit du treasury)
+      console.log(`[TX_ADD] Ajout du transfert de débit (treasury): ${tokenIdObj.toString()}, ${treasuryAccountId.toString()}, -${amountToSend}`);
+      airdropTx.addTokenTransfer(
+        tokenIdObj,           // Token ID
+        treasuryAccountId,    // Treasury Account
+        -amountToSend         // Montant négatif (débit)
+      );
+      
+      // Ajouter le second transfert (crédit du destinataire)
+      console.log(`[TX_ADD] Ajout du transfert de crédit (destinataire): ${tokenIdObj.toString()}, ${recipientAccountId.toString()}, +${amountToSend}`);
+      airdropTx.addTokenTransfer(
+        tokenIdObj,           // Token ID
+        recipientAccountId,   // Recipient Account
+        amountToSend          // Montant positif (crédit)
+      );
+      
+      // Auto-validation: vérifier si on essaie de transférer à soi-même
+      if (treasuryAccountId.toString() === recipientAccountId.toString()) {
+        console.log(`⚠️ AVERTISSEMENT: Vous essayez d'envoyer des tokens à vous-même (${treasuryAccountId.toString()}). Cela pourrait être rejeté par le réseau.`);
+      }
+      
+      // Geler la transaction avec le client
+      console.log(`[TX_FREEZE] Gel de la transaction`);
+      const frozen = await airdropTx.freezeWith(txClient);
+      
+      console.log(`[TX_BODY] >>>>>> Essai d'affichage du contenu de la transaction après freeze:`);
+      try {
+        // Afficher la structure de l'objet
+        const txData = {
+          nodeAccountIds: frozen._nodeAccountIds ? frozen._nodeAccountIds.map(id => id.toString()) : 'undefined',
+          transactionId: frozen.transactionId ? frozen.transactionId.toString() : 'undefined',
+          tokenTransfers: frozen._tokenTransfers ? 'présent' : 'absent',
+          memo: frozen._transactionMemo || 'non défini'
+        };
+        console.log(JSON.stringify(txData, null, 2));
+        
+        // Méthode alternative pour afficher plus de détails sur les transferts
+        if (frozen._tokenTransfers && frozen._tokenTransfers.length > 0) {
+          console.log(`TokenTransfers détectés: ${frozen._tokenTransfers.length}`);
+          frozen._tokenTransfers.forEach((transfer, i) => {
+            console.log(`Transfer ${i+1}:`, JSON.stringify(transfer));
+          });
+        } else {
+          console.log(`!!! ALERTE: Aucun transfert de token détecté dans la transaction`);
+        }
+      } catch (e) {
+        console.log(`Erreur lors de l'affichage du corps: ${e.message}`);
+      }
+      console.log(`[TX_BODY] <<<<<<`);
       
       // Convertir la clé privée en objet
       const treasuryKey = PrivateKey.fromString(privateKey);
       
-      // Signer avec la clé du treasury
-      const signedTx = await airdropTx.sign(treasuryKey);
-      console.log(`Transaction signée avec la clé du treasury`);
+      // Signer avec la clé du treasury (simplification)
+      console.log(`[TX_SIGN] Signature de la transaction avec la clé du treasury`);
+      const signedTx = await frozen.sign(treasuryKey);
+      console.log(`[TX_SIGN] Transaction signée avec succès`);
       
-      // Exécuter la transaction
-      console.log(`Envoi de la transaction...`);
-      const txResponse = await signedTx.execute(client);
-      console.log(`Transaction soumise, récupération du reçu...`);
+      // Remarque : le compte treasury est maintenant utilisé comme payeur unique
+      // Si ce compte manque de HBAR, vous devrez le financer en envoyant des HBAR
       
-      // Attendre le reçu
-      const receipt = await txResponse.getReceipt(client);
+      // Exécuter la transaction avec le même client précédemment configuré
+      console.log(`[TX_EXECUTE] Envoi de la transaction au réseau...`);
+      console.log(`[TX_EXECUTE] Utilisation du client spécifique: ${process.env.HEDERA_NETWORK || 'testnet'}`);
+      const txResponse = await signedTx.execute(txClient);
+      console.log(`[TX_EXECUTE] Transaction soumise avec succès, attente du reçu...`);
+      
+      // Attendre le reçu avec le même client
+      console.log(`[TX_RECEIPT] Récupération du reçu...`);
+      const receipt = await txResponse.getReceipt(txClient);
       console.log(`Reçu obtenu, statut: ${receipt.status.toString()}`);
       
       // Récupérer l'ID de transaction
