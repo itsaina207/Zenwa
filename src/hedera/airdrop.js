@@ -385,8 +385,20 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
         
         console.log(`[BALANCE_CHECK] Solde HBAR du compte treasury: ${hbarBalance} HBAR`);
         
-        if (hbarBalance < 0.1) {
-          console.warn(`[BALANCE_CHECK] ⚠️ AVERTISSEMENT: Le solde du compte treasury (${hbarBalance} HBAR) est très bas. Les transactions pourraient échouer pour cause de solde insuffisant.`);
+        // Vérifier si le solde est suffisant pour une transaction standard
+        const minimumRequiredBalance = 0.1; // 0.1 HBAR minimum
+        
+        if (hbarBalance < minimumRequiredBalance) {
+          console.error(`[BALANCE_CHECK] ❌ ERREUR: Le solde du compte treasury (${hbarBalance} HBAR) est insuffisant pour effectuer cette transaction. Un minimum de ${minimumRequiredBalance} HBAR est nécessaire.`);
+          
+          // Retourner une erreur explicite pour avertir l'utilisateur
+          return {
+            success: false,
+            message: `Solde HBAR insuffisant (${hbarBalance} HBAR) pour créer cet airdrop. Veuillez recharger votre compte avec au moins ${minimumRequiredBalance} HBAR avant de réessayer.`,
+            errorType: 'INSUFFICIENT_BALANCE',
+            currentBalance: hbarBalance,
+            requiredBalance: minimumRequiredBalance
+          };
         }
       } catch (balanceErr) {
         console.error(`[BALANCE_CHECK] Erreur lors de la vérification du solde: ${balanceErr.message}`);
