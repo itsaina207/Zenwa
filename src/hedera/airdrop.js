@@ -16,7 +16,7 @@ const {
 const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
 const { getExplorerUrls } = require('../utils/explorer');
-const { isTokenAssociated, associateToken } = require('./tokens');
+const { isTokenAssociated, associateToken, getTokenInfo } = require('./tokens');
 const { getWalletByUserId, getWalletByUsername, getWalletByPhoneNumber } = require('../storage/userWallets');
 const { storeAirdrop, getAvailableAirdropsForAccount, markAirdropAsClaimed } = require('../storage/airdrops');
 
@@ -228,6 +228,29 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       };
     }
     
+    // Vérifier que le token existe et qu'il possède un compte treasury
+    console.log(`[AIRDROP] Vérification des informations du token ${tokenId}`);
+    const tokenInfoResult = await getTokenInfo(tokenId);
+    
+    if (!tokenInfoResult.success) {
+      return {
+        success: false,
+        message: `Impossible de récupérer les informations du token: ${tokenInfoResult.message}`
+      };
+    }
+    
+    console.log(`[AIRDROP] Compte Treasury du token: ${tokenInfoResult.treasury}`);
+    
+    // Vérifier si le compte du créateur de l'airdrop est le treasury du token
+    if (tokenInfoResult.treasury !== accountId) {
+      console.warn(`[AIRDROP] ⚠️ L'utilisateur ${userId} (${accountId}) n'est pas le treasury du token ${tokenId} (${tokenInfoResult.treasury})`);
+      
+      // On peut continuer, mais avertir l'utilisateur
+      console.log(`[AIRDROP] Tentative d'airdrop par un compte non-treasury`);
+    } else {
+      console.log(`[AIRDROP] ✅ L'utilisateur ${userId} est bien le treasury du token ${tokenId}`);
+    }
+    
     // Vérifier l'association du token pour chaque destinataire
     const { TokenAssociateTransaction } = require('@hashgraph/sdk');
     for (const recipient of recipients) {
@@ -348,14 +371,17 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
     
     // Stocker les informations d'airdrop dans la base de données
     try {
-      // Récupérer des informations sur le token (on pourra ajouter une fonction pour récupérer le nom plus tard)
-      const tokenName = `Token ${tokenId}`; 
+      // Utiliser les informations du token déjà récupérées dans tokenInfoResult
+      const tokenName = tokenInfoResult.name || `Token ${tokenId}`;
+      const tokenSymbol = tokenInfoResult.symbol || '';
       
       // Préparer les données pour la sauvegarde
       const airdropData = {
         creatorId: userId,
         tokenId: tokenId,
         tokenName: tokenName,
+        tokenSymbol: tokenSymbol,
+        treasuryId: tokenInfoResult.treasury,
         transactionId: txId,
         pendingAirdropId: pendingAirdropId ? pendingAirdropId.toString() : null,
         totalAmount: totalAmount,

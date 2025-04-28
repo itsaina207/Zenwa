@@ -422,6 +422,48 @@ async function getUserTokens(userId) {
 }
 
 /**
+ * Vérifier si un token existe et récupérer ses informations
+ * @param {string} tokenId - ID du token à vérifier
+ * @returns {Promise<object>} Informations sur le token ou erreur
+ */
+async function getTokenInfo(tokenId) {
+  try {
+    console.log(`[TOKEN_INFO] 🔍 Récupération des informations du token ${tokenId}`);
+    const client = getClient();
+    
+    // Créer une requête d'informations sur le token
+    const tokenQuery = new TokenInfoQuery()
+      .setTokenId(tokenId);
+    
+    // Exécuter la requête
+    console.log(`[TOKEN_INFO] Exécution de la requête TokenInfoQuery`);
+    const tokenInfo = await tokenQuery.execute(client);
+    
+    console.log(`[TOKEN_INFO] ✅ Informations récupérées pour le token ${tokenId}`);
+    console.log(`[TOKEN_INFO] Nom: ${tokenInfo.name}`);
+    console.log(`[TOKEN_INFO] Symbole: ${tokenInfo.symbol}`);
+    console.log(`[TOKEN_INFO] Compte Treasury: ${tokenInfo.treasuryAccountId.toString()}`);
+    
+    return {
+      success: true,
+      tokenId: tokenId,
+      name: tokenInfo.name,
+      symbol: tokenInfo.symbol,
+      treasury: tokenInfo.treasuryAccountId.toString(),
+      decimals: tokenInfo.decimals,
+      totalSupply: tokenInfo.totalSupply.toString(),
+      supplyType: tokenInfo.supplyType
+    };
+  } catch (error) {
+    console.error(`[TOKEN_INFO] ❌ Erreur lors de la récupération des informations du token: ${error.message}`);
+    return {
+      success: false,
+      message: `Erreur lors de la récupération des informations du token: ${error.message}`
+    };
+  }
+}
+
+/**
  * Vérifier si un token est associé à un compte
  * @param {string} accountId - ID du compte Hedera
  * @param {string} tokenId - ID du token à vérifier
@@ -736,5 +778,6 @@ module.exports = {
   getUserTokens,
   associateToken,
   isTokenAssociated,
-  executeAirdropTransfer
+  executeAirdropTransfer,
+  getTokenInfo
 };
