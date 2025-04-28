@@ -57,8 +57,7 @@ async function handleAirdrop(bot, msg) {
   const userLang = getUserLanguage(userId);
   
   // Récupérer les tokens de l'utilisateur pour les afficher comme aide
-  const { getAccountInfo } = require('../hedera/account');
-  const { getTokenBalances } = require('../hedera/balance');
+  const { getAccountInfo, getBalance } = require('../hedera/account');
   
   try {
     // Récupérer les informations du compte de l'utilisateur
@@ -67,7 +66,7 @@ async function handleAirdrop(bot, msg) {
     if (accountInfo.success) {
       // Récupérer les balances de tokens
       const { accountId } = accountInfo;
-      const tokensResult = await getTokenBalances(accountId);
+      const tokensResult = await getBalance(accountId);
       
       // Initialiser l'état de l'utilisateur
       userState.set(userId, {
@@ -79,7 +78,10 @@ async function handleAirdrop(bot, msg) {
       
       let tokenListMessage = '';
       
-      if (tokensResult.success && Object.keys(tokensResult.tokens).length > 0) {
+      console.log("[DEBUG] Balance result:", JSON.stringify(tokensResult));
+      
+      // Vérifier si les tokens existent et ne sont pas vides
+      if (tokensResult.success && tokensResult.tokens && Object.keys(tokensResult.tokens).length > 0) {
         tokenListMessage = userLang === 'fr' 
           ? "\n\n📋 Voici vos tokens disponibles :\n"
           : "\n\n📋 Here are your available tokens:\n";
