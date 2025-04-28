@@ -1178,9 +1178,19 @@ function registerCommands(bot) {
              Object.values(AIRDROP_STATES).includes(userInfo.state) || 
              Object.values(CAMPAIGN_STATES).includes(userInfo.state) ||
              Object.values(CLAIM_STATES).includes(userInfo.state))) {
+          
+          console.log(`[DEBUG] Utilisateur ${userId} est dans une conversation airdrop avec état: ${userInfo.state}`);
+          console.log(`[DEBUG] Message reçu: "${msg.text}"`);
+          console.log(`[DEBUG] Données de conversation:`, JSON.stringify(userInfo, null, 2));
+          
           // Si l'utilisateur est dans une conversation d'airdrop, continuer celle-ci
           const handled = await handleAirdropConversation(bot, msg);
+          console.log(`[DEBUG] Résultat du traitement: ${handled ? 'Traité' : 'Non traité'}`);
+          
           if (handled) return;
+          
+          // Si nous arrivons ici, la conversation n'a pas été traitée correctement
+          console.log(`[WARN] Conversation airdrop non traitée pour l'utilisateur ${userId} avec état ${userInfo.state}`);
         }
       }
       
