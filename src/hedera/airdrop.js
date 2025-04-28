@@ -278,29 +278,34 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       }
     }
     
-    // Utiliser TransferTransaction au lieu de TokenAirdropTransaction
-    // pour plus de compatibilité et de fiabilité
-    console.log(`Utilisation de TransferTransaction standard pour l'airdrop`);
+    // Utiliser TokenAirdropTransaction qui gère automatiquement les airdrops et pending airdrops
+    console.log(`Utilisation de TokenAirdropTransaction pour l'airdrop natif Hedera`);
     
-    let txTransfer = new TransferTransaction();
+    // Créer la transaction d'airdrop
+    let airdropTx = new TokenAirdropTransaction();
     
-    // Le compte créateur doit d'abord déduire tous les tokens à distribuer
+    // Calculer le montant total à distribuer
     const totalAmount = recipients.reduce((sum, recipient) => sum + recipient.amount, 0);
-    txTransfer = txTransfer.addTokenTransfer(tokenIdObj, AccountId.fromString(accountId), -totalAmount);
     
     // Ajouter chaque destinataire avec son montant
     for (const recipient of recipients) {
-      console.log(`Ajout du transfert de ${recipient.amount} tokens du token ${tokenId} vers ${recipient.accountId}`);
-      txTransfer = txTransfer.addTokenTransfer(tokenIdObj, AccountId.fromString(recipient.accountId), recipient.amount);
+      console.log(`Ajout de l'airdrop de ${recipient.amount} tokens du token ${tokenId} vers ${recipient.accountId}`);
+      // Utilisez addTokenTransfer pour ajouter chaque destinataire
+      airdropTx = airdropTx.addTokenTransfer(
+        tokenIdObj,
+        AccountId.fromString(accountId), // sender (treasury)
+        AccountId.fromString(recipient.accountId), // recipient
+        recipient.amount
+      );
     }
     
-    console.log(`Préparation de la transaction standard pour distribuer ${totalAmount} tokens du token ${tokenId} à ${recipients.length} destinataires`);
+    console.log(`Préparation de la transaction d'airdrop pour distribuer ${totalAmount} tokens du token ${tokenId} à ${recipients.length} destinataires`);
     
     // Finaliser et signer la transaction
-    const txTransferFrozen = await txTransfer.freezeWith(client);
+    const txFrozen = await airdropTx.freezeWith(client);
     // Convertir la chaîne privateKey en objet PrivateKey
     const privateKeyObj = PrivateKey.fromString(privateKey);
-    const signedTx = await txTransferFrozen.sign(privateKeyObj);
+    const signedTx = await txFrozen.sign(privateKeyObj);
     
     console.log(`Transaction signée, envoi en cours...`);
     

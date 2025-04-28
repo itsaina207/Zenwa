@@ -1,0 +1,48 @@
+Prérequis : le token existe et a une « treasury »
+
+Vous devez avoir créé un token (fongible ou NFT) via TokenCreateTransaction, et détenez les tokens dans un compte « treasury ».
+
+Le token doit autoriser les associations automatiques ou avoir suffisamment de slots d’association pour les comptes destinataires.
+
+Lancement de l’airdrop (TokenAirdropTransaction)
+
+Créez une nouvelle transaction de type TokenAirdropTransaction.
+
+Pour chaque destinataire, ajoutez soit :
+
+addTokenTransfer(tokenId, senderAccountId, receiverAccountId, amount) pour un token fongible,
+
+ou addNftTransfer(nftId, senderAccountId, receiverAccountId) pour un NFT.
+
+Hedera gère automatiquement :
+
+transfert direct si le compte est déjà associé ou a un slot libre (auto-association prise en charge, frais payés par l’émetteur),
+
+pending airdrop si le compte n’a pas de slot libre (le transfert reste en attente jusqu’au claim).
+
+Signez et soumettez la transaction avec le SDK (Java, JavaScript, Go…) ; l’émetteur paie tous les frais (transfert + association + airdrop). 
+docs.hedera.com
+docs.hedera.com
+
+Disponibilité des « pending airdrops »
+
+Les transferts non exécutés directement sont stockés en attente dans l’état réseau sous forme d’pendingAirdropId.
+
+Vous pouvez interroger ces airdrops en attente via un appel de type getAccountInfo ou un endpoint spécifique (selon votre SDK).
+
+Claim de l’airdrop (TokenClaimAirdropTransaction)
+
+Le destinataire crée une transaction TokenClaimAirdropTransaction.
+
+Il ajoute chaque identifiant d’airdrop à réclamer :
+
+java
+Copier
+Modifier
+claimTx.addPendingAirdropId(pendingAirdropId);
+La transaction intègre automatiquement l’association du token si nécessaire (frais d’association pris en charge par l’émetteur), puis transfère les tokens.
+
+Seule la signature du compte récepteur (et éventuellement celle du payeur de frais) est requise ; le récepteur ne paye que le frais de transaction.
+
+Une fois signée et soumise, l’airdrop est définitivement appliqué et retiré des pending airdrops. 
+docs.hedera.com
