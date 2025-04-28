@@ -664,6 +664,36 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
     console.log(`[CLAIM_HEDERA] Initialisation du client Hedera`);
     const client = getClient();
     
+    // Vérifier le solde HBAR de l'utilisateur
+    try {
+      console.log(`[BALANCE_CHECK] Vérification du solde HBAR de ${accountId}`);
+      const balanceQuery = new AccountBalanceQuery()
+        .setAccountId(accountId);
+        
+      const balance = await balanceQuery.execute(client);
+      const hbarBalance = balance.hbars.toTinybars().toNumber() / 100_000_000;
+      
+      console.log(`[BALANCE_CHECK] Solde HBAR de l'utilisateur: ${hbarBalance} HBAR`);
+      
+      // Vérifier si le solde est suffisant pour une transaction standard
+      const minimumRequiredBalance = 0.1; // 0.1 HBAR minimum
+      
+      if (hbarBalance < minimumRequiredBalance) {
+        console.error(`[BALANCE_CHECK] ❌ ERREUR: Le solde de l'utilisateur (${hbarBalance} HBAR) est insuffisant pour effectuer cette transaction. Un minimum de ${minimumRequiredBalance} HBAR est nécessaire.`);
+        
+        // Retourner une erreur explicite pour avertir l'utilisateur
+        return {
+          success: false,
+          message: `Solde HBAR insuffisant (${hbarBalance} HBAR) pour réclamer cet airdrop. Veuillez recharger votre compte avec au moins ${minimumRequiredBalance} HBAR avant de réessayer.`,
+          errorType: 'INSUFFICIENT_BALANCE',
+          currentBalance: hbarBalance,
+          requiredBalance: minimumRequiredBalance
+        };
+      }
+    } catch (balanceErr) {
+      console.error(`[BALANCE_CHECK] Erreur lors de la vérification du solde: ${balanceErr.message}`);
+    }
+    
     // Si c'est un ID de base de données, récupérer le pendingAirdropId correspondant
     let pendingAirdropId = airdropId;
     let dbAirdropId = isDbId ? airdropId : null;
