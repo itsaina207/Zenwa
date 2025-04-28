@@ -431,34 +431,47 @@ async function getUserTokens(userId) {
 async function getTokenInfo(tokenId) {
   try {
     console.log(`[TOKEN_INFO] 🔍 Récupération des informations du token ${tokenId}`);
-    const client = getClient();
     
-    // Créer une requête d'informations sur le token
-    const tokenQuery = new TokenInfoQuery()
-      .setTokenId(tokenId);
+    // Utiliser le mirror node API - pas besoin d'authentification ou signature
+    const axios = require('axios');
+    const network = process.env.HEDERA_NETWORK || 'testnet';
+    const mirrorNodeUrl = network.toLowerCase() === 'mainnet' 
+      ? 'https://mainnet-public.mirrornode.hedera.com' 
+      : 'https://testnet.mirrornode.hedera.com';
     
-    // Exécuter la requête
-    console.log(`[TOKEN_INFO] Exécution de la requête TokenInfoQuery`);
-    const tokenInfo = await tokenQuery.execute(client);
+    console.log(`[TOKEN_INFO] Utilisation du mirror node: ${mirrorNodeUrl}`);
     
+    // Formater l'ID du token si nécessaire
+    const formattedTokenId = tokenId.toString();
+    
+    // Faire une requête au mirror node
+    console.log(`[TOKEN_INFO] Envoi de la requête au mirror node pour ${formattedTokenId}`);
+    const response = await axios.get(`${mirrorNodeUrl}/api/v1/tokens/${formattedTokenId}`);
+    
+    if (!response.data) {
+      throw new Error(`Token ${tokenId} non trouvé`);
+    }
+    
+    const tokenInfo = response.data;
     console.log(`[TOKEN_INFO] ✅ Informations récupérées pour le token ${tokenId}`);
     console.log(`[TOKEN_INFO] Nom: ${tokenInfo.name}`);
     console.log(`[TOKEN_INFO] Symbole: ${tokenInfo.symbol}`);
-    console.log(`[TOKEN_INFO] Compte Treasury: ${tokenInfo.treasuryAccountId.toString()}`);
+    console.log(`[TOKEN_INFO] Compte Treasury: ${tokenInfo.treasury_account_id}`);
     
     // Vérifier si le token a une clé d'approvisionnement (supplyKey)
-    const hasSupplyKey = Boolean(tokenInfo.supplyKey);
+    const hasSupplyKey = Boolean(tokenInfo.supply_key);
     console.log(`[TOKEN_INFO] A une supplyKey: ${hasSupplyKey ? 'Oui' : 'Non'}`);
     
+    // Retourner les informations structurées dans le même format que la version précédente
     return {
       success: true,
       tokenId: tokenId,
       name: tokenInfo.name,
       symbol: tokenInfo.symbol,
-      treasury: tokenInfo.treasuryAccountId.toString(),
-      decimals: tokenInfo.decimals,
-      totalSupply: tokenInfo.totalSupply.toString(),
-      supplyType: tokenInfo.supplyType,
+      treasury: tokenInfo.treasury_account_id,
+      decimals: parseInt(tokenInfo.decimals, 10),
+      totalSupply: tokenInfo.total_supply,
+      supplyType: tokenInfo.supply_type, 
       hasSupplyKey: hasSupplyKey  // Important pour vérifier si les airdrops sont possibles
     };
   } catch (error) {
