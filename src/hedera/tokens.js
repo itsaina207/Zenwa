@@ -345,6 +345,7 @@ async function executeAirdropTransfer(fromUserId, toAccountId, tokenId, amount) 
       console.log(`[AIRDROP_TRANSFER] Préparation d'un transfert direct pour ${toAccountId}`);
       
       transaction = new TransferTransaction()
+        .setMaxTransactionFee(new Hbar(0.05)) // Limitation des frais à 0.05 HBAR pour éviter INSUFFICIENT_PAYER_BALANCE
         .addTokenTransfer(tokenId, wallet.accountId, -amount)
         .addTokenTransfer(tokenId, toAccountId, amount)
         .freezeWith(client);
@@ -570,6 +571,7 @@ async function associateToken(userId, tokenId) {
     const transaction = await new TokenAssociateTransaction()
       .setAccountId(wallet.accountId)
       .setTokenIds([tokenId])
+      .setMaxTransactionFee(new Hbar(0.05)) // Limitation des frais à 0.05 HBAR pour éviter INSUFFICIENT_PAYER_BALANCE
       .freezeWith(client);
     
     // Signer avec la clé privée du compte
@@ -705,6 +707,7 @@ async function executeAirdropTransfer(fromUserId, toAccountId, tokenId, amount) 
     // Créer la transaction de transfert
     console.log(`[AIRDROP_TRANSFER] Création de la transaction de transfert`);
     const transaction = new TransferTransaction()
+      .setMaxTransactionFee(new Hbar(0.05)) // Limitation des frais à 0.05 HBAR pour éviter INSUFFICIENT_PAYER_BALANCE
       .addTokenTransfer(tokenIdObj, accountId, -amount)
       .addTokenTransfer(tokenIdObj, toAccountId, amount)
       .freezeWith(client);
