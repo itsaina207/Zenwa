@@ -39,13 +39,15 @@ async function storeAirdrop(airdropData) {
     
     const airdropInsert = await client.query(
       `INSERT INTO airdrops
-        (creator_id, token_id, token_name, transaction_id, pending_airdrop_id, total_amount)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        (creator_id, token_id, token_name, token_symbol, treasury_id, transaction_id, pending_airdrop_id, total_amount)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id`,
       [
         airdropData.creatorId,
         airdropData.tokenId,
         airdropData.tokenName || null,
+        airdropData.tokenSymbol || null,
+        airdropData.treasuryId || null,
         airdropData.transactionId,
         airdropData.pendingAirdropId || null,
         airdropData.totalAmount
@@ -135,9 +137,10 @@ async function getAvailableAirdropsForAccount(accountId) {
       console.log(`Nombre d'airdrops non réclamés : ${countUnclaimedRecipients.rows[0].count}`);
     }
     
-    // Simplifier la requête pour trouver l'erreur si elle existe
+    // Récupérer les informations complètes des airdrops disponibles
     const result = await query(
-      `SELECT a.id, a.token_id, a.token_name, a.pending_airdrop_id, ar.amount, ar.claimed
+      `SELECT a.id, a.token_id, a.token_name, a.token_symbol, a.treasury_id, 
+              a.pending_airdrop_id, ar.amount, ar.claimed, a.created_at
        FROM airdrops a
        JOIN airdrop_recipients ar ON a.id = ar.airdrop_id
        WHERE ar.account_id = $1
@@ -156,8 +159,11 @@ async function getAvailableAirdropsForAccount(accountId) {
       id: row.id,
       tokenId: row.token_id,
       tokenName: row.token_name || 'Token',
+      tokenSymbol: row.token_symbol || '',
+      treasuryId: row.treasury_id || null,
       pendingAirdropId: row.pending_airdrop_id,
-      amount: row.amount
+      amount: row.amount,
+      createdAt: row.created_at
     }));
   } catch (error) {
     console.error('Erreur lors de la récupération des airdrops disponibles:', error);
@@ -179,7 +185,7 @@ async function markAirdropAsClaimed(accountId, airdropId) {
     // Vérifier si l'enregistrement existe avant de le mettre à jour
     console.log(`[CLAIM_DB] Vérification de l'existence de l'airdrop dans la base de données`);
     const checkResult = await query(
-      `SELECT ar.*, a.token_id, a.token_name
+      `SELECT ar.*, a.token_id, a.token_name, a.token_symbol, a.treasury_id, a.created_at
        FROM airdrop_recipients ar
        JOIN airdrops a ON ar.airdrop_id = a.id
        WHERE ar.account_id = $1 AND ar.airdrop_id = $2`,
@@ -203,7 +209,10 @@ ID Airdrop: ${airdropId}
 Compte: ${accountId}
 Token ID: ${airdropDetails.token_id || 'Non spécifié'}
 Token Name: ${airdropDetails.token_name || 'Non spécifié'}
+Token Symbol: ${airdropDetails.token_symbol || 'Non spécifié'}
+Treasury ID: ${airdropDetails.treasury_id || 'Non spécifié'}
 Montant: ${airdropDetails.amount || 'Non spécifié'}
+Créé le: ${airdropDetails.created_at || 'Date inconnue'}
 Déjà réclamé: ${airdropDetails.claimed ? 'Oui' : 'Non'}
 Date de réclamation: ${airdropDetails.claimed_at || 'Non réclamé'}
 `);
@@ -217,6 +226,8 @@ Date de réclamation: ${airdropDetails.claimed_at || 'Non réclamé'}
         alreadyClaimed: true,
         tokenId: airdropDetails.token_id,
         tokenName: airdropDetails.token_name,
+        tokenSymbol: airdropDetails.token_symbol || '',
+        treasuryId: airdropDetails.treasury_id || null,
         amount: airdropDetails.amount,
         claimedAt: airdropDetails.claimed_at
       };
@@ -243,6 +254,8 @@ Date de réclamation: ${airdropDetails.claimed_at || 'Non réclamé'}
         message: 'Airdrop marqué comme réclamé',
         tokenId: airdropDetails.token_id,
         tokenName: airdropDetails.token_name,
+        tokenSymbol: airdropDetails.token_symbol || '',
+        treasuryId: airdropDetails.treasury_id || null,
         amount: airdropDetails.amount,
         claimedAt: timestamp
       };
