@@ -413,7 +413,10 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       
       
       console.log(`[TX_MEMO] Ajout d'un memo à la transaction`);
-      console.log(`[TX_CONFIG] Frais de transaction limités à 0.5 HBAR`);
+      
+      // Définir une limite de frais plus basse pour éviter INSUFFICIENT_PAYER_BALANCE
+      airdropTx.setMaxTransactionFee(new Hbar(0.05)); // Limite à 0.05 HBAR maximum
+      console.log(`[TX_CONFIG] Frais de transaction limités à 0.05 HBAR (réduit pour éviter INSUFFICIENT_PAYER_BALANCE)`);
       
       // Ajouter le premier transfert (débit du treasury)
       console.log(`[TX_ADD] Ajout du transfert de débit (treasury): ${tokenIdObj.toString()}, ${treasuryAccountId.toString()}, -${amountToSend}`);
@@ -833,6 +836,7 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
     console.log(`Création de la transaction de réclamation d'airdrop avec pendingAirdropId: ${pendingAirdropId}`);
     const txClaimAirdrop = await new TokenClaimAirdropTransaction()
       .addPendingAirdropId(pendingAirdropIdObj)
+      .setMaxTransactionFee(new Hbar(0.05)) // Limitation des frais à 0.05 HBAR pour éviter INSUFFICIENT_PAYER_BALANCE
       .freezeWith(client);
       
     // Convertir la chaîne privateKey en objet PrivateKey et signer
