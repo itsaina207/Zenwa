@@ -1,0 +1,45 @@
+Prérequis 1 : le token existe et dispose d’un compte « treasury »
+Pour pouvoir lancer un airdrop, vous devez d’abord avoir créé votre token (fongible ou NFT) et l’avoir attribué à un compte trésorerie :
+
+Création du token
+
+On utilise TokenCreateTransaction() pour définir les propriétés du token : nom, symbole, type (fungible ou NFT), décimales, offre initiale, clés (adminKey, supplyKey, freezeKey, KYCKey, wipeKey…), etc.
+
+Champ essentiel : .setTreasuryAccountId(treasuryAccountId) indique le compte qui détiendra l’offre initiale (initialSupply) et sera l’émetteur de toute distribution ultérieure.
+
+Si vous omettez supplyKey, le supply est fixe ; si vous ne spécifiez pas adminKey, le token devient immuable. 
+Hedera
+Hedera
+
+Rôle du compte « treasury »
+
+C’est l’unique source des tokens : toute opération de mint ou transfert (airdrop, vente, distribution) part de ce compte.
+
+Il doit détenir l’intégralité de l’offre initiale, et porter la clé supplyKey si vous souhaitez frapper (mint) ou brûler (burn) des tokens après création. 
+Hedera
+
+Prérequis 2 : associations automatiques ou slots disponibles
+Sur Hedera, tout compte doit être associé à un token pour pouvoir en recevoir. Deux méthodes :
+
+Association manuelle (par défaut)
+
+Chaque destinataire exécute une TokenAssociateTransaction() pour autoriser un token spécifique dans son compte.
+
+Cette opération est signée par le destinataire et facture une petite commission en hbar.
+
+Par défaut, un compte peut associer jusqu’à un certain nombre de tokens (typiquement 100 ID) ; au-delà, toute tentative d’association renvoie TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED.
+
+Si vous transférez un token à un compte non-associé, la transaction échoue immédiatement. 
+Hedera
+
+Auto-association sponsorisée (HIP-542)
+
+Grâce à HIP-542, l’airdrop peut auto-associer les comptes non-associés au moment du transfert, sans qu’ils lancent eux-mêmes la transaction d’association.
+
+Le réseau crée un slot d’association pour chaque token envoyé et facture les frais d’association au payeur de la transaction (généralement le treasury).
+
+Cette approche « frictionless » évite d’avoir à orchestrer des TokenAssociateTransaction préalables, à condition que le token n’impose pas de KYC/freeze par défaut. 
+Hiero Improvement Proposals
+
+Astuce : si vous ne pouvez pas ou ne souhaitez pas utiliser l’auto-association (par exemple sur un réseau privé sans HIP-542), vérifiez que chaque compte destinataire a au moins un slot libre pour votre token ; sinon l’airdrop échouera ou générera des transferts en attente (pending airdrop) que vous devrez réclamer ensuite. 
+Hedera
