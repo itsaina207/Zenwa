@@ -110,7 +110,8 @@ async function dissociateToken(userId, tokenId) {
     // Créer la transaction de dissociation
     const transaction = new TokenDissociateTransaction()
       .setAccountId(accountId)
-      .setTokenIds([tokenIdObj]);
+      .setTokenIds([tokenIdObj])
+      .setMaxTransactionFee(new Hbar(0.05)); // Limitation des frais à 0.05 HBAR pour éviter INSUFFICIENT_PAYER_BALANCE
       
     // Signer la transaction avec la clé du compte
     const privateKey = PrivateKey.fromString(wallet.privateKey);

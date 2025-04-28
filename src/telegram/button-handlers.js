@@ -134,6 +134,24 @@ async function handleButtonAction(callbackQuery) {
           
           await bot.sendMessage(chatId, message);
         } else {
+          // Gestion des erreurs avec des messages plus précis
+          let errorMessage;
+          
+          // Vérifier si c'est une erreur de solde insuffisant
+          if (result.errorType === 'INSUFFICIENT_BALANCE') {
+            // Message spécifique pour le solde insuffisant
+            errorMessage = userLang === 'fr'
+              ? `⚠️ Solde HBAR insuffisant: Vous avez seulement ${result.currentBalance} HBAR, mais il vous faut au moins ${result.requiredBalance} HBAR pour cette opération.\n\nVeuillez recharger votre compte et réessayer.`
+              : `⚠️ Insufficient HBAR balance: You only have ${result.currentBalance} HBAR, but you need at least ${result.requiredBalance} HBAR for this operation.\n\nPlease top up your account and try again.`;
+          } else {
+            // Message d'erreur générique
+            errorMessage = userLang === 'fr'
+              ? `❌ Erreur lors de la finalisation de l'airdrop: ${result.message}`
+              : `❌ Error finalizing airdrop: ${result.message}`;
+          }
+            
+          await bot.sendMessage(chatId, errorMessage);
+        } else {
           const message = userLang === 'fr' ?
             `❌ Erreur lors de la finalisation de l'airdrop: ${result.message}` :
             `❌ Error finalizing airdrop: ${result.message}`;
