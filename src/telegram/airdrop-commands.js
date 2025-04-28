@@ -338,7 +338,25 @@ async function handleClaimAirdrop(bot, msg) {
     // Afficher la liste des airdrops disponibles avec boutons d'action
     let airdropsList = '';
     availableAirdrops.forEach((airdrop, index) => {
-      airdropsList += `${index + 1}. ${airdrop.tokenName || 'Token'} (ID: ${airdrop.id})\n   ${airdrop.amount || 'Unknown'} tokens\n\n`;
+      // Afficher plus d'informations sur l'airdrop, y compris le symbole et le treasury si disponibles
+      let airdropInfo = `${index + 1}. ${airdrop.tokenName || 'Token'}`;
+      
+      if (airdrop.tokenSymbol) {
+        airdropInfo += ` (${airdrop.tokenSymbol})`;
+      }
+      
+      airdropInfo += ` (ID: ${airdrop.id})\n   ${airdrop.amount || 'Unknown'} tokens`;
+      
+      if (airdrop.treasuryId) {
+        airdropInfo += `\n   Treasury: ${airdrop.treasuryId}`;
+      }
+      
+      if (airdrop.createdAt) {
+        const createdDate = new Date(airdrop.createdAt);
+        airdropInfo += `\n   ${userLang === 'fr' ? 'Créé le' : 'Created on'}: ${createdDate.toLocaleString()}`;
+      }
+      
+      airdropsList += airdropInfo + '\n\n';
     });
     
     // Créer des boutons pour chaque airdrop
