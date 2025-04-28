@@ -275,28 +275,37 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       }
     }
     
-    // Créer la transaction d'airdrop
-    let txAirdrop = new TokenAirdropTransaction();
+    // Utiliser TransferTransaction au lieu de TokenAirdropTransaction
+    // pour plus de compatibilité et de fiabilité
+    console.log(`Utilisation de TransferTransaction standard pour l'airdrop`);
+    
+    let txTransfer = new TransferTransaction();
     
     // Le compte créateur doit d'abord déduire tous les tokens à distribuer
     const totalAmount = recipients.reduce((sum, recipient) => sum + recipient.amount, 0);
-    txAirdrop = txAirdrop.addTokenTransfer(tokenIdObj, accountId, -totalAmount);
+    txTransfer = txTransfer.addTokenTransfer(tokenIdObj, AccountId.fromString(accountId), -totalAmount);
     
     // Ajouter chaque destinataire avec son montant
     for (const recipient of recipients) {
       console.log(`Ajout du transfert de ${recipient.amount} tokens du token ${tokenId} vers ${recipient.accountId}`);
-      txAirdrop = txAirdrop.addTokenTransfer(tokenIdObj, recipient.accountId, recipient.amount);
+      txTransfer = txTransfer.addTokenTransfer(tokenIdObj, AccountId.fromString(recipient.accountId), recipient.amount);
     }
     
+    console.log(`Préparation de la transaction standard pour distribuer ${totalAmount} tokens du token ${tokenId} à ${recipients.length} destinataires`);
+    
     // Finaliser et signer la transaction
-    const txAirdropFrozen = await txAirdrop.freezeWith(client);
+    const txTransferFrozen = await txTransfer.freezeWith(client);
     // Convertir la chaîne privateKey en objet PrivateKey
     const privateKeyObj = PrivateKey.fromString(privateKey);
-    const signedTx = await txAirdropFrozen.sign(privateKeyObj);
+    const signedTx = await txTransferFrozen.sign(privateKeyObj);
+    
+    console.log(`Transaction signée, envoi en cours...`);
     
     // Soumettre la transaction
     const txResponse = await signedTx.execute(client);
+    console.log(`Transaction soumise, attente du reçu...`);
     const receipt = await txResponse.getReceipt(client);
+    console.log(`Reçu obtenu, statut: ${receipt.status.toString()}`);
     
     // Récupérer le pending airdrop ID si disponible
     let pendingAirdropId = null;
