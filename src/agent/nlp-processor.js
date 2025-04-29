@@ -7,6 +7,7 @@ const { getWalletByUserId } = require('../storage/userWallets');
 const { getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
+const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
 
 /**
  * Process a natural language command for Hedera wallet actions
@@ -67,6 +68,23 @@ async function processNaturalLanguageCommand(userId, message) {
       const name = mintMatch[1];
       const symbol = mintMatch[2];
       return await handleMintTokenRequest(userId, name, symbol);
+    }
+    
+    // Check for airdrop claim request
+    const claimAirdropPattern = /(?:réclamer|reclamer|claim|claimer)\s+(?:un|my|le|mon|l'|token|l'airdrop|airdrop)\s+(?:airdrop|token)/i;
+    const claimAirdropWithIdPattern = /(?:réclamer|reclamer|claim|claimer)\s+(?:un|my|le|mon|l'|token|l'airdrop|airdrop)\s+(?:airdrop|token)\s+(?:avec|with|d'|de|from)\s+(?:id|identifiant)?\s*[:#]?\s*(\S+)/i;
+    
+    // Pattern with explicit ID
+    const claimWithIdMatch = text.match(claimAirdropWithIdPattern);
+    if (claimWithIdMatch) {
+      const airdropId = claimWithIdMatch[1].trim();
+      return await handleClaimAirdropRequest(userId, airdropId);
+    }
+    
+    // Generic claim pattern without ID, will check available airdrops
+    const claimMatch = text.match(claimAirdropPattern);
+    if (claimMatch) {
+      return await handleClaimAirdropRequest(userId);
     }
 
     // If no pattern matches
@@ -291,6 +309,59 @@ async function handleMintTokenRequest(userId, name, symbol) {
       success: false,
       message: `Erreur lors de la création du token: ${error.message}`,
       action: 'mint'
+    };
+  }
+}
+
+/**
+ * Handle a claim airdrop request
+ * @param {string} userId - Telegram user ID
+ * @param {string} [airdropId] - Optional airdrop ID to claim specific airdrop
+ * @returns {Promise<object>} Result of the airdrop claim request
+ */
+async function handleClaimAirdropRequest(userId, airdropId = null) {
+  try {
+    // Si aucun ID n'est fourni, récupérer les airdrops disponibles et tenter de réclamer le premier
+    if (!airdropId) {
+      const { getAvailableAirdrops } = require('../hedera/airdrop');
+      const availableAirdrops = await getAvailableAirdrops(userId);
+      
+      if (availableAirdrops.length === 0) {
+        return {
+          success: false,
+          message: "Vous n'avez aucun airdrop disponible à réclamer.",
+          action: 'claim_airdrop'
+        };
+      }
+      
+      // Réclamer le premier airdrop disponible
+      airdropId = availableAirdrops[0].id;
+      console.log(`Claiming first available airdrop with ID: ${airdropId}`);
+    }
+    
+    // Réclamer l'airdrop avec l'ID fourni ou le premier disponible
+    const result = await claimTokenAirdrop(userId, airdropId, true); // true = utiliser l'ID de base de données
+    
+    if (result.success) {
+      return {
+        success: true,
+        message: `Vous avez réclamé avec succès l'airdrop ! Vous avez reçu ${result.amount} tokens ${result.tokenId}. ID de transaction: ${result.transactionId}`,
+        action: 'claim_airdrop',
+        transactionId: result.transactionId
+      };
+    } else {
+      return {
+        success: false,
+        message: result.message || "Erreur lors de la réclamation de l'airdrop",
+        action: 'claim_airdrop'
+      };
+    }
+  } catch (error) {
+    console.error(`Error in claim airdrop request: ${error.message}`);
+    return {
+      success: false,
+      message: `Erreur lors de la réclamation de l'airdrop: ${error.message}`,
+      action: 'claim_airdrop'
     };
   }
 }
