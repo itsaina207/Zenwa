@@ -109,7 +109,7 @@ async function mintToken(userId, tokenInfo) {
 /**
  * Transfer tokens from one account to another
  * @param {string} fromUserId - Sender's Telegram user ID
- * @param {string} toAccountId - Recipient's Hedera account ID
+ * @param {string} toAccountId - Recipient's Hedera account ID or phone number
  * @param {string} tokenId - ID of the token to transfer
  * @param {number} amount - Amount of tokens to transfer
  * @returns {Promise<object>} Transaction result
@@ -126,13 +126,27 @@ async function sendToken(fromUserId, toAccountId, tokenId, amount) {
       };
     }
 
-    // Validate recipient account
+    // Résoudre l'identifiant du destinataire (téléphone ou compte Hedera)
+    const { resolveToAccountId } = require('../utils/identifiers');
+    const resolvedAccountId = await resolveToAccountId(toAccountId);
+    
+    if (!resolvedAccountId) {
+      return {
+        success: false,
+        message: 'Impossible de résoudre l\'identifiant du destinataire. Vérifiez que le numéro de téléphone ou l\'adresse Hedera est correcte.',
+      };
+    }
+    
+    // Utiliser l'identifiant résolu
+    const receiverAccountId = resolvedAccountId;
+    
+    // Validate recipient account format
     try {
-      AccountId.fromString(toAccountId);
+      AccountId.fromString(receiverAccountId);
     } catch (e) {
       return {
         success: false,
-        message: 'ID de compte destinataire invalide',
+        message: 'ID de compte destinataire invalide après résolution',
       };
     }
 
@@ -158,7 +172,7 @@ async function sendToken(fromUserId, toAccountId, tokenId, amount) {
     // Create the transfer transaction
     const transaction = new TransferTransaction()
       .addTokenTransfer(tokenIdObj, wallet.accountId, -amount)
-      .addTokenTransfer(tokenIdObj, toAccountId, amount)
+      .addTokenTransfer(tokenIdObj, receiverAccountId, amount)
       .freezeWith(client);
     
     // Sign with the sender's private key
@@ -185,7 +199,8 @@ async function sendToken(fromUserId, toAccountId, tokenId, amount) {
       tokenId: tokenIdObj,
       amount,
       fromAccount: wallet.accountId,
-      toAccount: toAccountId,
+      toAccount: receiverAccountId,
+      originalRecipient: toAccountId, // Garde l'identifiant original (téléphone ou adresse)
       transactionId: txId,
       explorerUrl: `https://hashscan.io/${HEDERA_NETWORK}/tx/${txId}`,
     };
