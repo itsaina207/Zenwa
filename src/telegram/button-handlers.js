@@ -42,7 +42,12 @@ async function handleButtonAction(callbackQuery) {
   
   // Traiter les boutons d'airdrop
   if (action === 'airdrop_add_recipient') {
-    await bot.answerCallbackQuery(callbackQuery.id, { text: 'Ajout de destinataires' });
+    try {
+      await bot.answerCallbackQuery(callbackQuery.id, { text: 'Ajout de destinataires' });
+    } catch (error) {
+      console.error('Erreur lors de la réponse au callback query (non bloquant):', error.message);
+      // Continuer l'exécution même si le callback échoue
+    }
     
     // Vérifier que userState est disponible
     if (!userState) {

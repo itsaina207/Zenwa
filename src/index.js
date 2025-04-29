@@ -9,6 +9,17 @@ const { initClient } = require('./hedera/client');
 const { PORT, NODE_ENV } = require('./config');
 const apiRoutes = require('./api');
 
+// Process-wide error handling
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION:', error);
+  // Continue running despite the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION at Promise:', promise, 'reason:', reason);
+  // Continue running despite the error
+});
+
 // Initialize Express app
 const app = express();
 app.use(express.json());
@@ -22,17 +33,33 @@ app.get('/health', (req, res) => {
 app.use('/api', apiRoutes);
 
 // Initialize Hedera client
-initClient();
+try {
+  initClient();
+  console.log('Hedera client initialized successfully');
+} catch (error) {
+  console.error('Error initializing Hedera client:', error);
+  // Continue despite errors
+}
 
 // Start Telegram bot
-const bot = createBot();
+let bot = null;
+try {
+  bot = createBot();
+  console.log('Telegram bot started successfully');
+} catch (error) {
+  console.error('Error starting Telegram bot:', error);
+  // Continue despite errors
+}
 
 // Start Express server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Telegram bot started');
-  console.log(`API available at http://0.0.0.0:${PORT}/api`);
-});
+try {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`API available at http://0.0.0.0:${PORT}/api`);
+  });
+} catch (error) {
+  console.error('Error starting Express server:', error);
+}
 
 // Handle process termination
 process.on('SIGINT', () => {
