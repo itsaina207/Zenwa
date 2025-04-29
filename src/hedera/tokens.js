@@ -456,6 +456,7 @@ async function getTokenInfo(tokenId) {
     
     const tokenInfo = response.data;
     console.log(`[TOKEN_INFO] ✅ Informations récupérées pour le token ${tokenId}`);
+    console.log(`[TOKEN_INFO] Structure complète:`, JSON.stringify(tokenInfo, null, 2));
     console.log(`[TOKEN_INFO] Nom: ${tokenInfo.name}`);
     console.log(`[TOKEN_INFO] Symbole: ${tokenInfo.symbol}`);
     console.log(`[TOKEN_INFO] Compte Treasury: ${tokenInfo.treasury_account_id}`);
