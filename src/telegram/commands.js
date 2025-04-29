@@ -6,8 +6,8 @@ const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken, associateToken } = require('../hedera/tokens');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera/topic-management');
-// Fonctionnalités d'airdrop temporairement désactivées pour refactoring
-// const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
+// Fonctionnalités d'airdrop réactivées avec TokenAirdropTransaction
+const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
 // const { 
 //   createCampaign, 
 //   getCampaign, 
@@ -19,27 +19,19 @@ const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera
 const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest } = require('../services/openai-service');
 const { LANGUAGES, translate, setUserLanguage, getUserLanguage } = require('../utils/localizations');
 
-// Importer les gestionnaires des commandes d'airdrop et de campagne
-// Temporairement désactivé pour refactoring
-// const airdropModule = require('./airdrop-commands');
-// const { 
-//   handleAirdrop, 
-//   handleCampaign, 
-//   handleClaim, 
-//   handleMyCampaigns, 
-//   handleCampaignInfo, 
-//   handleCampaignStatus, 
-//   handleClaimAirdrop, 
-//   handleAirdropConversation, 
-//   AIRDROP_STATES, 
-//   CAMPAIGN_STATES, 
-//   CLAIM_STATES 
-// } = airdropModule;
+// Importer les gestionnaires des commandes d'airdrop
+// Les campagnes restent désactivées
+const airdropModule = require('./airdrop-commands');
+const { 
+  handleAirdrop,
+  handleClaimAirdrop, 
+  handleAirdropConversation,
+  AIRDROP_STATES,
+  CLAIM_STATES 
+} = airdropModule;
 
-// Définir des placeholders pour les états temporairement
-const AIRDROP_STATES = { NONE: 'none_airdrop' };
+// Définir des placeholders pour les états des campagnes (toujours désactivées)
 const CAMPAIGN_STATES = { NONE: 'none_campaign' };
-const CLAIM_STATES = { NONE: 'none_claim' };
 
 // State management for multi-step operations
 const userState = new Map();
