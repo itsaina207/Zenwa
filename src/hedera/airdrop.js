@@ -1,6 +1,7 @@
 /**
  * Module de gestion des airdrops de tokens Hedera
- * Permet la création et la réclamation d'airdrops de tokens
+ * Implémente les fonctionnalités d'airdrop et de claim en utilisant
+ * TokenAirdropTransaction et TokenClaimAirdropTransaction de l'API Hedera
  */
 
 const {
@@ -13,7 +14,9 @@ const {
   AccountId,
   AccountBalanceQuery,
   Hbar,
-  TransactionId
+  TransactionId,
+  TokenAssociateTransaction,
+  TokenInfoQuery
 } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
