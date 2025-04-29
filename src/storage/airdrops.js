@@ -276,8 +276,41 @@ Date de réclamation: ${airdropDetails.claimed_at || 'Non réclamé'}
   }
 }
 
+/**
+ * Récupère tous les airdrops disponibles pour un utilisateur
+ * @param {string} userId - ID Telegram de l'utilisateur
+ * @returns {Promise<Array>} - Liste des airdrops disponibles
+ */
+async function getAvailableAirdrops(userId) {
+  try {
+    console.log(`[GET_AIRDROPS] Récupération des airdrops disponibles pour l'utilisateur ${userId}`);
+    
+    // Récupérer l'ID de compte Hedera associé à cet utilisateur
+    const { getWalletByUserId } = require('./userWallets');
+    const wallet = await getWalletByUserId(userId);
+    
+    if (!wallet) {
+      console.log(`[GET_AIRDROPS] ❌ Aucun wallet trouvé pour l'utilisateur ${userId}`);
+      return [];
+    }
+    
+    // Utiliser la fonction existante pour récupérer les airdrops par compte
+    const accountId = wallet.accountId;
+    console.log(`[GET_AIRDROPS] Recherche des airdrops pour le compte ${accountId}`);
+    
+    const airdrops = await getAvailableAirdropsForAccount(accountId);
+    console.log(`[GET_AIRDROPS] ${airdrops.length} airdrops trouvés pour l'utilisateur ${userId}`);
+    
+    return airdrops;
+  } catch (error) {
+    console.error(`[GET_AIRDROPS] ❌ Erreur lors de la récupération des airdrops pour ${userId}:`, error);
+    return [];
+  }
+}
+
 module.exports = {
   storeAirdrop,
   getAvailableAirdropsForAccount,
-  markAirdropAsClaimed
+  markAirdropAsClaimed,
+  getAvailableAirdrops
 };

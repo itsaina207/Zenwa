@@ -70,6 +70,13 @@ async function processNaturalLanguageCommand(userId, message) {
       return await handleMintTokenRequest(userId, name, symbol);
     }
     
+    // Check for viewing available airdrops request
+    const viewAirdropsPattern = /(?:voir|show|afficher|montrer|lister|list)\s+(?:mes|les|my|all)\s+(?:airdrops?|tokens?\s+disponibles?|airdrop\s+disponibles?)/i;
+    const viewMatch = text.match(viewAirdropsPattern);
+    if (viewMatch) {
+      return await handleClaimAirdropRequest(userId);
+    }
+    
     // Check for airdrop claim request
     const claimAirdropPattern = /(?:réclamer|reclamer|claim|claimer)\s+(?:un|my|le|mon|l'|token|l'airdrop|airdrop)\s+(?:airdrop|token)/i;
     const claimAirdropWithIdPattern = /(?:réclamer|reclamer|claim|claimer)\s+(?:un|my|le|mon|l'|token|l'airdrop|airdrop)\s+(?:airdrop|token)\s+(?:avec|with|d'|de|from)\s+(?:id|identifiant)?\s*[:#]?\s*(\S+)/i;
@@ -323,7 +330,7 @@ async function handleClaimAirdropRequest(userId, airdropId = null) {
   try {
     // Si aucun ID n'est fourni, récupérer les airdrops disponibles et tenter de réclamer le premier
     if (!airdropId) {
-      const { getAvailableAirdrops } = require('../hedera/airdrop');
+      const { getAvailableAirdrops } = require('../storage/airdrops');
       const availableAirdrops = await getAvailableAirdrops(userId);
       
       if (availableAirdrops.length === 0) {
