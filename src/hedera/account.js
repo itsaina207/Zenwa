@@ -244,7 +244,7 @@ async function getBalance(userIdOrAccountId) {
 /**
  * Send HBAR from one user to a destination account
  * @param {string} fromUserId - Sender's Telegram user ID
- * @param {string} toAccountId - Recipient's Hedera account ID
+ * @param {string} toAccountId - Recipient's Hedera account ID or phone number
  * @param {number|string} amount - Amount of HBAR to send
  * @returns {Promise<object>} Transaction result
  */
@@ -260,13 +260,27 @@ async function sendHbar(fromUserId, toAccountId, amount) {
       };
     }
 
-    // Validate destination account
+    // Résoudre l'identifiant du destinataire (téléphone ou compte Hedera)
+    const { resolveToAccountId } = require('../utils/identifiers');
+    const resolvedAccountId = await resolveToAccountId(toAccountId);
+    
+    if (!resolvedAccountId) {
+      return {
+        success: false,
+        message: 'Impossible de résoudre l\'identifiant du destinataire. Vérifiez que le numéro de téléphone ou l\'adresse Hedera est correcte.',
+      };
+    }
+    
+    // Utiliser l'identifiant résolu
+    const receiverAccountId = resolvedAccountId;
+
+    // Validate destination account format
     try {
-      AccountId.fromString(toAccountId);
+      AccountId.fromString(receiverAccountId);
     } catch (e) {
       return {
         success: false,
-        message: 'ID de compte destinataire invalide. Format correct: 0.0.xxxxx',
+        message: 'ID de compte destinataire invalide après résolution. Format correct: 0.0.xxxxx',
       };
     }
 
