@@ -541,13 +541,16 @@ async function isTokenAssociated(accountId, tokenId) {
         const associatedTokens = Array.from(tokens.keys());
         console.log(`[TOKEN_ASSOCIATE] Tokens associés au compte ${accountId} selon SDK: ${associatedTokens.length > 0 ? associatedTokens.join(', ') : 'Aucun'}`);
         
-        if (isAssociatedSdk) {
-          console.log(`[TOKEN_ASSOCIATE] ⚠️ Incohérence: Le SDK indique que le token ${tokenId} est associé, mais le mirror node ne le confirme pas.`);
-        }
+        // Message d'information déplacé dans la section en dessous
         
-        // Pour garantir la sécurité, retourner false si l'une ou l'autre méthode indique que le token n'est pas associé
+        // Le SDK est plus fiable que le Mirror Node, donc s'il indique une association, considérer comme associé
+      if (isAssociatedSdk) {
+        console.log(`[TOKEN_ASSOCIATE] ⚠️ Incohérence: Le SDK indique que le token ${tokenId} est associé, mais le mirror node ne le confirme pas. Nous considérons le token comme associé.`);
+        return true;
+      } else {
         console.log(`[TOKEN_ASSOCIATE] ⚠️ Le token ${tokenId} n'est PAS associé au compte ${accountId}`);
         return false;
+      }
       }
     } catch (mirrorError) {
       console.error(`[TOKEN_ASSOCIATE] Erreur avec le Mirror Node: ${mirrorError.message}`);
