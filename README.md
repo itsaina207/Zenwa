@@ -121,6 +121,21 @@ The bot also understands natural language commands, for example:
 - "Create an airdrop for token 0.0.12345"
 - "Show available airdrops"
 - "Claim my airdrop"
+- "Information about token 0.0.12345"
+- "Who owns token 0.0.12345?"
+- "Am I eligible for any airdrops?"
+
+### ElizaOS Plugin Compatibility
+
+The bot offers compatibility with commands similar to the ElizaOS Hedera plugin format:
+
+| ElizaOS Command | Bot Equivalent |
+|-----------------|----------------|
+| `Airdrop 100 tokens 0.0.12345 to wallets: 0.0.11111, 0.0.22222` | Use `/airdrop` or say "Create an airdrop" |
+| `Show pending airdrops for account 0.0.12345` | Use `/claimairdrop` or ask "What airdrops can I claim?" |
+| `Accept airdrop of token 0.0.12345 from account 0.0.99999` | Use `/claimairdrop` or say "Claim my airdrops" |
+| `Show me balance of token 0.0.12345 for wallet 0.0.12345` | Ask "What are my token balances?" |
+| `Show token 0.0.12345 info` | Ask "Information about token 0.0.12345" |
 
 ## Architecture
 
@@ -176,7 +191,7 @@ This project leverages multiple Hedera services:
    - Using the new `TokenAirdropTransaction` for efficient token distribution
    - Claim functionality with `TokenClaimAirdropTransaction`
 
-### HIP-991 and HCS-10 Implementation
+### HIP-991, HCS-10, and Eliza Plugin Implementation
 
 #### HIP-991 (Hedera Agent Protocol)
 
@@ -202,6 +217,31 @@ Our implementation follows the HCS-10 specification for topic management:
 - Structured message submission with consistent formats
 - Topic ID resolution from human-readable identifiers
 - Message retrieval and parsing according to the standard
+
+#### Eliza Hedera Plugin
+
+The project includes an Eliza plugin for interacting with Hedera services through natural language:
+
+- Implementation: [src/plugins/eliza-plugin.js](./src/plugins/eliza-plugin.js)
+- Compatible with ElizaOS Hedera plugin commands
+- Leverages Mirror Node API for blockchain state queries
+- Key capabilities:
+  - Token information retrieval and display
+  - Token holders lists with detailed balances
+  - User token balance checks
+  - Airdrop eligibility verification
+  - Token association recommendations
+  - Enhanced responses with HashScan links
+
+The plugin follows similar patterns to the ElizaOS plugin for Hedera, allowing users to:
+
+1. Query token information with commands like `information about token 0.0.12345`
+2. Check token holders with `who owns token 0.0.12345`
+3. View personal token balances with `what are my token balances`
+4. Verify airdrop eligibility with `am I eligible for any airdrops`
+5. Get recommended actions for token operations
+
+All responses are formatted with Markdown and include HashScan links for verification.
 
 ### Deployment Information
 

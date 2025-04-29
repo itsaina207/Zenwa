@@ -1,0 +1,150 @@
+ Pré-requis et configuration
+Installer et charger le plugin Hedera
+
+Votre instance ElizaOS doit inclure @elizaos/plugin-hedera dans package.json et être lancée avec ce plugin activé.
+
+Si vous utilisez un « character » universel, démarrez :
+
+bash
+Copier
+Modifier
+pnpm run dev --characters='../characters/universalHelper.character.json'
+Fichier .env
+Dans la racine du projet, créez (ou adaptez) un fichier .env contenant au minimum :
+
+dotenv
+Copier
+Modifier
+HEDERA_ACCOUNT_ID=0.0.VOTRE_COMPTE          # votre compte opérateur
+HEDERA_PRIVATE_KEY=<clé ED25519 ou ECDSA>   # clé privée du compte
+HEDERA_KEY_TYPE=ED25519                     # ou ECDSA
+HEDERA_NETWORK_TYPE=testnet                 # ou mainnet, previewnet
+⚠️ Assurez-vous que votre compte a suffisamment de HBAR pour payer les frais de transaction.
+
+2. Exécuter l’airdrop
+Formulez votre prompt
+Dans votre conversation avec ElizaOS, tapez simplement :
+
+css
+Copier
+Modifier
+Airdrop 100 tokens 0.0.1234567 to wallets: 0.0.1111111, 0.0.2222222, 0.0.3333333.
+Ici :
+
+100 est le montant en unité « affichée » (display unit).
+
+0.0.1234567 est le tokenId HTS.
+
+La liste après wallets: sont les accountIds Hedera.
+
+Traitement interne
+
+Le plugin détecte l’action HEDERA_AIRDROP_TOKEN.
+
+Il valide le schéma (tokenId, amount, recipients).
+
+Il convertit amount en base unit (via toBaseUnit).
+
+Il construit et signe une transaction TokenAirdropTransaction avec votre clé opérateur.
+
+Il envoie la transaction au réseau Hedera via hedera-agent-kit.
+
+Retour et confirmation
+ElizaOS renvoie quelque chose comme :
+
+Airdrop token successfully executed. Transaction link: https://hashscan.io/testnet/tx/0.0.1234567@<timestamp>
+
+Vous pouvez cliquer sur le lien Hashscan pour vérifier la réussite et les frais exacts payés.
+
+3. Vérifier les airdrops en attente
+Souvent, les tokens sont d’abord mis en pending airdrop (réservés), puis chaque destinataire doit réclamer ce qui lui revient.
+
+Lister les airdrops pending pour un compte
+Si vous voulez voir ce qui attend un compte (ici, un des destinataires) :
+
+rust
+Copier
+Modifier
+Show pending airdrops for account 0.0.1111111
+Réponse typique
+
+php
+Copier
+Modifier
+(1) 100 TOKEN (token id: 0.0.1234567) from 0.0.9999999
+(2) 50 TOKEN (token id: 0.0.7654321) from 0.0.8888888
+Chaque ligne indique : montant, tokenId, et compte émetteur.
+
+4. Le claim par les bénéficiaires
+Chaque destinataire doit maintenant réclamer son airdrop. Il lui faut :
+
+Configurer son propre .env
+
+HEDERA_ACCOUNT_ID → son propre compte (le même que celui passé à Show pending airdrops).
+
+HEDERA_PRIVATE_KEY → sa clé privée.
+
+Les autres variables (HEDERA_NETWORK_TYPE, HEDERA_KEY_TYPE) identiques.
+
+Prompt de claim
+Pour chaque ligne repérée en pending, il exécute :
+
+csharp
+Copier
+Modifier
+Accept airdrop of token 0.0.1234567 from account 0.0.9999999
+ou plus générique :
+
+csharp
+Copier
+Modifier
+Claim airdrop 0.0.1234567 from 0.0.9999999
+Traitement interne
+
+Le plugin appelle l’action HEDERA_CLAIM_AIRDROP.
+
+Il construit un PendingAirdropId avec senderId, tokenId, receiverId.
+
+Il signe et envoie une TokenClaimAirdropTransaction via hedera-agent-kit.
+
+Confirmation
+ElizaOS renvoie :
+
+Successfully claimed airdrop for token 0.0.1234567. Transaction link: https://hashscan.io/testnet/tx/…
+
+Les tokens passent alors de l’état “pending” à “disponible” sur le compte.
+
+5. Post-mortalité
+Solde final :
+Vérifiez avec la commande :
+
+rust
+Copier
+Modifier
+Show me balance of token 0.0.1234567 for wallet 0.0.1111111
+Rejet éventuel :
+Si un bénéficiaire ne veut pas du token, il peut faire :
+
+nginx
+Copier
+Modifier
+Reject token 0.0.1234567
+et ce token qui était pending sera renvoyé au treasury (action HEDERA_REJECT_TOKEN).
+
+Schéma récapitulatif
+
+Étape	Commande / Action	Qui signe et paie les frais
+1. Airdrop initial	Airdrop … tokens … to wallets…	Compteur opérateur (émetteur)
+2. Liste pending airdrops	Show pending airdrops…	Lecture seule
+3. Claim par destinataire	Accept airdrop of token…	Compte destinataire
+4. Vérifier solde HTS	Show balance of token …	Lecture seule
+5. (Optionnel) Rejet token	Reject token …	Compte destinataire
+En résumé, vous n’avez qu’à :
+
+préparer vos identifiants dans .env,
+
+lancer Airdrop par prompt,
+
+demander aux bénéficiaires de lancer Show pending airdrops puis Accept airdrop….
+
+Tout le reste (signature, conversion d’unités, paiement des HBAR-fees) est géré automatiquement par le
