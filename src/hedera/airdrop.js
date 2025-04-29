@@ -906,13 +906,13 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
       status: receipt.status.toString()
     };
     
-    // Ajouter les liens vers les explorateurs
+    // Ajouter uniquement le lien HashScan
     try {
       const explorerUrls = getExplorerUrls(txId, 'transaction');
-      result.explorerUrl = explorerUrls.hederaExplorer;
       result.hashscanUrl = explorerUrls.hashScan;
+      // Supprimer la référence à l'explorateur Hedera pour n'utiliser que HashScan
     } catch (error) {
-      console.warn(`Erreur lors de la génération des liens d'explorateur: ${error.message}`);
+      console.warn(`Erreur lors de la génération du lien HashScan: ${error.message}`);
     }
     
     // Si c'était un airdrop de la base de données, le marquer comme réclamé
@@ -926,7 +926,6 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
           console.log(`[CLAIM_TRANSACTION] 📊 Détails de la transaction:
 ID de transaction: ${txId}
 HashScan: ${result.hashscanUrl || `https://hashscan.io/testnet/transaction/${txId}`}
-Hedera Explorer: ${result.explorerUrl || `https://testnet.hederaexplorer.io/tx/${txId}`}
 Compte: ${accountId}
 Status: ${receipt.status.toString()}
 `);

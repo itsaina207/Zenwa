@@ -10,49 +10,36 @@
  * @returns {Object} URLs des explorateurs
  */
 function getExplorerUrls(id, type, network = 'testnet') {
-  // URLs de base des explorateurs
-  const baseUrls = {
-    testnet: {
-      hederaExplorer: 'https://testnet.hederaexplorer.io',
-      hashScan: 'https://hashscan.io/testnet'
-    },
-    mainnet: {
-      hederaExplorer: 'https://hederaexplorer.io',
-      hashScan: 'https://hashscan.io/mainnet'
-    }
-  };
+  // URL de base de HashScan
+  const hashScanBase = network.toLowerCase() === 'mainnet' 
+    ? 'https://hashscan.io/mainnet' 
+    : 'https://hashscan.io/testnet';
   
-  const { hederaExplorer, hashScan } = baseUrls[network];
-  
-  // Construire les chemins en fonction du type
-  let hederaPath = '';
+  // Construire le chemin en fonction du type
   let hashScanPath = '';
   
   switch (type) {
     case 'transaction':
-      hederaPath = `/search/transaction/${id}`;
       hashScanPath = `/transaction/${id}`;
       break;
     case 'token':
-      hederaPath = `/search/token/${id}`;
       hashScanPath = `/token/${id}`;
       break;
     case 'account':
-      hederaPath = `/search/account/${id}`;
       hashScanPath = `/account/${id}`;
       break;
     case 'topic':
-      hederaPath = `/search/topic/${id}`;
       hashScanPath = `/topic/${id}`;
       break;
     default:
-      hederaPath = `/search/${id}`;
       hashScanPath = `/dashboard?search=${id}`;
   }
   
+  // Pour maintenir la compatibilité avec le code existant, nous retournons toujours un objet
+  // avec hederaExplorer et hashScan, mais nous utilisons uniquement hashScan
   return {
-    hederaExplorer: `${hederaExplorer}${hederaPath}`,
-    hashScan: `${hashScan}${hashScanPath}`
+    hashScan: `${hashScanBase}${hashScanPath}`,
+    hederaExplorer: `${hashScanBase}${hashScanPath}` // Utiliser HashScan pour les deux
   };
 }
 
