@@ -1,0 +1,49 @@
+[CLAIM_ACCOUNT] Récupération des informations du compte pour l'utilisateur 7660616358
+[CLAIM_ACCOUNT] ✅ Compte trouvé: 0.0.5922104
+[CLAIM_HEDERA] Initialisation du client Hedera
+[BALANCE_CHECK] Vérification du solde HBAR de 0.0.5922104
+[BALANCE_CHECK] Solde HBAR de l'utilisateur: 100 HBAR
+Recherche d'airdrops disponibles pour le compte 0.0.5922104
+Table airdrop_recipients existe : true
+Nombre total d'enregistrements pour ce compte : 2
+Nombre d'airdrops non réclamés : 2
+Résultat de la requête : 2 lignes trouvées
+Premier résultat : {
+  id: 8,
+  token_id: '0.0.5910996',
+  token_name: 'Genesis',
+  token_symbol: 'GENE',
+  treasury_id: '0.0.5910980',
+  pending_airdrop_id: null,
+  amount: '111',
+  claimed: false,
+  created_at: 2025-04-29T08:27:56.273Z
+}
+Récupération des airdrops disponibles pour 0.0.5922104: 2 trouvés
+Recherche de l'airdrop 7 parmi les disponibles: Trouvé
+Airdrop trouvé: Token 0.0.5910996, Montant: 111
+Vérification de l'association du token 0.0.5910996 pour le compte 0.0.5922104
+[TOKEN_ASSOCIATE] 🔍 Vérification de l'association du token 0.0.5910996 avec le compte 0.0.5922104
+[TOKEN_ASSOCIATE] Vérification avec le mirror node https://testnet.mirrornode.hedera.com
+[TOKEN_ASSOCIATE] Requête: https://testnet.mirrornode.hedera.com/api/v1/accounts/0.0.5922104/tokens?token.id=0.0.5910996
+[TOKEN_ASSOCIATE] Relation trouvée pour le token 0.0.5910996: {"automatic_association":false,"balance":0,"created_timestamp":"1745916027.549755409","decimals":0,"token_id":"0.0.5910996","freeze_status":"NOT_APPLICABLE","kyc_status":"NOT_APPLICABLE"}
+[TOKEN_ASSOCIATE] ✅ Le token 0.0.5910996 est associé au compte 0.0.5922104
+Le compte 0.0.5922104 est-il associé au token 0.0.5910996? Oui
+PendingAirdropId: Non défini
+Pas de pendingAirdropId, vérification onchain avant marquage comme réclamé
+[ONCHAIN_CHECK] Vérification du solde de token 0.0.5910996 pour le compte 0.0.5922104
+[ONCHAIN_CHECK] Exécution de la requête de solde
+[ONCHAIN_CHECK] Vérification si le token 0.0.5910996 existe dans le solde
+[ONCHAIN_CHECK] Token non trouvé dans le solde onchain
+[ONCHAIN_CHECK] ⚠️ Le compte 0.0.5922104 ne possède pas encore le token 0.0.5910996 onchain
+[CLAIM] Résultat détaillé de la réclamation: {
+  "success": false,
+  "message": "Vous ne possédez pas encore le token 0.0.5910996 sur la blockchain. Veuillez contacter l'admin pour effectuer le transfert.",
+  "tokenId": "0.0.5910996",
+  "tokenName": "Genesis",
+  "amount": "111",
+  "verifiedOnChain": true,
+  "currentBalance": 0
+}
+[CLAIM] ❌ Échec de la réclamation pour l'utilisateur 7660616358: Vous ne possédez pas encore le token 0.0.5910996 sur la blockchain. Veuillez contacter l'admin pour effectuer le transfert.
+[CLAIM] 🔄 État utilisateur réinitialisé pour 7660616358

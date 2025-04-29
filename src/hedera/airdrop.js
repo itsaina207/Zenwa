@@ -743,87 +743,110 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
       pendingAirdropId = airdrop.pendingAirdropId;
       console.log(`PendingAirdropId: ${pendingAirdropId || 'Non défini'}`);
       
-      // Si pas de pendingAirdropId, c'est qu'il n'y a pas besoin de faire une transaction sur la blockchain
+      // Si pas de pendingAirdropId, effectuer un transfert de token direct
       if (!pendingAirdropId) {
-        console.log(`Pas de pendingAirdropId, vérification onchain avant marquage comme réclamé`);
+        console.log(`[DIRECT_TRANSFER] Pas de pendingAirdropId, tentative de transfert direct du token`);
         
-        // Vérifier onchain si l'utilisateur possède déjà le token
         try {
           const client = getClient();
-          console.log(`[ONCHAIN_CHECK] Vérification du solde de token ${airdrop.tokenId} pour le compte ${accountId}`);
+          console.log(`[DIRECT_TRANSFER] Configuration du client pour le transfert de ${airdrop.amount} ${airdrop.tokenId} depuis ${airdrop.treasuryId} vers ${accountId}`);
           
-          // Créer une requête de solde de token
-          const tokenBalanceQuery = new AccountBalanceQuery()
-            .setAccountId(AccountId.fromString(accountId));
-          
-          // Exécuter la requête
-          console.log(`[ONCHAIN_CHECK] Exécution de la requête de solde`);
-          const accountBalance = await tokenBalanceQuery.execute(client);
-          
-          // Récupérer le solde du token spécifique
-          const tokenId = TokenId.fromString(airdrop.tokenId);
-          let tokenBalance = 0;
-          
-          try {
-            console.log(`[ONCHAIN_CHECK] Vérification si le token ${airdrop.tokenId} existe dans le solde`);
-            if (accountBalance.tokens && accountBalance.tokens._map) {
-              const tokenBalanceObj = accountBalance.tokens._map.get(tokenId);
-              if (tokenBalanceObj) {
-                tokenBalance = tokenBalanceObj.toNumber();
-                console.log(`[ONCHAIN_CHECK] Solde du token trouvé: ${tokenBalance}`);
-              } else {
-                console.log(`[ONCHAIN_CHECK] Token non trouvé dans le solde onchain`);
-              }
-            } else {
-              console.log(`[ONCHAIN_CHECK] Aucun token trouvé dans le solde onchain`);
-            }
-          } catch (err) {
-            console.error(`[ONCHAIN_CHECK] Erreur lors de l'extraction du solde: ${err.message}`);
+          // Récupérer le treasury account ID (expéditeur)
+          if (!airdrop.treasuryId) {
+            console.error(`[DIRECT_TRANSFER] ❌ Erreur: L'airdrop n'a pas de treasuryId défini`);
+            return {
+              success: false,
+              message: `Erreur: Token treasury non défini pour l'airdrop`,
+              tokenId: airdrop.tokenId,
+              tokenName: airdrop.tokenName
+            };
           }
           
-          // Si le token est déjà détenu par l'utilisateur, marquer comme réclamé
-          if (tokenBalance > 0) {
-            console.log(`[ONCHAIN_CHECK] ✅ Le compte ${accountId} possède déjà ${tokenBalance} units du token ${airdrop.tokenId}`);
+          const treasuryId = AccountId.fromString(airdrop.treasuryId);
+          const tokenId = TokenId.fromString(airdrop.tokenId);
+          const amount = parseInt(airdrop.amount);
+          
+          console.log(`[DIRECT_TRANSFER] Préparation de la transaction:
+          - Token: ${airdrop.tokenId} (${airdrop.tokenName})
+          - Treasury: ${treasuryId}
+          - Destinataire: ${accountId}
+          - Montant: ${amount}`);
+          
+          // Créer une transaction de transfert de tokens
+          const tokenTransferTx = new TransferTransaction()
+            .addTokenTransfer(tokenId, treasuryId, -amount) // Débit du treasury
+            .addTokenTransfer(tokenId, accountId, amount)   // Crédit du destinataire
+            .setTransactionMemo(`Airdrop claim for ${accountId}`)
+            .setMaxTransactionFee(new Hbar(2)); // Augmenter les frais pour éviter INSUFFICIENT_TX_FEE
+          
+          // Configurer le client avec le treasury comme opérateur
+          const treasuryClient = getTreasuryClient(airdrop.treasuryId);
+          if (!treasuryClient) {
+            console.error(`[DIRECT_TRANSFER] ❌ Erreur: Impossible d'obtenir un client avec le treasury ${airdrop.treasuryId}`);
+            return {
+              success: false,
+              message: `Erreur: Pas d'accès au compte treasury pour effectuer le transfert`,
+              tokenId: airdrop.tokenId,
+              tokenName: airdrop.tokenName
+            };
+          }
+          
+          console.log(`[DIRECT_TRANSFER] Exécution de la transaction de transfert`);
+          const txResponse = await tokenTransferTx.execute(treasuryClient);
+          console.log(`[DIRECT_TRANSFER] Transaction soumise: ${txResponse.transactionId.toString()}`);
+          
+          // Récupérer le reçu de la transaction
+          console.log(`[DIRECT_TRANSFER] Récupération du reçu de la transaction`);
+          const receipt = await txResponse.getReceipt(treasuryClient);
+          console.log(`[DIRECT_TRANSFER] Statut de la transaction: ${receipt.status.toString()}`);
+          
+          // Si la transaction est réussie, marquer l'airdrop comme réclamé
+          if (receipt.status.toString() === 'SUCCESS') {
+            console.log(`[DIRECT_TRANSFER] ✅ Transfert réussi! Marquage de l'airdrop comme réclamé`);
             
             // Marquer comme réclamé dans la base de données
             const markResult = await markAirdropAsClaimed(accountId, airdropId);
-            console.log(`Résultat du marquage: ${markResult.success ? 'Succès' : 'Échec'} - ${markResult.message}`);
+            console.log(`[DIRECT_TRANSFER] Résultat du marquage: ${markResult.success ? 'Succès' : 'Échec'} - ${markResult.message}`);
             
-            if (!markResult.success) {
-              return {
-                success: false,
-                message: `Erreur lors du marquage de l'airdrop comme réclamé: ${markResult.message}`
-              };
+            // Générer le lien HashScan
+            const txId = txResponse.transactionId.toString();
+            let hashscanUrl = null;
+            try {
+              const explorerUrls = getExplorerUrls(txId, 'transaction');
+              hashscanUrl = explorerUrls.hashScan;
+            } catch (urlError) {
+              console.warn(`[DIRECT_TRANSFER] Erreur lors de la génération du lien HashScan: ${urlError.message}`);
+              hashscanUrl = `https://hashscan.io/testnet/transaction/${txId}`;
             }
             
             return {
               success: true,
-              message: `Airdrop marqué comme réclamé avec succès. Le token ${airdrop.tokenId} est déjà dans votre portefeuille.`,
+              message: `Airdrop transféré avec succès! ${amount} ${airdrop.tokenName} ont été ajoutés à votre portefeuille.`,
               tokenId: airdrop.tokenId,
               tokenName: airdrop.tokenName,
               amount: airdrop.amount,
-              verifiedOnChain: true,
-              currentBalance: tokenBalance
+              transactionId: txId,
+              hashscanUrl: hashscanUrl,
+              directTransfer: true
             };
           } else {
-            console.log(`[ONCHAIN_CHECK] ⚠️ Le compte ${accountId} ne possède pas encore le token ${airdrop.tokenId} onchain`);
+            console.error(`[DIRECT_TRANSFER] ❌ Échec du transfert: ${receipt.status.toString()}`);
             return {
               success: false,
-              message: `Vous ne possédez pas encore le token ${airdrop.tokenId} sur la blockchain. Veuillez contacter l'admin pour effectuer le transfert.`,
+              message: `Échec du transfert: ${receipt.status.toString()}. Veuillez contacter l'administrateur.`,
               tokenId: airdrop.tokenId,
-              tokenName: airdrop.tokenName,
-              amount: airdrop.amount,
-              verifiedOnChain: true,
-              currentBalance: 0
+              tokenName: airdrop.tokenName
             };
           }
-        } catch (onchainError) {
-          console.error(`[ONCHAIN_CHECK] Erreur lors de la vérification onchain: ${onchainError.message}`);
+        } catch (transferError) {
+          console.error(`[DIRECT_TRANSFER] ❌ Erreur lors du transfert: ${transferError.message}`);
+          console.error(transferError.stack);
           return {
             success: false,
-            message: `Erreur lors de la vérification onchain: ${onchainError.message}`,
+            message: `Erreur lors du transfert du token: ${transferError.message}`,
             tokenId: airdrop.tokenId,
-            tokenName: airdrop.tokenName
+            tokenName: airdrop.tokenName,
+            errorDetails: transferError.message
           };
         }
       }
