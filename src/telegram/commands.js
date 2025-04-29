@@ -44,6 +44,7 @@ const START_STATES = {
 
 // Possible states for the /send command
 const SEND_STATES = {
+  WAITING_FOR_ADDRESS_TYPE: 'WAITING_FOR_ADDRESS_TYPE',  // Nouveau: attente du choix du type d'adresse
   WAITING_FOR_ADDRESS: 'WAITING_FOR_ADDRESS',
   WAITING_FOR_AMOUNT: 'WAITING_FOR_AMOUNT',
   NONE: 'NONE'
@@ -55,6 +56,15 @@ const MINT_STATES = {
   WAITING_FOR_NAME: 'WAITING_FOR_NAME',
   WAITING_FOR_SYMBOL: 'WAITING_FOR_SYMBOL',
   WAITING_FOR_SUPPLY: 'WAITING_FOR_SUPPLY',
+  NONE: 'NONE'
+};
+
+// Possible states for the /sendtoken command
+const SEND_TOKEN_STATES = {
+  WAITING_FOR_ADDRESS_TYPE: 'WAITING_FOR_ADDRESS_TYPE',
+  WAITING_FOR_ADDRESS: 'WAITING_FOR_ADDRESS',
+  WAITING_FOR_TOKEN_ID: 'WAITING_FOR_TOKEN_ID',
+  WAITING_FOR_AMOUNT: 'WAITING_FOR_AMOUNT',
   NONE: 'NONE'
 };
 
@@ -268,17 +278,27 @@ async function handleSend(bot, msg) {
   
   // Réinitialiser l'état pour commencer une nouvelle transaction
   userState.set(userId, {
-    state: SEND_STATES.WAITING_FOR_ADDRESS,
+    state: SEND_STATES.WAITING_FOR_ADDRESS_TYPE,
     chatId: chatId,
+    addressType: null,
     toAccountId: null,
     amount: null
   });
   
-  // Demander l'adresse de destination
+  // Demander le type d'adresse pour l'envoi
   await bot.sendMessage(
     chatId, 
-    "À quelle adresse Hedera souhaitez-vous envoyer des HBAR? (format: 0.0.xxxx)",
-    { reply_markup: { force_reply: true } }
+    "Comment souhaitez-vous identifier le destinataire?",
+    { 
+      reply_markup: {
+        keyboard: [
+          ['📱 Numéro de téléphone'],
+          ['🔢 Adresse Hedera (0.0.xxxx)']
+        ],
+        one_time_keyboard: true,
+        resize_keyboard: true
+      }
+    }
   );
 }
 
@@ -563,24 +583,18 @@ async function handleSendToken(bot, msg) {
   const userId = msg.from.id.toString();
   const args = msg.text.split(' ').slice(1);
   
-  if (args.length < 3) {
-    await bot.sendMessage(
-      chatId,
-      'Veuillez fournir un ID de compte, un ID de token et un montant.\nUtilisation: /sendtoken <accountId> <tokenId> <montant>'
-    );
-    return;
-  }
-  
-  const toAccountId = args[0];
-  const tokenId = args[1];
-  const amount = parseInt(args[2], 10);
-  
-  await bot.sendMessage(chatId, `Envoi de ${amount} tokens (${tokenId}) à ${toAccountId} en cours...`);
-  
-  const result = await sendToken(userId, toAccountId, tokenId, amount);
-  
-  if (result.success) {
-    const message = `
+  // Si des arguments sont fournis, utiliser l'ancienne méthode directe
+  if (args.length >= 3) {
+    const toAccountId = args[0];
+    const tokenId = args[1];
+    const amount = parseInt(args[2], 10);
+    
+    await bot.sendMessage(chatId, `Envoi de ${amount} tokens (${tokenId}) à ${toAccountId} en cours...`);
+    
+    const result = await sendToken(userId, toAccountId, tokenId, amount);
+    
+    if (result.success) {
+      const message = `
 ✅ ${result.message}
 
 *Détails de la transaction :*
@@ -591,10 +605,39 @@ Transaction ID: \`${result.transactionId}\`
 
 Utilisez /balance pour vérifier votre nouveau solde.
 `;
-    await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-  } else {
-    await bot.sendMessage(chatId, `❌ ${result.message}`);
+      await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } else {
+      await bot.sendMessage(chatId, `❌ ${result.message}`);
+    }
+    return;
   }
+  
+  // Sinon, démarrer le processus interactif d'envoi de token
+  // Étape 1: demander le type d'adresse du destinataire
+  userState.set(userId, {
+    state: SEND_TOKEN_STATES.WAITING_FOR_ADDRESS_TYPE,
+    chatId: chatId,
+    addressType: null,
+    toAccountId: null,
+    tokenId: null,
+    amount: null
+  });
+  
+  // Demander le type d'adresse pour l'envoi
+  await bot.sendMessage(
+    chatId, 
+    "Comment souhaitez-vous identifier le destinataire du token?",
+    { 
+      reply_markup: {
+        keyboard: [
+          ['📱 Numéro de téléphone'],
+          ['🔢 Adresse Hedera (0.0.xxxx)']
+        ],
+        one_time_keyboard: true,
+        resize_keyboard: true
+      }
+    }
+  );
 }
 
 /**
@@ -615,16 +658,61 @@ async function handleSendConversation(bot, msg) {
     
     // Gestion des différentes étapes de la conversation
     switch (userInfo.state) {
+      case SEND_STATES.WAITING_FOR_ADDRESS_TYPE:
+        // L'utilisateur a choisi le type d'adresse à utiliser
+        let promptMessage = '';
+        
+        if (text.includes('Numéro') || text.includes('📱')) {
+          // Option numéro de téléphone
+          userInfo.addressType = 'PHONE';
+          promptMessage = "Entrez le numéro de téléphone du destinataire (format: 0XXXXXXXXX ou +33XXXXXXXXX):";
+        } else if (text.includes('Hedera') || text.includes('🔢')) {
+          // Option adresse Hedera
+          userInfo.addressType = 'HEDERA';
+          promptMessage = "Entrez l'adresse Hedera du destinataire (format: 0.0.xxxx):";
+        } else {
+          // Option non reconnue
+          await bot.sendMessage(
+            currentChatId,
+            "Je n'ai pas compris votre choix. Veuillez sélectionner une des options proposées.",
+            { 
+              reply_markup: {
+                keyboard: [
+                  ['📱 Numéro de téléphone'],
+                  ['🔢 Adresse Hedera (0.0.xxxx)']
+                ],
+                one_time_keyboard: true,
+                resize_keyboard: true
+              }
+            }
+          );
+          return;
+        }
+        
+        // Mettre à jour l'état et demander l'adresse
+        userInfo.state = SEND_STATES.WAITING_FOR_ADDRESS;
+        userState.set(userId, userInfo);
+        
+        await bot.sendMessage(
+          currentChatId,
+          promptMessage,
+          { reply_markup: { force_reply: true, remove_keyboard: true } }
+        );
+        return;
+        
       case SEND_STATES.WAITING_FOR_ADDRESS:
         // L'utilisateur a fourni l'adresse de destination
         userInfo.toAccountId = text;
         userInfo.state = SEND_STATES.WAITING_FOR_AMOUNT;
         userState.set(userId, userInfo);
         
+        // Type d'identifiant utilisé pour le message
+        const identifierType = userInfo.addressType === 'PHONE' ? 'numéro de téléphone' : 'adresse Hedera';
+        
         // Demander le montant à envoyer
         await bot.sendMessage(
           currentChatId,
-          `Quelle quantité de HBAR souhaitez-vous envoyer à ${text}?`,
+          `Quelle quantité de HBAR souhaitez-vous envoyer au ${identifierType} ${text}?`,
           { reply_markup: { force_reply: true } }
         );
         return;
@@ -633,14 +721,16 @@ async function handleSendConversation(bot, msg) {
         // L'utilisateur a fourni le montant
         const amount = text;
         const toAccountId = userInfo.toAccountId;
+        const addrType = userInfo.addressType || 'HEDERA'; // Par défaut
         
         // Réinitialiser l'état
         userState.set(userId, { ...userInfo, state: SEND_STATES.NONE });
         
-        // Informer l'utilisateur que la transaction est en cours
-        await bot.sendMessage(currentChatId, `Envoi de ${amount} HBAR à ${toAccountId} en cours...`);
+        // Message d'information adapté au type d'identifiant
+        const identType = addrType === 'PHONE' ? 'numéro de téléphone' : 'adresse Hedera';
+        await bot.sendMessage(currentChatId, `Envoi de ${amount} HBAR au ${identType} ${toAccountId} en cours...`);
         
-        // Effectuer la transaction
+        // Effectuer la transaction - même fonction pour les deux types, la résolution se fait automatiquement
         const result = await sendHbar(userId, toAccountId, amount);
         
         // Afficher le résultat
