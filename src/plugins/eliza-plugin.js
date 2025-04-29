@@ -36,8 +36,55 @@ class ElizaHederaPlugin {
     
     try {
       // Extract token ID if present in the query
-      const tokenIdMatch = normalizedQuery.match(/0\.0\.\d+/);
-      const tokenId = tokenIdMatch ? tokenIdMatch[0] : null;
+      const tokenIdMatches = normalizedQuery.match(/0\.0\.\d+/g) || [];
+      const tokenIds = tokenIdMatches.map(id => id.trim());
+      const tokenId = tokenIds.length > 0 ? tokenIds[0] : null;
+      
+      // ElizaOS-style airdrop command (format: "Airdrop X tokens 0.0.XXX to wallets: 0.0.YYY, 0.0.ZZZ")
+      if (normalizedQuery.includes('airdrop') && normalizedQuery.includes('token') && normalizedQuery.includes('to wallet')) {
+        console.log('[ELIZA] Detected airdrop command');
+        
+        // Extract amount, token ID, and recipient accounts
+        const amountMatch = normalizedQuery.match(/airdrop\s+(\d+)\s+tokens?/i);
+        const amount = amountMatch ? parseInt(amountMatch[1], 10) : 0;
+        
+        // Extract recipient accounts
+        const recipientsMatch = normalizedQuery.match(/to wallet(?:s)?:\s*([0-9., ]+)/i);
+        const recipientsList = recipientsMatch ? 
+          recipientsMatch[1].split(',').map(acc => acc.trim()).filter(acc => acc.match(/0\.0\.\d+/)) : 
+          [];
+        
+        if (tokenIds.length > 0 && amount > 0 && recipientsList.length > 0) {
+          return {
+            success: true,
+            message: `💡 Pour créer un airdrop de ${amount} tokens ${tokenIds[0]} vers ${recipientsList.length} comptes, utilisez la commande /airdrop et suivez les instructions interactives du bot.\n\nFormez votre requête en indiquant le token ID, le montant, et les comptes destinataires.`
+          };
+        }
+      }
+      
+      // ElizaOS-style "Show pending airdrops" command
+      if ((normalizedQuery.includes('show') || normalizedQuery.includes('list') || normalizedQuery.includes('afficher') || 
+           normalizedQuery.includes('montrer') || normalizedQuery.includes('voir')) && 
+          normalizedQuery.includes('pending') && normalizedQuery.includes('airdrop')) {
+        console.log('[ELIZA] Detected show pending airdrops command');
+        
+        return {
+          success: true,
+          message: `📩 Pour voir les airdrops disponibles, utilisez la commande /claimairdrop du bot, qui vous montrera la liste des airdrops en attente que vous pouvez réclamer.`
+        };
+      }
+      
+      // ElizaOS-style "Claim airdrop" command
+      if ((normalizedQuery.includes('claim') || normalizedQuery.includes('accept') || 
+           normalizedQuery.includes('réclamer') || normalizedQuery.includes('reclaimer')) && 
+          normalizedQuery.includes('airdrop') && tokenIds.length > 0) {
+        console.log('[ELIZA] Detected claim airdrop command');
+        
+        return {
+          success: true,
+          message: `📥 Pour réclamer un airdrop spécifique, utilisez la commande /claimairdrop du bot, puis sélectionnez l'airdrop correspondant au token ${tokenIds[0]} dans la liste qui s'affichera.`
+        };
+      }
       
       // Check if query is about airdrop eligibility
       if (
@@ -49,6 +96,20 @@ class ElizaHederaPlugin {
       ) {
         console.log('[ELIZA] Detected airdrop eligibility query');
         return await this.checkAirdropEligibility(userId);
+      }
+      
+      // Show token balance for a specific account (format: "Show me balance of token 0.0.XXX for wallet 0.0.YYY")
+      if (normalizedQuery.match(/balance.+token.+wallet/i) && tokenIds.length > 0) {
+        const walletMatch = normalizedQuery.match(/wallet\s+(0\.0\.\d+)/i);
+        const walletId = walletMatch ? walletMatch[1].trim() : null;
+        
+        if (tokenId && walletId) {
+          console.log(`[ELIZA] Detected token balance query for specific account: ${walletId}, token: ${tokenId}`);
+          return {
+            success: true,
+            message: `🔍 Pour vérifier le solde d'un token spécifique (${tokenId}) pour un compte précis (${walletId}), je vous invite à utiliser l'explorateur HashScan:\n\n[Voir les tokens détenus par ce compte](https://hashscan.io/testnet/account/${walletId}/tokens)`
+          };
+        }
       }
       
       // Check if query is about token ownership with token ID
