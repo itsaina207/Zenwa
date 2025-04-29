@@ -64,6 +64,9 @@ async function analyzeIntent(userId, message) {
       - create_topic : créer un topic HCS (paramètres: topicName, submitKey)
       - submit_message : envoyer un message à un topic (paramètres: topicId, message)
       - get_topic_messages : récupérer les messages d'un topic (paramètre: topicId)
+      - create_airdrop : créer un airdrop de tokens (paramètres: tokenId, recipientIds, amounts)
+      - claim_airdrop : réclamer un airdrop (paramètres: airdropId)
+      - get_airdrops : voir les airdrops disponibles (pas de paramètre requis)
       
       Répondez uniquement avec un objet JSON contenant l'action identifiée et les paramètres extraits.
       Format: { "action": "nom_action", "params": { "param1": "valeur1", ... } }
@@ -168,9 +171,51 @@ function isCreateTokenRequest(message) {
   return false;
 }
 
+/**
+ * Détecter si un message est une demande d'airdrops disponibles
+ * @param {string} message - Message utilisateur
+ * @returns {boolean} True si c'est une demande d'airdrops
+ */
+function isGetAirdropsRequest(message) {
+  const lowerMessage = message.toLowerCase();
+  const airdropKeywords = [
+    'airdrop', 'airdrops', 'disponible', 'available', 'claim', 'réclamer',
+    'recevoir', 'gratuit', 'free', 'tokens gratuits', 'mes airdrops'
+  ];
+  
+  for (const keyword of airdropKeywords) {
+    if (lowerMessage.includes(keyword)) return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Détecter si un message est une demande de création d'airdrop
+ * @param {string} message - Message utilisateur
+ * @returns {boolean} True si c'est une demande de création d'airdrop
+ */
+function isCreateAirdropRequest(message) {
+  const lowerMessage = message.toLowerCase();
+  
+  if (
+    (lowerMessage.includes('crée') || lowerMessage.includes('créer') || 
+     lowerMessage.includes('create') || lowerMessage.includes('faire') || 
+     lowerMessage.includes('lancer') || lowerMessage.includes('distribuer')) &&
+    (lowerMessage.includes('airdrop') || 
+     (lowerMessage.includes('distribu') && lowerMessage.includes('token')))
+  ) {
+    return true;
+  }
+  
+  return false;
+}
+
 module.exports = {
   analyzeIntent,
   isBalanceCheck,
   isHistoryCheck,
-  isCreateTokenRequest
+  isCreateTokenRequest,
+  isGetAirdropsRequest,
+  isCreateAirdropRequest
 };

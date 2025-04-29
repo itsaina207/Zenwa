@@ -16,7 +16,7 @@ const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
 //   claimFromCampaign,
 //   updateCampaignStatus
 // } = require('../hedera/campaigns');
-const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest } = require('../services/openai-service');
+const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest, isGetAirdropsRequest, isCreateAirdropRequest } = require('../services/openai-service');
 const { LANGUAGES, translate, setUserLanguage, getUserLanguage } = require('../utils/localizations');
 
 // Importer les gestionnaires des commandes d'airdrop
@@ -703,6 +703,20 @@ async function handleNaturalLanguage(bot, msg) {
     return;
   }
   
+  // Vérifier si c'est une demande d'airdrops disponibles
+  if (isGetAirdropsRequest(text)) {
+    // Simuler l'appel à la commande claimairdrop
+    await handleClaimAirdrop(bot, msg);
+    return;
+  }
+  
+  // Vérifier si c'est une demande de création d'airdrop
+  if (isCreateAirdropRequest(text)) {
+    // Simuler l'appel à la commande airdrop
+    await handleAirdrop(bot, { ...msg, text: '/airdrop' });
+    return;
+  }
+  
   // Pour les autres requêtes, utiliser OpenAI pour comprendre l'intention
   await bot.sendMessage(chatId, "Traitement de votre demande...");
   
@@ -944,9 +958,14 @@ Utilisez /balance pour vérifier votre nouveau solde.
       await handleClaimAirdrop(bot, msg);
       break;
       
-    case 'get_airdrop':
+    case 'get_airdrops':
       // Afficher les airdrops disponibles
       await handleClaimAirdrop(bot, msg);
+      break;
+      
+    case 'create_airdrop':
+      // Démarrer le processus d'airdrop
+      await handleAirdrop(bot, msg);
       break;
       
     case 'unknown':
