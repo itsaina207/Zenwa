@@ -1,0 +1,48 @@
+compte 0.0.5922104
+[TOKEN_ASSOCIATE] Création de la requête AccountBalanceQuery avec le SDK
+[TOKEN_ASSOCIATE] Exécution de la requête de solde pour 0.0.5922104
+[TOKEN_ASSOCIATE] Récupération des tokens pour le compte 0.0.5922104
+[TOKEN_ASSOCIATE] Tokens associés au compte 0.0.5922104 selon SDK: Aucun
+[TOKEN_ASSOCIATE] ⚠️ Incohérence: Le SDK indique que le token 0.0.5910996 est associé, mais le mirror node ne le confirme pas.
+[TOKEN_ASSOCIATE] ⚠️ Le token 0.0.5910996 n'est PAS associé au compte 0.0.5922104
+[ASSOCIATE_TOKEN] Création de la transaction TokenAssociateTransaction
+[ASSOCIATE_TOKEN] Signature de la transaction avec la clé privée du compte 0.0.5922104
+[ASSOCIATE_TOKEN] Exécution de la transaction d'association
+[ASSOCIATE_TOKEN] ❌ Erreur lors de l'association du token: PrecheckStatusError: transaction 0.0.5876043@1745915907.459375548 failed precheck with status INSUFFICIENT_TX_FEE against node account id 0.0.3
+    at new PrecheckStatusError (/home/runner/workspace/node_modules/@hashgraph/sdk/lib/PrecheckStatusError.cjs:48:5)
+    at TokenAssociateTransaction._mapStatusError (/home/runner/workspace/node_modules/@hashgraph/sdk/lib/transaction/Transaction.cjs:1515:12)
+    at TokenAssociateTransaction.execute (/home/runner/workspace/node_modules/@hashgraph/sdk/lib/Executable.cjs:671:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async associateToken (/home/runner/workspace/src/hedera/tokens.js:646:24)
+    at async handleAssociateConversation (/home/runner/workspace/src/telegram/commands.js:1416:20) {
+  status: Status { _code: 9 },
+  transactionId: TransactionId {
+    accountId: AccountId {
+      shard: [Long],
+      realm: [Long],
+      num: [Long],
+      aliasKey: null,
+      evmAddress: null,
+      _checksum: null
+    },
+    validStart: Timestamp { seconds: [Long], nanos: [Long] },
+    scheduled: false,
+    nonce: null
+  },
+  contractFunctionResult: null,
+  nodeId: AccountId {
+    shard: Long { low: 0, high: 0, unsigned: false },
+    realm: Long { low: 0, high: 0, unsigned: false },
+    num: Long { low: 3, high: 0, unsigned: false },
+    aliasKey: null,
+    evmAddress: null,
+    _checksum: null
+  }
+}
+[ASSOCIATE_TOKEN] Stack trace: StatusError: transaction 0.0.5876043@1745915907.459375548 failed precheck with status INSUFFICIENT_TX_FEE against node account id 0.0.3
+    at new PrecheckStatusError (/home/runner/workspace/node_modules/@hashgraph/sdk/lib/PrecheckStatusError.cjs:48:5)
+    at TokenAssociateTransaction._mapStatusError (/home/runner/workspace/node_modules/@hashgraph/sdk/lib/transaction/Transaction.cjs:1515:12)
+    at TokenAssociateTransaction.execute (/home/runner/workspace/node_modules/@hashgraph/sdk/lib/Executable.cjs:671:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async associateToken (/home/runner/workspace/src/hedera/tokens.js:646:24)
+    at async handleAssociateConversation (/home/runner/workspace/src/telegram/commands.js:1416:20)
