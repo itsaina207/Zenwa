@@ -456,12 +456,29 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       // L'utilisateur devra s'assurer que le compte treasury a suffisamment de HBAR
       console.log(`[TX_ID] Simplification - utilisation du treasury comme payeur`);
       
-      // Utiliser TransferTransaction standard au lieu de TokenAirdropTransaction personnalisée
-      airdropTx = new TransferTransaction()
+      // Vérifier si le destinataire a associé le token AVANT de créer la transaction
+    console.log(`[TOKEN_ASSOCIATION] Vérification si le compte ${recipientAccountId.toString()} a associé le token ${tokenIdObj.toString()}`);
+    const isTokenAssociatedToRecipient = await isTokenAssociated(recipientAccountId.toString(), tokenIdObj.toString());
+    
+    if (!isTokenAssociatedToRecipient) {
+      console.error(`[TOKEN_ASSOCIATION] ❌ Le compte ${recipientAccountId.toString()} n'a pas associé le token ${tokenIdObj.toString()}`);
+      return {
+        success: false,
+        message: `Le destinataire (${recipientAccountId.toString()}) n'a pas associé ce token (${tokenIdObj.toString()}). Le destinataire doit d'abord associer le token en utilisant la commande /associatetoken ${tokenIdObj.toString()}.`,
+        errorType: 'TOKEN_NOT_ASSOCIATED',
+        recipientId: recipientAccountId.toString(),
+        tokenId: tokenIdObj.toString()
+      };
+    }
+    
+    console.log(`[TOKEN_ASSOCIATION] ✅ Le compte ${recipientAccountId.toString()} a bien associé le token ${tokenIdObj.toString()}`);
+    
+    // Utiliser TransferTransaction standard au lieu de TokenAirdropTransaction personnalisée
+    airdropTx = new TransferTransaction()
         .setTransactionMemo(`Airdrop Token ${tokenIdObj.toString()} from ${treasuryAccountId.toString()} to ${recipientAccountId.toString()}`)
         .setMaxTransactionFee(new Hbar(2)); // Augmenter les frais pour assurer que la transaction passe
       
-      console.log(`[TX_CONFIG] Utilisation du treasury comme payeur, avec des frais minimaux (0.1 HBAR)`);
+      console.log(`[TX_CONFIG] Utilisation du treasury comme payeur, avec des frais de 2 HBAR pour assurer l'exécution`);
       
       // Réinitialiser le client avec le treasury comme opérateur
       txClient.setOperator(treasuryAccountId, PrivateKey.fromString(privateKey));
