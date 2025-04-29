@@ -542,10 +542,10 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
           throw new Error(`Impossible de récupérer les informations du token ${tokenIdStr}: ${tokenInfo.message}`);
         }
         
-        // Utiliser le treasuryAccountId comme senderId
-        senderIdStr = tokenInfo.treasuryAccountId;
+        // Utiliser le treasury comme senderId (car c'est le nom du champ dans l'objet retourné par getTokenInfo)
+        senderIdStr = tokenInfo.treasury;
         
-        console.log(`[CLAIM] Utilisation du tokenId: ${tokenIdStr} et du treasuryAccountId: ${senderIdStr}`);
+        console.log(`[CLAIM] Utilisation du tokenId: ${tokenIdStr} et du treasury: ${senderIdStr}`);
       }
       
       // Créer les objets pour le PendingAirdropId
