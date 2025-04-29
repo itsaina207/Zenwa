@@ -5,7 +5,8 @@
 
 const { getUserLanguage } = require('./language/handler');
 const { getBot } = require('./bot');
-const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
+// Fonctionnalités d'airdrop temporairement désactivées pour refactoring
+// const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
 
 // Référence au userState partagé
 let userState;

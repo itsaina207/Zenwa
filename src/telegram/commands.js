@@ -1075,9 +1075,9 @@ To choose English: /language en
 }
 
 function registerCommands(bot) {
-  // Partager l'état de l'utilisateur avec le module airdrop-commands
-  airdropModule.initializeWithSharedState(userState);
-  console.log("État des utilisateurs partagé avec le module airdrop-commands");
+  // Remarque: Les modules d'airdrop sont temporairement désactivés pour refactoring
+  // airdropModule.initializeWithSharedState(userState);
+  // console.log("État des utilisateurs partagé avec le module airdrop-commands");
   
   // Initialiser le module de gestion des boutons avec l'état partagé
   const buttonHandlers = require('./button-handlers');
@@ -1101,14 +1101,14 @@ function registerCommands(bot) {
   bot.onText(/\/mint(.*)/, msg => handleMint(bot, msg));
   bot.onText(/\/associate(.*)/, msg => handleAssociate(bot, msg));
   
-  // Nouvelles commandes pour les airdrops et campagnes
-  bot.onText(/\/airdrop(.*)/, msg => handleAirdrop(bot, msg));
-  bot.onText(/\/campaign(.*)/, msg => handleCampaign(bot, msg));
-  bot.onText(/\/claim(.*)/, msg => handleClaim(bot, msg));
-  bot.onText(/\/claimairdrop(.*)/, msg => handleClaimAirdrop(bot, msg));
-  bot.onText(/\/mycampaigns(.*)/, msg => handleMyCampaigns(bot, msg));
-  bot.onText(/\/campaigninfo(.*)/, msg => handleCampaignInfo(bot, msg));
-  bot.onText(/\/campaignstatus(.*)/, msg => handleCampaignStatus(bot, msg));
+  // Commandes d'airdrop et campagnes temporairement désactivées
+  // bot.onText(/\/airdrop(.*)/, msg => handleAirdrop(bot, msg));
+  // bot.onText(/\/campaign(.*)/, msg => handleCampaign(bot, msg));
+  // bot.onText(/\/claim(.*)/, msg => handleClaim(bot, msg));
+  // bot.onText(/\/claimairdrop(.*)/, msg => handleClaimAirdrop(bot, msg));
+  // bot.onText(/\/mycampaigns(.*)/, msg => handleMyCampaigns(bot, msg));
+  // bot.onText(/\/campaigninfo(.*)/, msg => handleCampaignInfo(bot, msg));
+  // bot.onText(/\/campaignstatus(.*)/, msg => handleCampaignStatus(bot, msg));
   // Nous avons désactivé l'ancien gestionnaire de langue qui causait des conflits
   // bot.onText(/\/(language|langue)(.*)/, msg => handleLanguage(bot, msg));
   
@@ -1200,11 +1200,13 @@ function registerCommands(bot) {
           console.log(`[DEBUG] Message reçu: "${msg.text}"`);
           console.log(`[DEBUG] Données de conversation:`, JSON.stringify(userInfo, null, 2));
           
-          // Si l'utilisateur est dans une conversation d'airdrop, continuer celle-ci
-          const handled = await handleAirdropConversation(bot, msg);
-          console.log(`[DEBUG] Résultat du traitement: ${handled ? 'Traité' : 'Non traité'}`);
+          // Fonctionnalité d'airdrop temporairement désactivée pour refactoring
+          console.log(`[DEBUG] Conversation airdrop désactivée pour ${userId}. État: ${userInfo.state}. Message reçu: "${msg.text}"`);
           
-          if (handled) return;
+          // Réinitialiser l'état à "aucun" pour éviter que l'utilisateur ne reste bloqué
+          userState.set(userId, { state: START_STATES.NONE });
+          await bot.sendMessage(msgChatId, "La fonctionnalité d'airdrop est temporairement indisponible pour maintenance. Votre demande a été annulée.");
+          return true;
           
           // Si nous arrivons ici, la conversation n'a pas été traitée correctement
           console.log(`[WARN] Conversation airdrop non traitée pour l'utilisateur ${userId} avec état ${userInfo.state}`);
@@ -1225,9 +1227,10 @@ function registerCommands(bot) {
     { command: "history", description: "Consulter l'historique de vos transactions" },
     { command: "mint", description: "Créer un nouveau token" },
     { command: "associate", description: "Associer un token à votre compte" },
-    { command: "airdrop", description: "Créer un airdrop de tokens" },
-    { command: "claim", description: "Réclamer des tokens" },
-    { command: "claimairdrop", description: "Réclamer des tokens d'un airdrop" },
+    // Commandes d'airdrop temporairement désactivées
+    // { command: "airdrop", description: "Créer un airdrop de tokens" },
+    // { command: "claim", description: "Réclamer des tokens" },
+    // { command: "claimairdrop", description: "Réclamer des tokens d'un airdrop" },
     { command: "forcetransfer", description: "Transférer un token directement (Admin)" },
     { command: "setlang", description: "Changer la langue (FR/EN)" },
     { command: "help", description: "Afficher de l'aide" },
@@ -1513,7 +1516,7 @@ async function handleForceTransferConversation(bot, msg) {
       await bot.sendMessage(currentChatId, `Recherche du compte pour: ${text}...`);
       
       // Résoudre l'identifiant fourni en un ID de compte Hedera
-      const { resolveToAccountId } = require('../hedera/airdrop');
+      const { resolveToAccountId } = require('../utils/identifiers');
       const accountId = await resolveToAccountId(text);
       
       if (!accountId) {
