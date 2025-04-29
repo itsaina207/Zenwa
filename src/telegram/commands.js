@@ -641,6 +641,162 @@ Utilisez /balance pour vérifier votre nouveau solde.
 }
 
 /**
+ * Handle conversation steps for sending tokens
+ * @param {TelegramBot} bot - Telegram bot instance
+ * @param {object} msg - Telegram message object
+ */
+async function handleSendTokenConversation(bot, msg) {
+  const userId = msg.from.id.toString();
+  const userInfo = userState.get(userId);
+  const msgChatId = msg.chat.id;
+  const text = msg.text.trim();
+  
+  // Vérifier si l'utilisateur est en cours de processus d'envoi de token
+  if (userInfo) {
+    // Traitement des étapes de la conversation en cours
+    const currentChatId = userInfo.chatId;
+    
+    // Gestion des différentes étapes de la conversation
+    switch (userInfo.state) {
+      case SEND_TOKEN_STATES.WAITING_FOR_ADDRESS_TYPE:
+        // L'utilisateur a choisi le type d'adresse à utiliser
+        let promptMessage = '';
+        
+        if (text.includes('Numéro') || text.includes('📱')) {
+          // Option numéro de téléphone
+          userInfo.addressType = 'PHONE';
+          promptMessage = "Entrez le numéro de téléphone du destinataire (format: 0XXXXXXXXX ou +33XXXXXXXXX):";
+        } else if (text.includes('Hedera') || text.includes('🔢')) {
+          // Option adresse Hedera
+          userInfo.addressType = 'HEDERA';
+          promptMessage = "Entrez l'adresse Hedera du destinataire (format: 0.0.xxxx):";
+        } else {
+          // Option non reconnue
+          await bot.sendMessage(
+            currentChatId,
+            "Je n'ai pas compris votre choix. Veuillez sélectionner une des options proposées.",
+            { 
+              reply_markup: {
+                keyboard: [
+                  ['📱 Numéro de téléphone'],
+                  ['🔢 Adresse Hedera (0.0.xxxx)']
+                ],
+                one_time_keyboard: true,
+                resize_keyboard: true
+              }
+            }
+          );
+          return;
+        }
+        
+        // Mettre à jour l'état et demander l'adresse
+        userInfo.state = SEND_TOKEN_STATES.WAITING_FOR_ADDRESS;
+        userState.set(userId, userInfo);
+        
+        await bot.sendMessage(
+          currentChatId,
+          promptMessage,
+          { reply_markup: { force_reply: true, remove_keyboard: true } }
+        );
+        return;
+        
+      case SEND_TOKEN_STATES.WAITING_FOR_ADDRESS:
+        // L'utilisateur a fourni l'adresse de destination
+        userInfo.toAccountId = text;
+        userInfo.state = SEND_TOKEN_STATES.WAITING_FOR_TOKEN_ID;
+        userState.set(userId, userInfo);
+        
+        // Type d'identifiant utilisé pour le message
+        const identifierType = userInfo.addressType === 'PHONE' ? 'numéro de téléphone' : 'adresse Hedera';
+        
+        // Récupérer les tokens de l'utilisateur pour les afficher
+        const { getBalance } = require('../hedera/wallet');
+        const balanceResult = await getBalance(userId);
+        
+        let promptTokenMessage = `Quel token souhaitez-vous envoyer au ${identifierType} ${text}?\nEntrez l'ID du token (format: 0.0.xxxx)`;
+        
+        // Si l'utilisateur a des tokens, les afficher pour faciliter la sélection
+        if (balanceResult.success && typeof balanceResult.balance.tokens === 'object') {
+          const tokenEntries = Object.entries(balanceResult.balance.tokens);
+          if (tokenEntries.length > 0) {
+            promptTokenMessage += "\n\nVos tokens disponibles:";
+            tokenEntries.forEach(([tokenId, amount]) => {
+              promptTokenMessage += `\n- ${tokenId}: ${amount}`;
+            });
+          }
+        }
+        
+        // Demander l'ID du token
+        await bot.sendMessage(
+          currentChatId,
+          promptTokenMessage,
+          { reply_markup: { force_reply: true } }
+        );
+        return;
+        
+      case SEND_TOKEN_STATES.WAITING_FOR_TOKEN_ID:
+        // L'utilisateur a fourni l'ID du token
+        userInfo.tokenId = text;
+        userInfo.state = SEND_TOKEN_STATES.WAITING_FOR_AMOUNT;
+        userState.set(userId, userInfo);
+        
+        // Demander le montant à envoyer
+        await bot.sendMessage(
+          currentChatId,
+          `Quelle quantité du token ${text} souhaitez-vous envoyer?`,
+          { reply_markup: { force_reply: true } }
+        );
+        return;
+        
+      case SEND_TOKEN_STATES.WAITING_FOR_AMOUNT:
+        // L'utilisateur a fourni le montant
+        const amount = parseInt(text, 10) || 0;
+        const toAccountId = userInfo.toAccountId;
+        const tokenId = userInfo.tokenId;
+        const addrType = userInfo.addressType || 'HEDERA'; // Par défaut
+        
+        // Vérifier si le montant est valide
+        if (amount <= 0) {
+          await bot.sendMessage(
+            currentChatId,
+            "Le montant doit être un nombre positif. Veuillez réessayer."
+          );
+          return;
+        }
+        
+        // Réinitialiser l'état
+        userState.set(userId, { ...userInfo, state: SEND_TOKEN_STATES.NONE });
+        
+        // Message d'information adapté au type d'identifiant
+        const identType = addrType === 'PHONE' ? 'numéro de téléphone' : 'adresse Hedera';
+        await bot.sendMessage(currentChatId, `Envoi de ${amount} tokens (${tokenId}) au ${identType} ${toAccountId} en cours...`);
+        
+        // Effectuer la transaction
+        const result = await sendToken(userId, toAccountId, tokenId, amount);
+        
+        // Afficher le résultat
+        if (result.success) {
+          const message = `
+✅ ${result.message}
+
+*Détails de la transaction :*
+Token ID: \`${result.tokenId}\`
+Transaction ID: \`${result.transactionId}\`
+
+[Voir dans l'explorateur](${result.explorerUrl})
+
+Utilisez /balance pour vérifier votre nouveau solde.
+`;
+          await bot.sendMessage(currentChatId, message, { parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(currentChatId, `❌ ${result.message}`);
+        }
+        return;
+    }
+  }
+}
+
+/**
  * Handle conversation steps for sending HBAR
  * @param {TelegramBot} bot - Telegram bot instance
  * @param {object} msg - Telegram message object
@@ -1287,9 +1443,16 @@ function registerCommands(bot) {
         }
         
         // Vérifier si nous sommes dans une conversation d'envoi HBAR
-        if (userInfo.state && [SEND_STATES.WAITING_FOR_ADDRESS, SEND_STATES.WAITING_FOR_AMOUNT].includes(userInfo.state)) {
-          // Si l'utilisateur est dans une conversation d'envoi, continuer celle-ci
+        if (userInfo.state && [SEND_STATES.WAITING_FOR_ADDRESS_TYPE, SEND_STATES.WAITING_FOR_ADDRESS, SEND_STATES.WAITING_FOR_AMOUNT].includes(userInfo.state)) {
+          // Si l'utilisateur est dans une conversation d'envoi HBAR, continuer celle-ci
           handleSendConversation(bot, msg);
+          return;
+        }
+        
+        // Vérifier si nous sommes dans une conversation d'envoi de token
+        if (userInfo.state && Object.values(SEND_TOKEN_STATES).includes(userInfo.state)) {
+          // Si l'utilisateur est dans une conversation d'envoi de token, continuer celle-ci
+          handleSendTokenConversation(bot, msg);
           return;
         }
         
@@ -1758,6 +1921,7 @@ module.exports = {
   handleMint,
   handleMintConversation,
   handleSendConversation,
+  handleSendTokenConversation,
   handleNaturalLanguage,
   handlePhoneNumberConversation,
   // Fonctions d'association de token
