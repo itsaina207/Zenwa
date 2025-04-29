@@ -1,0 +1,104 @@
+Below is an in-depth look at how the Hedera AI Agent Kit implements token airdrops, wrapping Hedera Token Service’s frictionless airdrop primitives in simple AI-driven SDK calls.
+
+The Hedera AI Agent Kit includes built-in tools to create and manage token airdrops via AI-driven SDK commands, wrapping the Hedera Token Service’s frictionless airdrop features in a simple interface 
+Hedera
+GitHub
+. The airdrop flow uses TokenAirdropTransaction to distribute tokens to multiple recipients in a single transaction, handling both direct and pending airdrops based on auto-association slot availability 
+Hedera
+Hedera
+. Recipients can then claim pending airdrops using TokenClaimAirdropTransaction, while senders can cancel unclaimed airdrops via TokenCancelAirdropTransaction 
+Hedera
+Hedera
+. The Agent Kit exposes these operations as intuitive AI agent actions, enabling frictionless token distribution without gas-intensive smart contracts 
+Bitget
+.
+
+Hedera AI Agent Kit Airdrop Overview
+AI Agent Kit and Airdrop Tools
+The Hedera AI Agent Kit is an open-source SDK designed to help developers build AI-driven tooling on Hedera, offering features like token creation, transfers, topic management, and airdrop functionalities 
+Hedera
+GitHub
+. It includes extra tools for simple token transfers and airdrop distribution across multiple accounts with a single command 
+Hedera
+GitHub
+. AI agents built with natural language capabilities can leverage these tools to programmatically manage token flows 
+Bitget
+.
+
+Airdrop Creation
+Underlying Transaction: TokenAirdropTransaction
+Under the hood, the airdrop feature uses Hedera’s TokenAirdropTransaction, introduced in HIP-904, which allows distributing fungible tokens and NFTs to multiple recipients in one atomic transaction 
+Hedera
+Hedera
+. This transaction automatically associates tokens for recipients with available auto-association slots, with the sender covering association and auto-renewal fees 
+Hedera
+. If a recipient lacks association capacity, the network records a pending airdrop instead of failing, enabling recipients to claim when ready 
+Hedera
+. The sender pays for transfer fees, association rent for new token accounts, and a small spam-deterrent fee per pending airdrop entry 
+Hedera
+.
+
+Agent Kit API: Airdrop Function
+The Agent Kit SDK’s Airdrop Management tool provides methods to airdrop and manage airdrops with simple calls that accept a token ID and recipient list 
+GitHub
+. Developers can integrate this into AI prompts such as “airdrop 1000 MYTOKEN to accounts [‘0.0.1234’, ‘0.0.5678’]” to automate multi-account distributions seamlessly 
+Bitget
+.
+
+javascript
+Copier
+Modifier
+// Example using Hedera Agent Kit
+const agent = new HederaAgentKit(client);
+
+await agent.airdropToken("0.0.1234", [
+  { account: "0.0.2345", amount: 1000 },
+  { account: "0.0.3456", amount: 500 },
+]);
+Ensure accounts have sufficient auto-association slots or be prepared to have recipients claim pending airdrops 
+GitHub
+.
+
+Airdrop Claiming
+Underlying Transaction: TokenClaimAirdropTransaction
+Recipients can accept pending airdrops using TokenClaimAirdropTransaction, which finalizes both the auto-association (if needed) and the token transfer in one combined operation 
+Hedera
+. This transaction requires the recipient’s signature (and the fee-payer’s if different), with the recipient covering only the transaction fee 
+Hedera
+. Once claimed, the tokens are transferred irreversibly to the recipient’s account and removed from pending state 
+Hedera
+.
+
+Agent Kit API: Claim Function
+The Agent Kit includes a claimAirdrop method that takes pending airdrop IDs (retrieved via getPendingAirdrops) and submits the TokenClaimAirdropTransaction on the recipient’s behalf 
+GitHub
+. AI agents can be prompted with “claim my pending airdrops” to trigger this flow automatically 
+Bitget
+.
+
+Additional Airdrop Management
+Canceling Unclaimed Airdrops
+Senders can revoke unclaimed airdrops using TokenCancelAirdropTransaction, which removes pending transfers before they are claimed 
+Hedera
+. This helps reclaim tokens in case of erroneous distributions or inactive recipients 
+Hedera
+. A small cancellation fee applies to deter spam and misuse 
+Hedera
+.
+
+Getting Started
+Setup and Authentication
+To get started, install the Agent Kit SDK (via npm or GitHub), configure your Hedera network client with operator credentials, and import the Airdrop Management tools from the SDK 
+GitHub
+.
+
+Conclusion
+The Hedera AI Agent Kit’s airdrop and claim functionalities simplify token distribution workflows, abstracting the complexity of auto-association and pending transfers behind AI-friendly interfaces 
+Hedera
+GitHub
+. By leveraging TokenAirdropTransaction, TokenClaimAirdropTransaction, and TokenCancelAirdropTransaction, you can implement robust, user-friendly token campaigns without writing Solidity or orchestrating multiple transactions manually 
+Hedera
+Hedera
+. AI-driven prompts further lower the barrier to entry, opening token distribution to a wider audience 
+cryptobriefing.com
+.
