@@ -16,7 +16,7 @@ const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
 //   claimFromCampaign,
 //   updateCampaignStatus
 // } = require('../hedera/campaigns');
-const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest, isGetAirdropsRequest, isCreateAirdropRequest } = require('../services/openai-service');
+const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest, isGetAirdropsRequest, isCreateAirdropRequest, isElizaQuery, processWithEliza } = require('../services/openai-service');
 const { LANGUAGES, translate, setUserLanguage, getUserLanguage } = require('../utils/localizations');
 
 // Importer les gestionnaires des commandes d'airdrop
@@ -714,6 +714,28 @@ async function handleNaturalLanguage(bot, msg) {
   if (isCreateAirdropRequest(text)) {
     // Simuler l'appel à la commande airdrop
     await handleAirdrop(bot, { ...msg, text: '/airdrop' });
+    return;
+  }
+  
+  // Vérifier si c'est une requête pour le plugin Eliza (interrogation de la blockchain)
+  if (isElizaQuery(text)) {
+    const chatId = msg.chat.id;
+    
+    await bot.sendMessage(chatId, "Interrogation de la blockchain en cours...");
+    
+    try {
+      const elizaResult = await processWithEliza(userId, text);
+      
+      if (elizaResult.success) {
+        await bot.sendMessage(chatId, elizaResult.response, { parse_mode: 'Markdown' });
+      } else {
+        await bot.sendMessage(chatId, `❌ ${elizaResult.error || "Erreur lors de l'interrogation de la blockchain"}`);
+      }
+    } catch (error) {
+      console.error(`Erreur lors du traitement Eliza: ${error.message}`);
+      await bot.sendMessage(chatId, `❌ Une erreur s'est produite lors de l'interrogation de la blockchain: ${error.message}`);
+    }
+    
     return;
   }
   
