@@ -81,12 +81,17 @@ async function createHederaAgent() {
       - Transferring tokens and HBAR
       - Checking account balances
       - Viewing transaction history
+      - Claiming airdrops
+      - Viewing available airdrops
       
       Always respond to the user's request in the same language they used.
       When reporting financial information, be precise with numbers and units.
       
       The user may reference tokens by name, symbol, or ID. If they use a name or symbol,
       you should attempt to resolve it to the correct token ID.
+      
+      When a user asks to claim airdrops or check available airdrops, provide them
+      with all necessary information about the tokens they can claim.
     `;
     
     // Create the chat prompt
