@@ -4,35 +4,42 @@
 
 const { createAccount, getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
-const { mintToken, sendToken, associateToken, executeAirdropTransfer } = require('../hedera/tokens');
+const { mintToken, sendToken, associateToken } = require('../hedera/tokens');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('../hedera/topic-management');
-const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
-const { 
-  createCampaign, 
-  getCampaign, 
-  getActiveCampaigns, 
-  getUserCampaigns,
-  claimFromCampaign,
-  updateCampaignStatus
-} = require('../hedera/campaigns');
+// Fonctionnalités d'airdrop temporairement désactivées pour refactoring
+// const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
+// const { 
+//   createCampaign, 
+//   getCampaign, 
+//   getActiveCampaigns, 
+//   getUserCampaigns,
+//   claimFromCampaign,
+//   updateCampaignStatus
+// } = require('../hedera/campaigns');
 const { analyzeIntent, isBalanceCheck, isHistoryCheck, isCreateTokenRequest } = require('../services/openai-service');
 const { LANGUAGES, translate, setUserLanguage, getUserLanguage } = require('../utils/localizations');
 
 // Importer les gestionnaires des commandes d'airdrop et de campagne
-const airdropModule = require('./airdrop-commands');
-const { 
-  handleAirdrop, 
-  handleCampaign, 
-  handleClaim, 
-  handleMyCampaigns, 
-  handleCampaignInfo, 
-  handleCampaignStatus, 
-  handleClaimAirdrop, 
-  handleAirdropConversation, 
-  AIRDROP_STATES, 
-  CAMPAIGN_STATES, 
-  CLAIM_STATES 
-} = airdropModule;
+// Temporairement désactivé pour refactoring
+// const airdropModule = require('./airdrop-commands');
+// const { 
+//   handleAirdrop, 
+//   handleCampaign, 
+//   handleClaim, 
+//   handleMyCampaigns, 
+//   handleCampaignInfo, 
+//   handleCampaignStatus, 
+//   handleClaimAirdrop, 
+//   handleAirdropConversation, 
+//   AIRDROP_STATES, 
+//   CAMPAIGN_STATES, 
+//   CLAIM_STATES 
+// } = airdropModule;
+
+// Définir des placeholders pour les états temporairement
+const AIRDROP_STATES = { NONE: 'none_airdrop' };
+const CAMPAIGN_STATES = { NONE: 'none_campaign' };
+const CLAIM_STATES = { NONE: 'none_claim' };
 
 // State management for multi-step operations
 const userState = new Map();
@@ -1635,10 +1642,10 @@ module.exports = {
   // Fonction de transfert forcé pour admin
   handleForceTransfer,
   handleForceTransferConversation,
-  // Exporter les fonctions d'airdrop pour qu'elles soient disponibles ailleurs
-  handleAirdrop,
-  handleClaimAirdrop,
-  handleAirdropConversation,
+  // Fonctions d'airdrop temporairement désactivées pour refactoring
+  // handleAirdrop,
+  // handleClaimAirdrop,
+  // handleAirdropConversation,
   // Exporter les états pour qu'ils soient disponibles ailleurs
   START_STATES,
   SEND_STATES,
