@@ -9,8 +9,8 @@ const { getTransactionHistory } = require('./hedera/transactions');
 const { mintToken, sendToken, executeAirdropTransfer } = require('./hedera/tokens');
 const { associateToken, dissociateToken } = require('./hedera/token-management');
 const { createTopic, submitTopicMessage, getTopicMessages } = require('./hedera/topic-management');
-// Fonctionnalités d'airdrop temporairement désactivées pour refactoring
-// const { getAvailableAirdrops, claimTokenAirdrop } = require('./hedera/airdrop');
+// Fonctionnalités d'airdrop réactivées avec TokenAirdropTransaction
+const { getAvailableAirdrops, claimTokenAirdrop } = require('./hedera/airdrop');
 // Les imports NLP ont été supprimés
 const { initializeAgentKit, getAgentKit } = require('./agent/hedera-agent-kit-adapter');
 const { getWalletByUserId } = require('./storage/userWallets');
@@ -203,33 +203,60 @@ router.post('/wallet/dissociate', async (req, res) => {
 });
 
 /**
- * Get available airdrops for a user (Temporairement désactivé)
+ * Get available airdrops for a user
  * GET /api/wallet/airdrops/:userId
  */
 router.get('/wallet/airdrops/:userId', async (req, res) => {
-  console.log(`[API] Tentative d'accès à la fonctionnalité d'airdrop désactivée: GET /api/wallet/airdrops/${req.params.userId}`);
-  
-  // Répondre avec un message indiquant que la fonctionnalité est temporairement désactivée
-  res.status(503).json({
-    success: false,
-    message: 'La fonctionnalité d\'airdrop est temporairement désactivée pour maintenance.',
-    maintenanceMode: true
-  });
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameter: userId',
+      });
+    }
+    
+    const result = await getAvailableAirdrops(userId);
+    
+    res.json({
+      success: true,
+      airdrops: result,
+      count: result.length
+    });
+  } catch (error) {
+    console.error(`API Error - Get Available Airdrops: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to get available airdrops: ${error.message}`,
+    });
+  }
 });
 
 /**
- * Claim an airdrop (Temporairement désactivé)
+ * Claim an airdrop
  * POST /api/wallet/claim-airdrop
  */
 router.post('/wallet/claim-airdrop', async (req, res) => {
-  console.log(`[API] Tentative d'accès à la fonctionnalité de claim airdrop désactivée: POST /api/wallet/claim-airdrop (userId: ${req.body?.userId}, airdropId: ${req.body?.airdropId})`);
-  
-  // Répondre avec un message indiquant que la fonctionnalité est temporairement désactivée
-  res.status(503).json({
-    success: false,
-    message: 'La fonctionnalité de réclamation d\'airdrop est temporairement désactivée pour maintenance.',
-    maintenanceMode: true
-  });
+  try {
+    const { userId, airdropId, isDbId = true } = req.body;
+    
+    if (!userId || !airdropId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: userId, airdropId',
+      });
+    }
+    
+    const result = await claimTokenAirdrop(userId, airdropId, isDbId);
+    res.json(result);
+  } catch (error) {
+    console.error(`API Error - Claim Airdrop: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: `Failed to claim airdrop: ${error.message}`,
+    });
+  }
 });
 
 /**
