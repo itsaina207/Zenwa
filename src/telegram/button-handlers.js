@@ -5,8 +5,7 @@
 
 const { getUserLanguage } = require('./language/handler');
 const { getBot } = require('./bot');
-// Fonctionnalités d'airdrop temporairement désactivées pour refactoring
-// const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
+const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
 
 // Référence au userState partagé
 let userState;
@@ -106,19 +105,13 @@ async function handleButtonAction(callbackQuery) {
         await bot.sendMessage(
           chatId, 
           userLang === 'fr' ? 
-            "⚠️ La fonctionnalité d'airdrop est temporairement indisponible pour maintenance." : 
-            "⚠️ The airdrop feature is temporarily unavailable for maintenance."
+            "🚀 Lancement de l'airdrop en cours... Veuillez patienter." : 
+            "🚀 Initiating airdrop... Please wait."
         );
         
-        // Fonctionnalité d'airdrop temporairement désactivée pour refactoring
-        console.log('Tentative de création d\'airdrop désactivée pour:', {userId, tokenId: airdropInfo.tokenId, recipients: airdropInfo.recipients});
-        // const result = await createTokenAirdrop(userId, airdropInfo.tokenId, airdropInfo.recipients);
-        const result = { 
-          success: false, 
-          message: "Fonctionnalité temporairement désactivée pour maintenance",
-          errorType: "FEATURE_DISABLED"
-        };
-        console.log('Résultat de la tentative désactivée:', JSON.stringify(result, null, 2));
+        console.log('Tentative de création d\'airdrop pour:', {userId, tokenId: airdropInfo.tokenId, recipients: airdropInfo.recipients});
+        const result = await createTokenAirdrop(userId, airdropInfo.tokenId, airdropInfo.recipients);
+        console.log('Résultat de l\'airdrop:', JSON.stringify(result, null, 2));
         
         // Traiter le résultat
         if (result.success) {
@@ -178,25 +171,71 @@ async function handleButtonAction(callbackQuery) {
   
   // Gérer la réclamation d'airdrop via boutons
   if (action.startsWith('claim_airdrop_')) {
-    await bot.answerCallbackQuery(callbackQuery.id, { text: 'Fonctionnalité désactivée' });
+    await bot.answerCallbackQuery(callbackQuery.id, { text: 'Réclamation en cours...' });
     
     const airdropId = action.split('claim_airdrop_')[1];
     const userLang = getUserLanguage(userId);
     
-    console.log(`[CLAIM] Tentative de réclamation d'airdrop désactivée. Action: ${action}, ID: ${airdropId}, User: ${userId}`);
+    console.log(`[CLAIM] Tentative de réclamation d'airdrop. Action: ${action}, ID: ${airdropId}, User: ${userId}`);
     
-    // Notifier l'utilisateur que la fonctionnalité est désactivée
+    // Notifier l'utilisateur que le processus a commencé
     await bot.sendMessage(
       chatId, 
       userLang === 'fr' ? 
-        "⚠️ *La fonctionnalité de réclamation d'airdrop est temporairement désactivée pour maintenance.*\n\nNous travaillons à son amélioration et elle sera bientôt de retour." : 
-        "⚠️ *The airdrop claim feature is temporarily disabled for maintenance.*\n\nWe are working on improving it and it will be back soon.",
+        "🔄 *Réclamation de l'airdrop en cours...*\n\nVeuillez patienter pendant que nous traitons votre demande." : 
+        "🔄 *Claiming airdrop in progress...*\n\nPlease wait while we process your request.",
       { parse_mode: 'Markdown' }
     );
     
-    return true;
-    
-    // Tout le code de traitement d'airdrop est temporairement désactivé pour refactoring
+    try {
+      // Appeler la fonction de réclamation d'airdrop
+      const result = await claimTokenAirdrop(userId, airdropId, true); // true = utiliser l'ID de la base de données
+      
+      console.log(`[CLAIM] Résultat de la réclamation:`, JSON.stringify(result, null, 2));
+      
+      if (result.success) {
+        // Message de succès
+        const message = userLang === 'fr' ?
+          `✅ *Airdrop réclamé avec succès!*\n\n` +
+          `Token: ${result.tokenId || 'N/A'}\n` +
+          `Montant: ${result.amount || 'N/A'}\n` +
+          `ID de transaction: ${result.transactionId || 'N/A'}\n` +
+          `Vérifier sur [HashScan](${result.explorerUrls?.hashscanUrl || 'https://hashscan.io'})` :
+          `✅ *Airdrop successfully claimed!*\n\n` +
+          `Token: ${result.tokenId || 'N/A'}\n` +
+          `Amount: ${result.amount || 'N/A'}\n` +
+          `Transaction ID: ${result.transactionId || 'N/A'}\n` +
+          `Check on [HashScan](${result.explorerUrls?.hashscanUrl || 'https://hashscan.io'})`;
+        
+        await bot.sendMessage(chatId, message, { parse_mode: 'Markdown', disable_web_page_preview: true });
+      } else {
+        // Message d'erreur
+        let errorMessage;
+        
+        // Vérifier si c'est une erreur de solde insuffisant
+        if (result.errorType === 'INSUFFICIENT_BALANCE') {
+          errorMessage = userLang === 'fr' ?
+            `⚠️ *Solde HBAR insuffisant*\n\nVous avez seulement ${result.currentBalance} HBAR, mais il vous faut au moins ${result.requiredBalance} HBAR pour cette opération.\n\nVeuillez recharger votre compte et réessayer.` :
+            `⚠️ *Insufficient HBAR balance*\n\nYou only have ${result.currentBalance} HBAR, but you need at least ${result.requiredBalance} HBAR for this operation.\n\nPlease top up your account and try again.`;
+        } else {
+          errorMessage = userLang === 'fr' ?
+            `❌ *Erreur lors de la réclamation de l'airdrop*\n\n${result.message}` :
+            `❌ *Error claiming airdrop*\n\n${result.message}`;
+        }
+        
+        await bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+      }
+    } catch (error) {
+      console.error(`[CLAIM] Erreur lors de la réclamation:`, error);
+      
+      await bot.sendMessage(
+        chatId,
+        userLang === 'fr' ?
+          `❌ *Erreur lors de la réclamation de l'airdrop*\n\n${error.message}` :
+          `❌ *Error claiming airdrop*\n\n${error.message}`,
+        { parse_mode: 'Markdown' }
+      );
+    }
     
     // Réinitialiser l'état de l'utilisateur
     userState.delete(userId);
