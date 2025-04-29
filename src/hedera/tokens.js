@@ -12,7 +12,9 @@ const {
   PrivateKey,
   AccountId,
   TokenAirdropTransaction,
-  TokenInfoQuery
+  TokenInfoQuery,
+  Hbar,
+  TokenId
 } = require('@hashgraph/sdk');
 const { getClient } = require('./client');
 const { getWalletByUserId } = require('../storage/userWallets');
