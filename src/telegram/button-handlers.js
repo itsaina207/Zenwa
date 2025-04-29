@@ -94,6 +94,21 @@ async function handleButtonAction(callbackQuery) {
     const userInfo = userState.get(userId) || { state: 'none', airdropInfo: { recipients: [], tokenId: null } };
     console.log('userInfo dans airdrop_finalize:', JSON.stringify(userInfo, null, 2));
     
+    // Si l'airdrop est déjà en cours de traitement, ignorer ce second clic
+    if (userInfo.processingAirdrop) {
+      console.log(`[AIRDROP] Ignoré double clic pour l'utilisateur ${userId}`);
+      await bot.answerCallbackQuery(callbackQuery.id, { 
+        text: getUserLanguage(userId) === 'fr' ? 
+          "L'airdrop est déjà en cours de traitement..." : 
+          "The airdrop is already being processed..." 
+      });
+      return true;
+    }
+    
+    // Marquer l'airdrop comme étant en cours de traitement
+    userInfo.processingAirdrop = true;
+    userState.set(userId, userInfo);
+    
     // Accéder aux données à partir de airdropInfo
     const airdropInfo = userInfo.airdropInfo || { recipients: [], tokenId: null };
     console.log('airdropInfo extraite:', JSON.stringify(airdropInfo, null, 2));
@@ -165,6 +180,8 @@ async function handleButtonAction(callbackQuery) {
           "❌ Impossible de finaliser l'airdrop: données incomplètes" :
           "❌ Cannot finalize airdrop: incomplete data"
       );
+      // Réinitialiser l'état de l'utilisateur
+      userState.delete(userId);
     }
     return true;
   }
