@@ -1,6 +1,7 @@
 /**
  * Natural Language Processor for Hedera wallet actions
  * Processes natural language commands and converts them to wallet actions
+ * Includes Eliza plugin integration for blockchain state queries
  */
 
 const { getWalletByUserId } = require('../storage/userWallets');
@@ -8,6 +9,7 @@ const { getBalance, sendHbar } = require('../hedera/account');
 const { getTransactionHistory } = require('../hedera/transactions');
 const { mintToken, sendToken } = require('../hedera/tokens');
 const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
+const { isElizaQuery, processWithEliza } = require('../services/openai-service');
 
 /**
  * Process a natural language command for Hedera wallet actions
@@ -20,6 +22,12 @@ async function processNaturalLanguageCommand(userId, message) {
   const text = message.toLowerCase().trim();
   
   try {
+    // Check if this is an Eliza blockchain query
+    if (isElizaQuery(message)) {
+      console.log(`Processing Eliza query: ${message}`);
+      return await processWithEliza(userId, message);
+    }
+
     // Check if wallet exists
     const wallet = await getWalletByUserId(userId);
     if (!wallet) {
