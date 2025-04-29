@@ -878,7 +878,7 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
     console.log(`Création de la transaction de réclamation d'airdrop avec pendingAirdropId: ${pendingAirdropId}`);
     const txClaimAirdrop = await new TokenClaimAirdropTransaction()
       .addPendingAirdropId(pendingAirdropIdObj)
-      .setMaxTransactionFee(new Hbar(0.05)) // Limitation des frais à 0.05 HBAR pour éviter INSUFFICIENT_PAYER_BALANCE
+      .setMaxTransactionFee(new Hbar(0.5)) // Utilisation de 0.5 HBAR pour les réclamations d'airdrop (opération plus coûteuse)
       .freezeWith(client);
       
     // Convertir la chaîne privateKey en objet PrivateKey et signer

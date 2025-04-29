@@ -633,7 +633,7 @@ async function associateToken(userId, tokenId) {
     const transaction = await new TokenAssociateTransaction()
       .setAccountId(wallet.accountId)
       .setTokenIds([tokenId])
-      .setMaxTransactionFee(new Hbar(0.05)) // Limitation des frais à 0.05 HBAR pour éviter INSUFFICIENT_PAYER_BALANCE
+      .setMaxTransactionFee(new Hbar(0.5)) // Utilisation de 0.5 HBAR pour les associations de token (opération plus coûteuse)
       .freezeWith(client);
     
     // Signer avec la clé privée du compte
