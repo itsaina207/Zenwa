@@ -940,6 +940,16 @@ Utilisez /balance pour vérifier votre nouveau solde.
       }
       break;
       
+    case 'claim_airdrop':
+      // Utiliser la fonction handleClaimAirdrop pour démarrer le processus de réclamation d'airdrop
+      await handleClaimAirdrop(bot, msg);
+      break;
+      
+    case 'get_airdrop':
+      // Afficher les airdrops disponibles
+      await handleClaimAirdrop(bot, msg);
+      break;
+      
     case 'unknown':
     default:
       await bot.sendMessage(
