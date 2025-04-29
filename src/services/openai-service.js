@@ -213,11 +213,97 @@ function isCreateAirdropRequest(message) {
   return false;
 }
 
+/**
+ * Détecter si un message est une requête Eliza pour interroger la blockchain
+ * @param {string} message - Message utilisateur
+ * @returns {boolean} True si c'est une requête pour le plugin Eliza
+ */
+function isElizaQuery(message) {
+  const lowerMessage = message.toLowerCase();
+  
+  const elizaPatterns = [
+    // Requêtes d'éligibilité aux airdrops
+    { keywords: ['eligible', 'airdrop'], threshold: 2 },
+    { keywords: ['droit', 'airdrop'], threshold: 2 },
+    { keywords: ['recevoir', 'airdrop'], threshold: 2 },
+    
+    // Requêtes sur les propriétaires de tokens
+    { keywords: ['qui', 'possède', 'token'], threshold: 3 },
+    { keywords: ['who', 'owns', 'token'], threshold: 3 },
+    { keywords: ['liste', 'possesseurs', 'token'], threshold: 2 },
+    { keywords: ['liste', 'détenteurs', 'token'], threshold: 2 },
+    { keywords: ['list', 'holders', 'token'], threshold: 2 },
+    
+    // Requêtes d'information sur les tokens
+    { keywords: ['token', 'information', 'détails'], threshold: 2 },
+    { keywords: ['token', 'info'], threshold: 2 },
+    { keywords: ['détails', 'token'], threshold: 2 },
+    { keywords: ['supply', 'token'], threshold: 2 },
+    { keywords: ['treasury', 'token'], threshold: 2 },
+    
+    // Requêtes générales sur la blockchain
+    { keywords: ['interroger', 'blockchain'], threshold: 2 },
+    { keywords: ['query', 'blockchain'], threshold: 2 }
+  ];
+  
+  // Recherche de correspondance dans les patterns
+  for (const pattern of elizaPatterns) {
+    let matchCount = 0;
+    for (const keyword of pattern.keywords) {
+      if (lowerMessage.includes(keyword)) {
+        matchCount++;
+      }
+    }
+    if (matchCount >= pattern.threshold) {
+      return true;
+    }
+  }
+  
+  // Vérifier si un ID de token est mentionné (format 0.0.XXXXX)
+  if (lowerMessage.match(/0\.0\.\d+/) && 
+      (lowerMessage.includes('token') || 
+       lowerMessage.includes('qui') || 
+       lowerMessage.includes('possède') || 
+       lowerMessage.includes('détenteurs') || 
+       lowerMessage.includes('holders') || 
+       lowerMessage.includes('owns'))) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Traiter une requête via le plugin Eliza
+ * @param {string} userId - ID de l'utilisateur Telegram
+ * @param {string} message - Message en langage naturel
+ * @returns {Promise<object>} Résultat de la requête Eliza
+ */
+async function processWithEliza(userId, message) {
+  try {
+    const elizaResult = await processElizaQuery(userId, message);
+    return {
+      success: true,
+      action: 'eliza_query',
+      response: elizaResult.message,
+      isElizaResponse: true
+    };
+  } catch (error) {
+    console.error(`Erreur lors du traitement avec Eliza: ${error.message}`);
+    return {
+      success: false,
+      error: `Erreur lors du traitement de votre requête sur la blockchain: ${error.message}`
+    };
+  }
+}
+
 module.exports = {
   analyzeIntent,
   isBalanceCheck,
   isHistoryCheck,
   isCreateTokenRequest,
   isGetAirdropsRequest,
-  isCreateAirdropRequest
+  isCreateAirdropRequest,
+  isElizaQuery,
+  processWithEliza
 };
