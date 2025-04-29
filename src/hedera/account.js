@@ -322,7 +322,7 @@ async function sendHbar(fromUserId, toAccountId, amount) {
     // Create the transfer transaction
     const transaction = new TransferTransaction()
       .addHbarTransfer(wallet.accountId, hbarAmount.negated())
-      .addHbarTransfer(toAccountId, hbarAmount)
+      .addHbarTransfer(receiverAccountId, hbarAmount)
       .freezeWith(client);
 
     // Sign with the sender's private key

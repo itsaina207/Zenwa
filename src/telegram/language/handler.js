@@ -458,20 +458,37 @@ const initializeLanguageHandler = (bot) => {
     else if (action === 'cmd_balance') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'balanceInfo') });
       // Exécuter la commande directement au lieu de simuler
+      const simulatedMsg = { 
+        chat: { id: chatId }, 
+        from: callbackQuery.from,
+        text: '/balance'  // Ajouter un texte pour éviter l'erreur
+      };
       const { handleBalance } = require('../commands');
-      await handleBalance(bot, { chat: { id: chatId }, from: callbackQuery.from });
+      await handleBalance(bot, simulatedMsg);
     }
     else if (action === 'cmd_send') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'sendInfo') });
       // Exécuter la commande directement au lieu de simuler
+      // Créer un objet message synthétique pour simuler une commande
+      const simulatedMsg = { 
+        chat: { id: chatId }, 
+        from: callbackQuery.from,
+        text: '/send'  // Ajouter un texte pour éviter l'erreur
+      };
       const { handleSend } = require('../commands');
-      await handleSend(bot, { chat: { id: chatId }, from: callbackQuery.from });
+      await handleSend(bot, simulatedMsg);
     }
     else if (action === 'cmd_sendtoken') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'sendTokenInfo') });
       // Exécuter la commande directement au lieu de simuler
+      // Créer un objet message synthétique pour simuler une commande
+      const simulatedMsg = { 
+        chat: { id: chatId }, 
+        from: callbackQuery.from,
+        text: '/sendtoken'  // Ajouter un texte pour éviter l'erreur
+      };
       const { handleSendToken } = require('../commands');
-      await handleSendToken(bot, { chat: { id: chatId }, from: callbackQuery.from });
+      await handleSendToken(bot, simulatedMsg);
     }
     else if (action === 'cmd_history') {
       await bot.answerCallbackQuery(callbackQuery.id, { text: translate(userId, 'historyInfo') });

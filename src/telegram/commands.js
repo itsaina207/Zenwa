@@ -581,7 +581,7 @@ Utilisez /balance pour voir votre nouveau token dans votre portefeuille.
 async function handleSendToken(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const args = msg.text.split(' ').slice(1);
+  const args = msg.text ? msg.text.split(' ').slice(1) : [];
   
   // Si des arguments sont fournis, utiliser l'ancienne méthode directe
   if (args.length >= 3) {
