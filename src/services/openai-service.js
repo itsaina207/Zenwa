@@ -1,11 +1,13 @@
 /**
  * Service OpenAI pour l'analyse du langage naturel
  * Extrait les intentions des messages utilisateur et les mappe aux fonctions Hedera Agent Kit
+ * Intègre le plugin Eliza pour les requêtes d'information sur la blockchain
  */
 
 require('dotenv').config();
 const { getHederaAgentKit } = require('../agent/hedera-agent-kit-integration');
 const { OpenAI } = require('openai');
+const { processElizaQuery } = require('../plugins/eliza-plugin');
 
 // Vérifier que la clé API est présente
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;

@@ -1,44 +1,48 @@
-# Hedera Custodial Wallet avec Bot Telegram
+# Hedera Custodial Wallet with Telegram Bot
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Hedera](https://img.shields.io/badge/Hedera-Hashgraph-00BFFF)
 ![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue)
+![HIP-991](https://img.shields.io/badge/HIP-991-green)
+![HCS-10](https://img.shields.io/badge/HCS-10-orange)
 
-Une application de wallet custodial Hedera avec intégration de bot Telegram, offrant une gestion complète des actifs Hedera via une interface conversationnelle, propulsée par l'Hedera Agent Kit officiel et OpenAI.
+A Hedera custodial wallet application with Telegram bot integration, offering comprehensive management of Hedera assets through a conversational interface, powered by the official Hedera Agent Kit and OpenAI.
 
-## Caractéristiques
+## Features
 
-- 🔐 **Gestion de wallet custodial** - Création et gestion sécurisée de comptes Hedera
-- 💰 **Transfert d'HBAR** - Envoi et réception d'HBAR entre comptes Hedera
-- 🪙 **Gestion des tokens** - Création et transfert de tokens fongibles avec processus interactif
-- 📜 **Hedera Consensus Service** - Création de topics, envoi et récupération de messages
-- 📊 **Historique des transactions** - Consultation de l'historique des transactions avec liens vers les explorateurs blockchain
-- 🤖 **Interface de bot Telegram** - Interaction avec le wallet via commandes ou langage naturel
-- 🧠 **Compréhension du langage naturel** - Analyse des demandes utilisateur avec l'API OpenAI
-- 🔗 **Intégration de l'Hedera Agent Kit** - Utilisation de l'API officielle pour les opérations blockchain
+- 🔐 **Custodial Wallet Management** - Secure creation and management of Hedera accounts
+- 💰 **HBAR Transfers** - Send and receive HBAR between Hedera accounts
+- 🪙 **Token Management** - Creation and transfer of fungible tokens with interactive process
+- 🚀 **Token Airdrops** - Create and claim token airdrops using Hedera's TokenAirdropTransaction
+- 📜 **Hedera Consensus Service** - Topic creation, message submission and retrieval
+- 📊 **Transaction History** - View transaction history with links to blockchain explorers
+- 🤖 **Telegram Bot Interface** - Interact with the wallet via commands or natural language
+- 🧠 **Natural Language Processing** - Analysis of user requests with OpenAI API
+- 🔗 **Hedera Agent Kit Integration** - Utilizing the official API for blockchain operations
+- 🌐 **Multilingual Support** - French and English language options for increased accessibility
 
-## Technologies utilisées
+## Technologies Used
 
 - **Backend**: Node.js, Express.js
 - **Blockchain**: Hedera Hashgraph, Hedera Agent Kit
-- **Base de données**: PostgreSQL
+- **Database**: PostgreSQL
 - **Communication**: Telegram Bot API
-- **IA**: API OpenAI pour l'analyse du langage naturel
-- **Persistance**: Stockage sécurisé des clés privées
+- **AI**: OpenAI API for natural language processing
+- **Persistence**: Secure storage of private keys
 
-## Configuration
+## Setup
 
-### Prérequis
+### Prerequisites
 
 - Node.js v18+
 - PostgreSQL
-- Compte Hedera Testnet
-- Compte Telegram Bot (via BotFather)
-- Compte OpenAI pour l'API
+- Hedera Testnet Account
+- Telegram Bot Account (via BotFather)
+- OpenAI API Account
 
-### Variables d'environnement
+### Environment Variables
 
-Créez un fichier `.env` à la racine du projet avec les variables suivantes :
+Create a `.env` file at the root of the project with the following variables:
 
 ```env
 # Hedera configuration
@@ -65,110 +69,185 @@ DATABASE_URL=postgresql://username:password@localhost:5432/hedera_wallet
 
 ### Installation
 
-1. Clonez le dépôt :
+1. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/hedera-telegram-wallet.git
    cd hedera-telegram-wallet
    ```
 
-2. Installez les dépendances :
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. Configurez la base de données :
+3. Configure the database:
    ```bash
-   # Assurez-vous que PostgreSQL est en cours d'exécution
-   # La base de données sera créée automatiquement au démarrage
+   # Make sure PostgreSQL is running
+   # The database will be created automatically on startup
    ```
 
-4. Démarrez l'application :
+4. Start the application:
    ```bash
    npm start
    ```
 
-## Utilisation
+## Usage
 
-### Commandes du bot Telegram
+### Telegram Bot Commands
 
-| Commande | Description |
+| Command | Description |
 |----------|-------------|
-| `/start` | Démarrer la conversation avec le bot |
-| `/help` | Afficher l'aide et la liste des commandes |
-| `/createwallet` | Créer un nouveau wallet Hedera |
-| `/balance` | Vérifier le solde de votre wallet |
-| `/send` | Envoyer des HBAR à un autre compte |
-| `/sendtoken` | Envoyer des tokens à un autre compte |
-| `/mint` | Créer un nouveau token (processus interactif) |
-| `/history` | Consulter l'historique des transactions |
+| `/start` | Start conversation with the bot |
+| `/help` | Display help and command list |
+| `/createwallet` | Create a new Hedera wallet |
+| `/balance` | Check your wallet balance |
+| `/send` | Send HBAR to another account |
+| `/sendtoken` | Send tokens to another account |
+| `/mint` | Create a new token (interactive process) |
+| `/history` | View transaction history |
+| `/airdrop` | Create a token airdrop |
+| `/claimairdrop` | View and claim available airdrops |
 
-### Interaction en langage naturel
+### Natural Language Interaction
 
-Le bot comprend également des commandes en langage naturel, par exemple :
+The bot also understands natural language commands, for example:
 
-- "Quel est mon solde ?"
-- "Crée un nouveau wallet"
-- "Envoie 5 HBAR à 0.0.12345"
-- "Crée un token appelé MyToken"
-- "Montre-moi mon historique de transactions"
-- "Crée un topic nommé MonTopic"
+- "What is my balance?"
+- "Create a new wallet"
+- "Send 5 HBAR to 0.0.12345"
+- "Create a token called MyToken"
+- "Show me my transaction history"
+- "Create a topic named MyTopic"
+- "Create an airdrop for token 0.0.12345"
+- "Show available airdrops"
+- "Claim my airdrop"
 
 ## Architecture
 
-Le projet est organisé selon la structure suivante :
+The project is organized according to the following structure:
 
 ```
 hedera-telegram-wallet/
 ├── src/
-│   ├── agent/             # Intégration de l'Hedera Agent Kit
-│   ├── hedera/            # Opérations Hedera de base
+│   ├── agent/             # Hedera Agent Kit integration
+│   ├── hedera/            # Basic Hedera operations
 │   ├── services/          # Services (OpenAI, etc.)
-│   ├── storage/           # Gestion de la base de données
-│   ├── telegram/          # Intégration du bot Telegram
-│   ├── utils/             # Utilitaires
-│   ├── api.js             # API REST
+│   ├── storage/           # Database management
+│   ├── telegram/          # Telegram bot integration
+│   ├── utils/             # Utilities
+│   ├── api.js             # REST API
 │   ├── config.js          # Configuration
-│   └── index.js           # Point d'entrée
-├── docs/                  # Documentation technique détaillée
-├── .env.example           # Exemple de fichier de configuration
+│   └── index.js           # Entry point
+├── docs/                  # Detailed technical documentation
+├── .env.example           # Example configuration file
 ├── package.json
 └── README.md
 ```
 
-## Documentation technique
+## Technical Documentation
 
-Pour une documentation plus détaillée sur l'API, les fonctionnalités et l'architecture, consultez les documents dans le répertoire [docs/](./docs/).
+For more detailed documentation on the API, features, and architecture, check the documents in the [docs/](./docs/) directory.
 
-## Sécurité
+### Hedera Implementation
 
-Ce wallet est **custodial**, ce qui signifie que les clés privées des utilisateurs sont stockées sur le serveur. Il est recommandé d'utiliser ce projet uniquement à des fins de démonstration ou pour de petites sommes.
+This project leverages multiple Hedera services:
 
-Pour une utilisation en production, considérez les améliorations suivantes :
-- Chiffrement des clés privées
-- Authentification multi-facteurs
-- Limites de transaction
-- Surveillance et alertes
+1. **Hedera Token Service (HTS)**
+   - Implementation: [src/hedera/tokens.js](./src/hedera/tokens.js)
+   - Used for creating fungible tokens via `TokenCreateTransaction`
+   - Token transfers using `TransferTransaction`
+   - Token operations with appropriate treasury accounts
+   - Auto-association handling for recipients
 
-## Contribution
+2. **Hedera Consensus Service (HCS)**
+   - Implementation: [src/hedera/topic-management.js](./src/hedera/topic-management.js)
+   - Topic creation via `TopicCreateTransaction`
+   - Message submission with `TopicMessageSubmitTransaction`
+   - Message retrieval using Mirror Node REST API
 
-Les contributions sont les bienvenues ! N'hésitez pas à soumettre une Pull Request ou à ouvrir une Issue pour toute suggestion ou problème.
+3. **Hedera Account Management**
+   - Implementation: [src/hedera/account.js](./src/hedera/account.js)
+   - Account creation via `AccountCreateTransaction`
+   - HBAR transfers using `TransferTransaction`
+   - Balance queries via `AccountBalanceQuery`
 
-1. Forkez le projet
-2. Créez votre branche de fonctionnalité (`git checkout -b feature/amazing-feature`)
-3. Committez vos changements (`git commit -m 'Add some amazing feature'`)
-4. Poussez vers la branche (`git push origin feature/amazing-feature`)
-5. Ouvrez une Pull Request
+4. **Advanced Token Management**
+   - Airdrop implementation: [src/hedera/airdrop.js](./src/hedera/airdrop.js)
+   - Using the new `TokenAirdropTransaction` for efficient token distribution
+   - Claim functionality with `TokenClaimAirdropTransaction`
 
-## Licence
+### HIP-991 and HCS-10 Implementation
 
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+#### HIP-991 (Hedera Agent Protocol)
+
+This project implements HIP-991 through the Hedera Agent Kit integration:
+
+- Implementation: [src/agent/hedera-agent-kit-adapter.js](./src/agent/hedera-agent-kit-adapter.js)
+- The Hedera Agent Kit provides a standardized interface for interacting with Hedera services
+- Agent tools created in [src/agent/kit-manager.js](./src/agent/kit-manager.js)
+- Natural language processing with kit integration in [src/agent/nlp-processor.js](./src/agent/nlp-processor.js)
+
+Key features of our HIP-991 implementation:
+- Standardized agent API for Hedera operations
+- LangChain integration for natural language processing
+- Tool-based architecture for modular functionality
+- Agent operations using GPT-4o for accurate intent recognition
+
+#### HCS-10 (Hedera Consensus Service Topic Management)
+
+Our implementation follows the HCS-10 specification for topic management:
+
+- Implementation: [src/hedera/topic-management.js](./src/hedera/topic-management.js)
+- Topic creation with appropriate properties and permissions
+- Structured message submission with consistent formats
+- Topic ID resolution from human-readable identifiers
+- Message retrieval and parsing according to the standard
+
+### Deployment Information
+
+This project is deployed on the Hedera Testnet. Key deployed artifacts:
+
+1. **Tokens**: Multiple fungible tokens have been created for testing purposes
+   - Example Token: [0.0.15784236](https://hashscan.io/testnet/token/0.0.15784236)
+
+2. **HCS Topics**: Several consensus topics were created for messaging demonstration
+   - Example Topic: [0.0.15784237](https://hashscan.io/testnet/topic/0.0.15784237)
+
+3. **Wallet Accounts**: User wallets are created on Testnet
+   - Operator Account: [0.0.14396235](https://hashscan.io/testnet/account/0.0.14396235)
+
+4. **Telegram Bot**: The bot is active and accessible at [@YourBotName](https://t.me/YourBotName)
+
+## Security
+
+This wallet is **custodial**, which means that users' private keys are stored on the server. It is recommended to use this project only for demonstration purposes or for small amounts.
+
+For production use, consider the following improvements:
+- Private key encryption
+- Multi-factor authentication
+- Transaction limits
+- Monitoring and alerts
+
+## Contributing
+
+Contributions are welcome! Feel free to submit a Pull Request or open an Issue for any suggestions or problems.
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact
 
-Pour toute question ou suggestion, n'hésitez pas à nous contacter :
-- Courriel : votre.email@exemple.com
-- GitHub : [votre-nom-github](https://github.com/votre-nom-github)
+For any questions or suggestions, please don't hesitate to contact us:
+- Email: your.email@example.com
+- GitHub: [your-github-name](https://github.com/your-github-name)
 
 ---
 
-Développé avec ❤️ pour la communauté Hedera
+Developed with ❤️ for the Hedera community

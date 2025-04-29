@@ -17,6 +17,7 @@ const {
 } = require('../config');
 
 let client = null;
+let networkConfig = null;
 
 /**
  * Initialize Hedera client with operator credentials
@@ -46,7 +47,10 @@ const initClient = () => {
     }
 
     // Create client based on network setting
-    switch (HEDERA_NETWORK.toLowerCase()) {
+    const network = HEDERA_NETWORK.toLowerCase();
+    networkConfig = { network }; // Store network info for mirror node use
+    
+    switch (network) {
       case 'mainnet':
         client = Client.forMainnet();
         break;
@@ -57,6 +61,7 @@ const initClient = () => {
         client = Client.forPreviewnet();
         break;
       default:
+        networkConfig.network = 'testnet';
         client = Client.forTestnet();
     }
 
@@ -81,7 +86,20 @@ const getClient = () => {
   return client;
 };
 
+/**
+ * Get the network configuration
+ * @returns {Object} Network configuration object with network property
+ */
+const getNetworkConfig = () => {
+  if (!networkConfig) {
+    // Initialize client which will set the networkConfig
+    initClient();
+  }
+  return networkConfig;
+};
+
 module.exports = {
   initClient,
   getClient,
+  getNetworkConfig,
 };
