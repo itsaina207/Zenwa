@@ -19,8 +19,52 @@ const { getClient } = require('./client');
 const { getAccountInfo } = require('./account');
 const { getExplorerUrls } = require('../utils/explorer');
 const { isTokenAssociated, associateToken, getTokenInfo } = require('./tokens');
-const { getWalletByUserId, getWalletByUsername, getWalletByPhoneNumber } = require('../storage/userWallets');
+const { getWalletByUserId, getWalletByUsername, getWalletByPhoneNumber, getWalletByAccountId } = require('../storage/userWallets');
 const { storeAirdrop, getAvailableAirdropsForAccount, markAirdropAsClaimed } = require('../storage/airdrops');
+
+/**
+ * Obtient un client Hedera configuré avec le compte treasury comme opérateur
+ * @param {string} treasuryId - ID du compte treasury
+ * @returns {Promise<Client|null>} - Client Hedera configuré ou null en cas d'erreur
+ */
+async function getTreasuryClient(treasuryId) {
+  try {
+    console.log(`[TREASURY_CLIENT] Configuration du client pour le treasury ${treasuryId}`);
+    
+    // Si le treasury est notre compte principal, utiliser les clés du fichier .env
+    if (process.env.HEDERA_ACCOUNT_ID && treasuryId === process.env.HEDERA_ACCOUNT_ID) {
+      console.log(`[TREASURY_CLIENT] Le treasury est notre compte principal, utilisation des clés du fichier .env`);
+      const accountId = process.env.HEDERA_ACCOUNT_ID;
+      const privateKey = process.env.HEDERA_PRIVATE_KEY;
+      
+      if (!accountId || !privateKey) {
+        console.error('[TREASURY_CLIENT] Variables d\'environnement HEDERA_ACCOUNT_ID ou HEDERA_PRIVATE_KEY manquantes');
+        return null;
+      }
+      
+      return Client.forTestnet().setOperator(accountId, privateKey);
+    }
+    
+    // Vérifier si le treasury est un portefeuille utilisateur dans notre base de données
+    console.log(`[TREASURY_CLIENT] Recherche du treasury ${treasuryId} dans les portefeuilles utilisateurs`);
+    const treasuryWallet = await getWalletByAccountId(treasuryId);
+    
+    if (treasuryWallet) {
+      console.log(`[TREASURY_CLIENT] Treasury trouvé dans les portefeuilles utilisateurs: ${treasuryWallet.user_id}`);
+      const accountId = treasuryWallet.account_id;
+      const privateKey = treasuryWallet.private_key;
+      
+      return Client.forTestnet().setOperator(accountId, privateKey);
+    }
+    
+    // Par défaut, utiliser le client principal
+    console.log(`[TREASURY_CLIENT] Treasury non trouvé dans les portefeuilles, utilisation du client principal`);
+    return getClient();
+  } catch (error) {
+    console.error(`[TREASURY_CLIENT] Erreur lors de la configuration du client pour le treasury ${treasuryId}:`, error);
+    return null;
+  }
+}
 
 /**
  * Convertit un ID Telegram, un numéro de téléphone ou un ID de compte Hedera en ID de compte Hedera
@@ -748,9 +792,6 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
         console.log(`[DIRECT_TRANSFER] Pas de pendingAirdropId, tentative de transfert direct du token`);
         
         try {
-          const client = getClient();
-          console.log(`[DIRECT_TRANSFER] Configuration du client pour le transfert de ${airdrop.amount} ${airdrop.tokenId} depuis ${airdrop.treasuryId} vers ${accountId}`);
-          
           // Récupérer le treasury account ID (expéditeur)
           if (!airdrop.treasuryId) {
             console.error(`[DIRECT_TRANSFER] ❌ Erreur: L'airdrop n'a pas de treasuryId défini`);
@@ -762,62 +803,52 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
             };
           }
           
+          // Convertir les valeurs en types Hedera
           const treasuryId = AccountId.fromString(airdrop.treasuryId);
           const tokenId = TokenId.fromString(airdrop.tokenId);
           const amount = parseInt(airdrop.amount);
           
-          console.log(`[DIRECT_TRANSFER] Préparation de la transaction:
-          - Token: ${airdrop.tokenId} (${airdrop.tokenName})
-          - Treasury: ${treasuryId}
-          - Destinataire: ${accountId}
-          - Montant: ${amount}`);
+          console.log(`[DIRECT_TRANSFER] --------------------------------- Direct Token Transfer ---------------------------------`);
+          console.log(`[DIRECT_TRANSFER] Token ID                : ${airdrop.tokenId} (${airdrop.tokenName})`);
+          console.log(`[DIRECT_TRANSFER] Treasury Account ID     : ${treasuryId.toString()}`);
+          console.log(`[DIRECT_TRANSFER] Receiver Account ID     : ${accountId.toString()}`);
+          console.log(`[DIRECT_TRANSFER] Amount                  : ${amount}`);
           
-          // Créer une transaction de transfert de tokens
-          const tokenTransferTx = new TransferTransaction()
-            .addTokenTransfer(tokenId, treasuryId, -amount) // Débit du treasury
-            .addTokenTransfer(tokenId, accountId, amount)   // Crédit du destinataire
+          // Obtenir le client Hedera avec le treasury comme opérateur
+          const client = getClient();
+          
+          // Créer la transaction de transfert de token exactement comme dans l'exemple
+          const txTokenTransfer = new TransferTransaction()
+            .addTokenTransfer(tokenId, treasuryId, -amount)   // Débit du treasury
+            .addTokenTransfer(tokenId, accountId, amount)     // Crédit du destinataire
             .setTransactionMemo(`Airdrop claim for ${accountId}`)
-            .setMaxTransactionFee(new Hbar(2)); // Augmenter les frais pour éviter INSUFFICIENT_TX_FEE
+            .setMaxTransactionFee(new Hbar(2));               // Frais augmentés pour éviter INSUFFICIENT_TX_FEE
           
-          // Configurer le client avec le treasury comme opérateur
-          const treasuryClient = getTreasuryClient(airdrop.treasuryId);
-          if (!treasuryClient) {
-            console.error(`[DIRECT_TRANSFER] ❌ Erreur: Impossible d'obtenir un client avec le treasury ${airdrop.treasuryId}`);
-            return {
-              success: false,
-              message: `Erreur: Pas d'accès au compte treasury pour effectuer le transfert`,
-              tokenId: airdrop.tokenId,
-              tokenName: airdrop.tokenName
-            };
-          }
+          console.log(`[DIRECT_TRANSFER] Transaction préparée, exécution...`);
           
-          console.log(`[DIRECT_TRANSFER] Exécution de la transaction de transfert`);
-          const txResponse = await tokenTransferTx.execute(treasuryClient);
-          console.log(`[DIRECT_TRANSFER] Transaction soumise: ${txResponse.transactionId.toString()}`);
+          // Exécuter la transaction
+          const txResponse = await txTokenTransfer.execute(client);
           
-          // Récupérer le reçu de la transaction
-          console.log(`[DIRECT_TRANSFER] Récupération du reçu de la transaction`);
-          const receipt = await txResponse.getReceipt(treasuryClient);
-          console.log(`[DIRECT_TRANSFER] Statut de la transaction: ${receipt.status.toString()}`);
+          // Obtenir le reçu de la transaction
+          const receiptTransfer = await txResponse.getReceipt(client);
+          
+          // Obtenir le statut de la transaction
+          const statusTransfer = receiptTransfer.status;
+          
+          // Obtenir l'ID de la transaction
+          const txTransferId = txResponse.transactionId.toString();
+          
+          console.log(`[DIRECT_TRANSFER] Receipt status         : ${statusTransfer.toString()}`);
+          console.log(`[DIRECT_TRANSFER] Transaction ID         : ${txTransferId}`);
+          console.log(`[DIRECT_TRANSFER] Hashscan URL           : https://hashscan.io/testnet/tx/${txTransferId}`);
           
           // Si la transaction est réussie, marquer l'airdrop comme réclamé
-          if (receipt.status.toString() === 'SUCCESS') {
+          if (statusTransfer.toString() === 'SUCCESS') {
             console.log(`[DIRECT_TRANSFER] ✅ Transfert réussi! Marquage de l'airdrop comme réclamé`);
             
             // Marquer comme réclamé dans la base de données
             const markResult = await markAirdropAsClaimed(accountId, airdropId);
             console.log(`[DIRECT_TRANSFER] Résultat du marquage: ${markResult.success ? 'Succès' : 'Échec'} - ${markResult.message}`);
-            
-            // Générer le lien HashScan
-            const txId = txResponse.transactionId.toString();
-            let hashscanUrl = null;
-            try {
-              const explorerUrls = getExplorerUrls(txId, 'transaction');
-              hashscanUrl = explorerUrls.hashScan;
-            } catch (urlError) {
-              console.warn(`[DIRECT_TRANSFER] Erreur lors de la génération du lien HashScan: ${urlError.message}`);
-              hashscanUrl = `https://hashscan.io/testnet/transaction/${txId}`;
-            }
             
             return {
               success: true,
@@ -825,15 +856,15 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
               tokenId: airdrop.tokenId,
               tokenName: airdrop.tokenName,
               amount: airdrop.amount,
-              transactionId: txId,
-              hashscanUrl: hashscanUrl,
+              transactionId: txTransferId,
+              hashscanUrl: `https://hashscan.io/testnet/tx/${txTransferId}`,
               directTransfer: true
             };
           } else {
-            console.error(`[DIRECT_TRANSFER] ❌ Échec du transfert: ${receipt.status.toString()}`);
+            console.error(`[DIRECT_TRANSFER] ❌ Échec du transfert: ${statusTransfer.toString()}`);
             return {
               success: false,
-              message: `Échec du transfert: ${receipt.status.toString()}. Veuillez contacter l'administrateur.`,
+              message: `Échec du transfert: ${statusTransfer.toString()}. Veuillez contacter l'administrateur.`,
               tokenId: airdrop.tokenId,
               tokenName: airdrop.tokenName
             };
@@ -988,5 +1019,6 @@ module.exports = {
   claimTokenAirdrop,
   resolveToAccountId,
   resolveIdentifiersList,
-  getAvailableAirdrops
+  getAvailableAirdrops,
+  getTreasuryClient
 };
