@@ -32,70 +32,84 @@ class ElizaHederaPlugin {
   async processQuery(userId, query) {
     // Normalize the query for better matching
     const normalizedQuery = query.toLowerCase().trim();
+    console.log(`[ELIZA] Processing query: "${normalizedQuery}"`);
     
     try {
+      // Extract token ID if present in the query
+      const tokenIdMatch = normalizedQuery.match(/0\.0\.\d+/);
+      const tokenId = tokenIdMatch ? tokenIdMatch[0] : null;
+      
       // Check if query is about airdrop eligibility
       if (
-        normalizedQuery.includes('eligible') && 
-        normalizedQuery.includes('airdrop')
+        (normalizedQuery.includes('eligible') && normalizedQuery.includes('airdrop')) ||
+        (normalizedQuery.includes('éligib') && normalizedQuery.includes('airdrop')) ||
+        (normalizedQuery.includes('eligib') && normalizedQuery.includes('airdrop')) ||
+        (normalizedQuery.includes('droit') && normalizedQuery.includes('airdrop')) ||
+        (normalizedQuery.includes('recevoir') && normalizedQuery.includes('airdrop'))
       ) {
+        console.log('[ELIZA] Detected airdrop eligibility query');
         return await this.checkAirdropEligibility(userId);
       }
       
-      // Check if query is about token ownership
-      if (
-        (normalizedQuery.includes('who') || normalizedQuery.includes('list')) && 
-        normalizedQuery.includes('owns') && 
-        normalizedQuery.includes('token')
-      ) {
-        // Extract token ID from query
-        const tokenIdMatch = normalizedQuery.match(/0\.0\.\d+/);
-        if (tokenIdMatch) {
-          return await this.getTokenOwners(tokenIdMatch[0]);
-        } else {
-          return {
-            success: false,
-            message: "Please specify a token ID in format 0.0.XXXXX"
-          };
-        }
+      // Check if query is about token ownership with token ID
+      if (tokenId && (
+        normalizedQuery.includes('qui') || 
+        normalizedQuery.includes('who') || 
+        normalizedQuery.includes('possede') || 
+        normalizedQuery.includes('possède') ||
+        normalizedQuery.includes('list') || 
+        normalizedQuery.includes('liste') ||
+        normalizedQuery.includes('détenteurs') ||
+        normalizedQuery.includes('detenteurs') ||
+        normalizedQuery.includes('holders') ||
+        normalizedQuery.includes('propriétaire') ||
+        normalizedQuery.includes('proprietaire')
+      )) {
+        console.log(`[ELIZA] Detected token ownership query for token: ${tokenId}`);
+        return await this.getTokenOwners(tokenId);
       }
       
       // Check if query is about user's token balance
       if (
-        normalizedQuery.includes('my') && 
-        normalizedQuery.includes('token') && 
-        normalizedQuery.includes('balance')
+        (normalizedQuery.includes('my') || normalizedQuery.includes('mes') || normalizedQuery.includes('mon')) && 
+        (normalizedQuery.includes('token') || normalizedQuery.includes('tokens')) && 
+        (normalizedQuery.includes('balance') || normalizedQuery.includes('solde'))
       ) {
+        console.log('[ELIZA] Detected token balance query');
         return await this.getUserTokenBalances(userId);
       }
       
-      // Check if query is about token info
-      if (
-        normalizedQuery.includes('token') && 
-        normalizedQuery.includes('info')
-      ) {
-        // Extract token ID from query
-        const tokenIdMatch = normalizedQuery.match(/0\.0\.\d+/);
-        if (tokenIdMatch) {
-          return await this.getTokenInfo(tokenIdMatch[0]);
-        } else {
-          return {
-            success: false,
-            message: "Please specify a token ID in format 0.0.XXXXX"
-          };
-        }
+      // Check if query is about token info with token ID
+      if (tokenId && (
+        normalizedQuery.includes('info') || 
+        normalizedQuery.includes('details') || 
+        normalizedQuery.includes('détails') ||
+        normalizedQuery.includes('détail') ||
+        normalizedQuery.includes('detail') ||
+        normalizedQuery.includes('information') ||
+        normalizedQuery.includes('informations')
+      )) {
+        console.log(`[ELIZA] Detected token info query for token: ${tokenId}`);
+        return await this.getTokenInfo(tokenId);
+      }
+      
+      // If we have a token ID but couldn't categorize the query, assume it's about token info
+      if (tokenId) {
+        console.log(`[ELIZA] Found token ID but no specific query type, defaulting to token info for: ${tokenId}`);
+        return await this.getTokenInfo(tokenId);
       }
       
       // Default response for unrecognized queries
+      console.log('[ELIZA] Query not recognized');
       return {
         success: false,
-        message: "I couldn't understand your query. Try asking about airdrop eligibility, token ownership, token balances, or token information."
+        message: "Je n'ai pas pu comprendre votre requête. Essayez de demander des informations sur l'éligibilité aux airdrops, la propriété des tokens, les soldes de tokens, ou des informations sur un token spécifique. Mentionnez toujours l'ID du token au format 0.0.XXXXX."
       };
     } catch (error) {
       console.error('Error in Eliza plugin:', error);
       return {
         success: false,
-        message: `Error processing your query: ${error.message}`
+        message: `Erreur lors du traitement de votre requête: ${error.message}`
       };
     }
   }
@@ -112,7 +126,7 @@ class ElizaHederaPlugin {
       if (!wallet) {
         return {
           success: false,
-          message: "You don't have a wallet yet. Create one first with /createwallet"
+          message: "Vous n'avez pas encore de portefeuille. Créez-en un d'abord avec /createwallet"
         };
       }
 
@@ -122,24 +136,24 @@ class ElizaHederaPlugin {
       if (availableAirdrops.length === 0) {
         return {
           success: true,
-          message: "You are not eligible for any airdrops at the moment."
+          message: "Vous n'êtes éligible à aucun airdrop pour le moment."
         };
       }
       
       // Format airdrop information
       const airdropList = availableAirdrops.map(airdrop => 
-        `Token: ${airdrop.tokenId}, Amount: ${airdrop.amount}`
+        `Token: ${airdrop.tokenId}, Montant: ${airdrop.amount}`
       ).join('\n');
       
       return {
         success: true,
-        message: `You are eligible for the following airdrops:\n${airdropList}\n\nUse /claimairdrop to claim them.`
+        message: `Vous êtes éligible aux airdrops suivants :\n${airdropList}\n\nUtilisez /claimairdrop pour les réclamer.`
       };
     } catch (error) {
       console.error('Error checking airdrop eligibility:', error);
       return {
         success: false,
-        message: `Error checking airdrop eligibility: ${error.message}`
+        message: `Erreur lors de la vérification de l'éligibilité aux airdrops : ${error.message}`
       };
     }
   }
@@ -155,7 +169,7 @@ class ElizaHederaPlugin {
       if (!tokenId.match(/^0\.0\.\d+$/)) {
         return {
           success: false,
-          message: "Invalid token ID format. Please use format 0.0.XXXXX"
+          message: "Format d'ID de token invalide. Veuillez utiliser le format 0.0.XXXXX"
         };
       }
       
@@ -165,7 +179,7 @@ class ElizaHederaPlugin {
       if (!response.data || !response.data.balances) {
         return {
           success: false,
-          message: "Could not retrieve token holders information."
+          message: "Impossible de récupérer les informations sur les détenteurs du token."
         };
       }
       
@@ -174,14 +188,14 @@ class ElizaHederaPlugin {
       if (balances.length === 0) {
         return {
           success: true,
-          message: `No accounts currently hold token ${tokenId}.`
+          message: `Aucun compte ne détient actuellement le token ${tokenId}.`
         };
       }
       
       // Format the token holders information
       const holdersList = balances
         .slice(0, 10) // Limit to first 10 holders
-        .map(holder => `Account: ${holder.account}, Balance: ${holder.balance}`)
+        .map(holder => `Compte: ${holder.account}, Solde: ${holder.balance}`)
         .join('\n');
         
       const totalHolders = balances.length;
@@ -189,13 +203,13 @@ class ElizaHederaPlugin {
       
       return {
         success: true,
-        message: `Token ${tokenId} holders (${hasMore ? 'first 10 of ' + totalHolders : totalHolders}):\n${holdersList}`
+        message: `Détenteurs du token ${tokenId} (${hasMore ? 'les 10 premiers sur ' + totalHolders : totalHolders}):\n${holdersList}\n\nVoir sur HashScan: https://hashscan.io/testnet/token/${tokenId}/balances`
       };
     } catch (error) {
       console.error('Error getting token owners:', error);
       return {
         success: false,
-        message: `Error retrieving token owners: ${error.message}`
+        message: `Erreur lors de la récupération des détenteurs du token : ${error.message}`
       };
     }
   }
@@ -212,7 +226,7 @@ class ElizaHederaPlugin {
       if (!wallet) {
         return {
           success: false,
-          message: "You don't have a wallet yet. Create one first with /createwallet"
+          message: "Vous n'avez pas encore de portefeuille. Créez-en un d'abord avec /createwallet"
         };
       }
 
@@ -229,23 +243,25 @@ class ElizaHederaPlugin {
       if (tokenBalances.size === 0) {
         return {
           success: true,
-          message: `You don't own any tokens yet. Your HBAR balance is ${accountBalance.hbars.toString()}.`
+          message: `Vous ne possédez pas encore de tokens. Votre solde HBAR est de ${accountBalance.hbars.toString()}.`
         };
       }
       
       const balancesList = Array.from(tokenBalances.entries())
-        .map(([tokenId, balance]) => `Token: ${tokenId}, Balance: ${balance}`)
+        .map(([tokenId, balance]) => `Token: ${tokenId}, Solde: ${balance} - [Voir sur HashScan](https://hashscan.io/testnet/token/${tokenId})`)
         .join('\n');
+      
+      const accountLink = `https://hashscan.io/testnet/account/${accountId}`;
       
       return {
         success: true,
-        message: `Your HBAR balance: ${accountBalance.hbars.toString()}\n\nYour token balances:\n${balancesList}`
+        message: `Votre solde HBAR: ${accountBalance.hbars.toString()}\n\nVos soldes de tokens:\n${balancesList}\n\n[Voir votre compte sur HashScan](${accountLink})`
       };
     } catch (error) {
       console.error('Error getting user token balances:', error);
       return {
         success: false,
-        message: `Error retrieving your token balances: ${error.message}`
+        message: `Erreur lors de la récupération de vos soldes de tokens : ${error.message}`
       };
     }
   }
@@ -261,7 +277,7 @@ class ElizaHederaPlugin {
       if (!tokenId.match(/^0\.0\.\d+$/)) {
         return {
           success: false,
-          message: "Invalid token ID format. Please use format 0.0.XXXXX"
+          message: "Format d'ID de token invalide. Veuillez utiliser le format 0.0.XXXXX"
         };
       }
       
@@ -271,7 +287,7 @@ class ElizaHederaPlugin {
       if (!response.data) {
         return {
           success: false,
-          message: "Could not retrieve token information."
+          message: "Impossible de récupérer les informations sur le token."
         };
       }
       
@@ -279,16 +295,18 @@ class ElizaHederaPlugin {
       
       // Format token information
       const formattedInfo = `
-Token ID: ${tokenId}
-Name: ${tokenInfo.name || 'Not specified'}
-Symbol: ${tokenInfo.symbol || 'Not specified'}
-Type: ${tokenInfo.type || 'Not specified'}
-Total Supply: ${tokenInfo.total_supply || 'Not specified'}
-Treasury Account: ${tokenInfo.treasury_account_id || 'Not specified'}
-Created: ${new Date(tokenInfo.created_timestamp).toLocaleString() || 'Not specified'}
-Modified: ${new Date(tokenInfo.modified_timestamp).toLocaleString() || 'Not specified'}
-Custom Fees: ${tokenInfo.custom_fees?.created_timestamp ? 'Yes' : 'No'}
-Paused: ${tokenInfo.pause_status === 'PAUSED' ? 'Yes' : 'No'}
+ID du Token: ${tokenId}
+Nom: ${tokenInfo.name || 'Non spécifié'}
+Symbole: ${tokenInfo.symbol || 'Non spécifié'}
+Type: ${tokenInfo.type || 'Non spécifié'}
+Offre Totale: ${tokenInfo.total_supply || 'Non spécifiée'}
+Compte de Trésorerie: ${tokenInfo.treasury_account_id || 'Non spécifié'}
+Créé le: ${new Date(tokenInfo.created_timestamp).toLocaleString() || 'Non spécifié'}
+Modifié le: ${new Date(tokenInfo.modified_timestamp).toLocaleString() || 'Non spécifié'}
+Frais Personnalisés: ${tokenInfo.custom_fees?.created_timestamp ? 'Oui' : 'Non'}
+En Pause: ${tokenInfo.pause_status === 'PAUSED' ? 'Oui' : 'Non'}
+
+Voir sur HashScan: https://hashscan.io/testnet/token/${tokenId}
       `.trim();
       
       return {
@@ -299,7 +317,7 @@ Paused: ${tokenInfo.pause_status === 'PAUSED' ? 'Yes' : 'No'}
       console.error('Error getting token info:', error);
       return {
         success: false,
-        message: `Error retrieving token information: ${error.message}`
+        message: `Erreur lors de la récupération des informations sur le token : ${error.message}`
       };
     }
   }
