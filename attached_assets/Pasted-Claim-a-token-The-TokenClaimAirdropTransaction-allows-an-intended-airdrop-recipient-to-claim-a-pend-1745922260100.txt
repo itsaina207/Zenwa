@@ -1,0 +1,47 @@
+Claim a token
+The TokenClaimAirdropTransaction allows an intended airdrop recipient to claim a pending token transfer, requiring signatures from both the receiver and transaction payer. When no auto-association slots are available, this transaction handles both the TokenAssociate and CryptoTransfer steps. If the receiver account has auto-association slots available, the token is automatically associated and transferred, making the claim transaction unnecessary. The receiver pays only the transaction fee, while the sender covers association and custom fees. Once claimed, the transfer is irreversible and removed from network state. All referenced pending airdrops must succeed for the transaction to complete.
+
+Claimed airdrops result in token transfers recorded in the token_transfer_list in the transaction record.
+
+Claimed pending airdrops are removed from the network state and cannot be claimed again.
+
+Transaction Signing Requirements
+The receiver account key.
+
+The transaction fee payer account key  if it differs from the sender.
+
+Transaction Fees
+Please see the transaction and query fees table for the base transaction fee.
+
+Please use the Hedera fee estimator to estimate the cost of your transaction fee.
+
+Method
+Type
+Description
+addPendingAirdropId(<pendingAirdropId)
+
+List<PendingAirdropId> 
+
+Adds the ID of a pending airdrop to the transaction, indicating which specific airdrop the receiver wants to claim. This method is used to reference and claim one or more pending airdrops by their unique identifiers. The transaction can have up to 10 entries and must no have any duplicates. 
+
+Java
+JavaScript
+Go
+Copy
+// Create the token claim airdrop transaction
+TokenClaimAirdropTransaction transaction = new TokenClaimAirdropTransaction()
+    .addPendingAirdropId(pendingAirdropId)
+    .freezeWith(client);
+
+// Sign with the sender account key and submit the transaction to a Hedera network
+TransactionResponse txResponse = transaction.sign(accountKey).execute(client);
+
+// Request the receipt of the transaction
+TransactionReceipt receipt = txResponse.getReceipt(client);
+
+// Get the transaction consensus status
+Status transactionStatus = receipt.status;
+
+System.out.println("The transaction consensus status: " + transactionStatus.toString());
+
+// v2.51.0

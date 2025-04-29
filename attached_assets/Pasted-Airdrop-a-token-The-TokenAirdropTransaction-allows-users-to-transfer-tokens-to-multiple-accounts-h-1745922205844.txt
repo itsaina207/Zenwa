@@ -1,0 +1,88 @@
+Airdrop a token
+The TokenAirdropTransaction allows users to transfer tokens to multiple accounts, handling both fungible tokens and NFTs. Unlike standard token transfers, if the receiver's account lacks available auto-association slots and is not already associated with the token, the transfer intent is captured as a pending transfer rather than failing. If the receiver has available auto-association slots, one is used, and the transaction payer covers the association fee and a fee for a full auto-renewal period. If resulting in a pending airdrop, the airdrop is stored in the network state until claimed by the intended receiver or canceled by the airdrop sender. It also differs from standard CryptoTransfer transactions by not supporting HBAR transfers.
+
+Restrictions on transfer lists and aggregation in TokenAirdrop are consistent with those applied to CryptoTransfer. Specifically:
+
+Supports only token transfers (no HBAR transfers).
+
+A maximum of 10 balance adjustments in the tokenTransferList and up to 20 combined balance adjustments or NFT ownership changes per transaction, including custom fees.
+
+When transferring tokens with custom fees, only two levels of fee nesting are allowed.
+
+The sender is responsible for paying all custom fees and the first auto-renewal period's rent for any automatic association.
+
+An exception exists for treasury accounts for which custom fees are not assessed, and therefore, fallback fees are not applicable.
+
+Transaction Signing Requirements
+The sender account key.
+
+The transaction fee payer account key if it differs from the sender.
+
+Transaction Fees
+Please see the transaction and query fees table for the base transaction fee.
+
+Please use the Hedera fee estimator to estimate the cost of your transaction fee.
+
+Method
+Type
+Description
+addTokenTransfer(<tokenId>, <accountId>, <amount>)
+
+TokenId, AccountId, int64
+
+Add the from (sender) and to (receiver) account to transfer tokens. You will need to use this method twice. One will specify the the account sending the airdrop and the second will specify the account receiving the airdrop. The sending account must sign the transaction. The sender and recipient values must net zero.
+
+addNftTransfer(<nftId>, <sender>, <receiver>)
+
+NftId, AccountId, AccountId
+
+Adds an NFT transfer to the transaction, specifying the NFT ID, the sender's account, and the receiver's account.
+
+addTokenTransferWithDecimals(<tokenId>, <accountId>, <amount>, <decimals>)
+
+TokenId, AccountId, int64, uint32
+
+Adds a token transfer to the transaction with specified decimal precision, detailing the token ID, account, amount, and decimal places.
+
+addApprovedTokenTransfer(<tokenId>, <accountId>, <amount>)
+
+TokenId, AccountId, int64
+
+The owner account ID and token the spender is authorized to transfer from. The debiting account is the owner account. Applicable to allowance transfers only.
+
+addApprovedNftTransfer(<nftId>, <sender>, <receiver>)
+
+NftId, AccountId, AccountId
+
+The NFT ID the spender is authorized to transfer. The sender is the owner account and receiver is the receiving account. Applicable to allowance transfers only.
+
+addApprovedTokenTransferWithDecimals(<tokenId>, <accountId>, <amount>, <decimals>)
+
+TokenId, AccountId, int64, uint32
+
+Adds an approved token transfer with decimal precision, specifying the owner account ID, token ID, and sender's account. Applicable to allowance transfers only.
+
+Java
+JavaScript
+Go
+Copy
+// Create the token airdrop transaction for fungible token
+TokenAirdropTransaction transaction = new TokenAirdropTransaction()
+        .addTokenTransfer(tokenId, accountId1, -1)
+        .addTokenTransfer(tokenId, accountId2, 1)
+        .addTokenTransfer(tokenId, accountId1, -1)
+        .addTokenTransfer(tokenId, accountId3, 1)
+        .freezeWith(client);
+
+// Sign the transaction with the sender account key and submit it to the Hedera network.
+TransactionResponse txResponse = transaction.sign(accountKey).execute(client);
+
+// Request the receipt of the transaction
+TransactionReceipt receipt = txResponse.getReceipt(client);
+
+// Get the transaction consensus status
+Status transactionStatus = receipt.status;
+
+System.out.println("The transaction consensus status: " + transactionStatus.toString());
+
+// v2.51.0
