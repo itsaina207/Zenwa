@@ -1,0 +1,60 @@
+
+const {
+    AccountId,
+    PrivateKey,
+    Client,
+    TokenAirdropTransaction
+  } = require("@hashgraph/sdk"); // v2.46.0
+
+async function main() {
+  let client;
+  try {
+    // Your account ID and private key from string value
+    const MY_ACCOUNT_ID = AccountId.fromString("0.0.5876043");
+    const MY_PRIVATE_KEY = PrivateKey.fromStringECDSA("84891e1414cd4f0fa75abaf0f4f13bc46a6082234682d4a5fe88c2885a46270a");
+
+    // Pre-configured client for test network (testnet)
+    client = Client.forTestnet();
+
+    //Set the operator with the account ID and private key
+    client.setOperator(MY_ACCOUNT_ID, MY_PRIVATE_KEY);
+
+    // Start your code here
+  
+    
+    //Create the token airdrop transaction for fungible token
+    const txTokenAirdrop = await new TokenAirdropTransaction()
+      .addTokenTransfer(tokenId, MY_ACCOUNT_ID, -1) //Fill in the token ID
+      .addTokenTransfer(tokenId, receiverAccount1, 1) //Fill in the token ID and receiver account
+      .addTokenTransfer(tokenId, MY_ACCOUNT_ID, -1)  //Fill in the token ID
+      .addTokenTransfer(tokenId, receiverAccount2, 1) //Fill in the token ID and receiver account
+      .freezeWith(client);
+            
+    //Sign with the sender account key 
+    const signTxTokenAirdrop = await txTokenAirdrop.sign(MY_PRIVATE_KEY);
+
+    //Submit the transaction to a Hedera network
+    const txTokenAirdropResponse = await signTxTokenAirdrop.execute(client);
+
+    //Request the receipt of the transaction
+    const receiptTokenAirdropTx = await txTokenAirdropResponse.getReceipt(client);
+          
+    //Get the transaction consensus status
+    const statusTokenAirdropTx  = receiptTokenAirdropTx.status;
+
+    //Get the Transaction ID
+    const txTokenAirdropId = txTokenAirdropResponse.transactionId.toString();
+
+    console.log("--------------------------------- Create Token Airdrop ---------------------------------");
+    console.log("Receipt status           :", statusTokenAirdropTx.toString());
+    console.log("Transaction ID           :", txTokenAirdropId);
+    console.log("Hashscan URL             :", "https://hashscan.io/testnet/tx/" + txTokenAirdropId);
+    
+  } catch (error) {
+    console.error(error);
+  } finally {
+    if (client) client.close();
+  }
+}
+
+main();
