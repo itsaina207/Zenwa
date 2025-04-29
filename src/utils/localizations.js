@@ -86,9 +86,15 @@ const translations = {
           '/mint - Créer un nouveau token\n' +
           '/sendtoken - Envoyer des tokens\n' +
           '/history - Voir l\'historique des transactions\n' +
+          '/airdrop - Créer un airdrop de tokens\n' +
+          '/campaign - Créer une campagne de distribution\n' +
+          '/claim - Réclamer des tokens d\'une campagne\n' +
+          '/claimairdrop - Réclamer des tokens d\'un airdrop\n' +
+          '/mycampaigns - Afficher vos campagnes\n' +
           '/language - Changer la langue du bot\n\n' +
           'Vous pouvez aussi utiliser des commandes en langage naturel comme :\n' +
-          '"Quel est mon solde?" ou "Crée un token"',
+          '"Quel est mon solde?" ou "Crée un token"\n' +
+          '"Réclamer mon airdrop" ou "Afficher mes airdrops en attente"',
     'en': 'Available commands:\n' +
           '/start - Start the bot\n' +
           '/help - Show help\n' +
@@ -98,9 +104,15 @@ const translations = {
           '/mint - Create a new token\n' +
           '/sendtoken - Send tokens\n' +
           '/history - View transaction history\n' +
+          '/airdrop - Create a token airdrop\n' +
+          '/campaign - Create a token campaign\n' +
+          '/claim - Claim tokens from a campaign\n' +
+          '/claimairdrop - Claim tokens from an airdrop\n' +
+          '/mycampaigns - View your campaigns\n' +
           '/language - Change bot language\n\n' +
           'You can also use natural language commands like:\n' +
-          '"What\'s my balance?" or "Create a token"'
+          '"What\'s my balance?" or "Create a token"\n' +
+          '"Claim my airdrop" or "Show my pending airdrops"'
   },
   'language_selection': {
     'fr': 'Veuillez choisir une langue :',
