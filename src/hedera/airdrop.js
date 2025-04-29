@@ -425,9 +425,14 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
       
       // Récupérer l'airdrop depuis la base de données
       const { query } = require('../storage/db');
+      
+      // Nous devons joindre les tables airdrops et airdrop_recipients pour trouver l'airdrop spécifique
       const airdropResult = await query(
-        'SELECT * FROM airdrops WHERE id = $1 AND recipient_account_id = $2 AND status = $3',
-        [airdropId, accountId, 'pending']
+        `SELECT a.*, ar.account_id, ar.amount, ar.claimed 
+         FROM airdrops a 
+         JOIN airdrop_recipients ar ON a.id = ar.airdrop_id 
+         WHERE a.id = $1 AND ar.account_id = $2 AND a.status = $3 AND ar.claimed = false`,
+        [airdropId, accountId, 'ACTIVE']
       );
       
       if (!airdropResult || !airdropResult.rows || airdropResult.rows.length === 0) {
@@ -460,8 +465,11 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
       // Vérifier si cet airdrop est enregistré dans notre base de données
       const { query } = require('../storage/db');
       const airdropResult = await query(
-        'SELECT * FROM airdrops WHERE pending_airdrop_id = $1 AND recipient_account_id = $2 AND status = $3',
-        [pendingAirdropId, accountId, 'pending']
+        `SELECT a.*, ar.account_id, ar.amount, ar.claimed 
+         FROM airdrops a 
+         JOIN airdrop_recipients ar ON a.id = ar.airdrop_id 
+         WHERE a.pending_airdrop_id = $1 AND ar.account_id = $2 AND a.status = $3 AND ar.claimed = false`,
+        [pendingAirdropId, accountId, 'ACTIVE']
       );
       
       if (airdropResult && airdropResult.rows && airdropResult.rows.length > 0) {
@@ -546,8 +554,9 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
         // Si nous avons l'ID de l'airdrop en base de données, marquer comme réclamé
         if (dbAirdropId) {
           try {
-            await markAirdropAsClaimed(dbAirdropId, txResponse.transactionId.toString());
-            console.log(`[CLAIM] Airdrop ${dbAirdropId} marqué comme réclamé avec succès`);
+            // La fonction markAirdropAsClaimed attend le accountId et le airdropId, pas le txId
+            await markAirdropAsClaimed(accountId, dbAirdropId);
+            console.log(`[CLAIM] Airdrop ${dbAirdropId} marqué comme réclamé avec succès pour le compte ${accountId}`);
           } catch (dbErr) {
             console.error(`[CLAIM] Erreur lors du marquage de l'airdrop comme réclamé:`, dbErr);
           }
