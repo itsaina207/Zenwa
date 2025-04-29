@@ -518,8 +518,49 @@ async function claimTokenAirdrop(userId, airdropId, isDbId = false) {
     console.log(`[CLAIM] Création de la transaction TokenClaimAirdropTransaction pour pendingAirdropId: ${pendingAirdropId}`);
     
     try {
-      // Convertir l'ID d'airdrop en attente en objet PendingAirdropId
-      const pendingAirdropIdObj = PendingAirdropId.fromString(pendingAirdropId);
+      // Vérifier si on utilise un ID de la base de données ou un tokenId direct
+      let tokenIdStr, senderIdStr;
+      
+      // Déterminer si nous utilisons un ID de la base de données selon le paramètre isDbId
+      const fromDatabase = isDbId;
+      
+      if (fromDatabase) {
+        // Si c'est un ID de la base de données, nous devrions avoir ces informations extraites plus tôt
+        // Pour l'instant, nous allons générer une erreur indiquant que l'airdrop n'a pas été trouvé
+        throw new Error(`Aucun airdrop correspondant trouvé dans la base de données avec l'ID: ${pendingAirdropId}`);
+      } else {
+        // Si c'est un tokenId direct, nous allons utiliser le tokenId fourni directement
+        // Format: tokenId (ex: 0.0.1234)
+        tokenIdStr = pendingAirdropId;
+        
+        // Nous avons besoin de connaître le sender, dans ce cas nous pouvons utiliser
+        // soit un second paramètre, soit le treasuryAccountId du token
+        
+        // Récupérer les informations du token pour obtenir le compte treasury
+        const tokenInfo = await getTokenInfo(tokenIdStr);
+        if (!tokenInfo.success) {
+          throw new Error(`Impossible de récupérer les informations du token ${tokenIdStr}: ${tokenInfo.message}`);
+        }
+        
+        // Utiliser le treasuryAccountId comme senderId
+        senderIdStr = tokenInfo.treasuryAccountId;
+        
+        console.log(`[CLAIM] Utilisation du tokenId: ${tokenIdStr} et du treasuryAccountId: ${senderIdStr}`);
+      }
+      
+      // Créer les objets pour le PendingAirdropId
+      const tokenId = TokenId.fromString(tokenIdStr);
+      const senderId = AccountId.fromString(senderIdStr);
+      const receiverId = AccountId.fromString(accountId);
+      
+      // Créer l'objet PendingAirdropId
+      const pendingAirdropIdObj = new PendingAirdropId({
+        tokenId,
+        senderId,
+        receiverId
+      });
+      
+      console.log(`[CLAIM] PendingAirdropId créé avec: tokenId=${tokenId.toString()}, senderId=${senderId.toString()}, receiverId=${receiverId.toString()}`);
       
       // Créer la transaction de réclamation
       const transaction = new TokenClaimAirdropTransaction()
