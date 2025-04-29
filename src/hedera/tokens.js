@@ -492,46 +492,93 @@ async function getTokenInfo(tokenId) {
 async function isTokenAssociated(accountId, tokenId) {
   try {
     console.log(`[TOKEN_ASSOCIATE] 🔍 Vérification de l'association du token ${tokenId} avec le compte ${accountId}`);
-    const client = getClient();
     
-    // Vérifier si le compte est associé au token
-    console.log(`[TOKEN_ASSOCIATE] Création de la requête AccountBalanceQuery`);
-    const balanceQuery = new AccountBalanceQuery()
-      .setAccountId(accountId);
+    // Utiliser le mirror node pour une vérification plus fiable
+    const axios = require('axios');
+    const network = process.env.HEDERA_NETWORK || 'testnet';
+    const mirrorNodeUrl = network.toLowerCase() === 'mainnet' 
+      ? 'https://mainnet-public.mirrornode.hedera.com' 
+      : 'https://testnet.mirrornode.hedera.com';
     
-    console.log(`[TOKEN_ASSOCIATE] Exécution de la requête de solde pour ${accountId}`);
-    const accountBalance = await balanceQuery.execute(client);
-    
-    console.log(`[TOKEN_ASSOCIATE] Récupération des tokens pour le compte ${accountId}`);
-    const tokens = accountBalance.tokens;
-    
-    // Vérifier si le Map contient une entrée pour ce token
-    const isAssociated = tokens.get(tokenId) !== undefined;
-    
-    // Afficher tous les tokens associés pour le débogage
-    const associatedTokens = Array.from(tokens.keys());
-    console.log(`[TOKEN_ASSOCIATE] Tokens associés au compte ${accountId}: ${associatedTokens.length > 0 ? associatedTokens.join(', ') : 'Aucun'}`);
-    
-    if (isAssociated) {
-      console.log(`[TOKEN_ASSOCIATE] ✅ Le token ${tokenId} est associé au compte ${accountId}`);
-    } else {
-      console.log(`[TOKEN_ASSOCIATE] ⚠️ Le token ${tokenId} n'est PAS associé au compte ${accountId}`);
+    try {
+      // 1. D'abord, vérifier si le compte a des relations avec ce token
+      console.log(`[TOKEN_ASSOCIATE] Vérification avec le mirror node ${mirrorNodeUrl}`);
+      const tokenRelationshipUrl = `${mirrorNodeUrl}/api/v1/accounts/${accountId}/tokens?token.id=${tokenId}`;
       
-      // Vérifier si le compte a l'option "Max Auto Associations"
-      console.log(`[TOKEN_ASSOCIATE] Vérification des paramètres du compte pour déterminer si l'auto-association est possible`);
+      console.log(`[TOKEN_ASSOCIATE] Requête: ${tokenRelationshipUrl}`);
+      const relationshipResponse = await axios.get(tokenRelationshipUrl);
       
-      // Cette partie nécessite des informations supplémentaires sur le compte
-      // qui ne sont pas disponibles via la simple requête de solde
-      try {
-        // Récupération des infos du compte via AccountInfoQuery
-        // Note: Cette fonctionnalité dépend des capacités de l'Agent Kit
-        console.log(`[TOKEN_ASSOCIATE] ℹ️ Note: Le compte ${accountId} devra explicitement associer le token ${tokenId} avant de pouvoir le recevoir`);
-      } catch (accountInfoError) {
-        console.log(`[TOKEN_ASSOCIATE] Impossible de vérifier les paramètres avancés du compte: ${accountInfoError.message}`);
+      // Si nous avons au moins une relation de token, vérifier le type de relation
+      if (relationshipResponse.data && relationshipResponse.data.tokens && relationshipResponse.data.tokens.length > 0) {
+        const tokenRelation = relationshipResponse.data.tokens[0];
+        console.log(`[TOKEN_ASSOCIATE] Relation trouvée pour le token ${tokenId}: ${JSON.stringify(tokenRelation)}`);
+        
+        // Si la balance est >= 0, alors le token est associé
+        const isAssociated = true;
+        console.log(`[TOKEN_ASSOCIATE] ✅ Le token ${tokenId} est associé au compte ${accountId}`);
+        return isAssociated;
+      } else {
+        console.log(`[TOKEN_ASSOCIATE] ❌ Aucune relation trouvée pour le token ${tokenId} avec le compte ${accountId}`);
+        
+        // Maintenant, utiliser la méthode client SDK pour une vérification supplémentaire
+        const client = getClient();
+        console.log(`[TOKEN_ASSOCIATE] Création de la requête AccountBalanceQuery avec le SDK`);
+        const balanceQuery = new AccountBalanceQuery()
+          .setAccountId(accountId);
+        
+        console.log(`[TOKEN_ASSOCIATE] Exécution de la requête de solde pour ${accountId}`);
+        const accountBalance = await balanceQuery.execute(client);
+        
+        console.log(`[TOKEN_ASSOCIATE] Récupération des tokens pour le compte ${accountId}`);
+        const tokens = accountBalance.tokens;
+        
+        // Vérifier si le Map contient une entrée pour ce token
+        const isAssociatedSdk = tokens.get(tokenId) !== undefined;
+        
+        // Afficher tous les tokens associés pour le débogage
+        const associatedTokens = Array.from(tokens.keys());
+        console.log(`[TOKEN_ASSOCIATE] Tokens associés au compte ${accountId} selon SDK: ${associatedTokens.length > 0 ? associatedTokens.join(', ') : 'Aucun'}`);
+        
+        if (isAssociatedSdk) {
+          console.log(`[TOKEN_ASSOCIATE] ⚠️ Incohérence: Le SDK indique que le token ${tokenId} est associé, mais le mirror node ne le confirme pas.`);
+        }
+        
+        // Pour garantir la sécurité, retourner false si l'une ou l'autre méthode indique que le token n'est pas associé
+        console.log(`[TOKEN_ASSOCIATE] ⚠️ Le token ${tokenId} n'est PAS associé au compte ${accountId}`);
+        return false;
       }
+    } catch (mirrorError) {
+      console.error(`[TOKEN_ASSOCIATE] Erreur avec le Mirror Node: ${mirrorError.message}`);
+      
+      // Si l'API du mirror node échoue, utiliser la méthode de secours avec le SDK
+      console.log(`[TOKEN_ASSOCIATE] Utilisation du SDK comme méthode de secours`);
+      const client = getClient();
+      
+      console.log(`[TOKEN_ASSOCIATE] Création de la requête AccountBalanceQuery`);
+      const balanceQuery = new AccountBalanceQuery()
+        .setAccountId(accountId);
+      
+      console.log(`[TOKEN_ASSOCIATE] Exécution de la requête de solde pour ${accountId}`);
+      const accountBalance = await balanceQuery.execute(client);
+      
+      console.log(`[TOKEN_ASSOCIATE] Récupération des tokens pour le compte ${accountId}`);
+      const tokens = accountBalance.tokens;
+      
+      // Vérifier si le Map contient une entrée pour ce token
+      const isAssociated = tokens.get(tokenId) !== undefined;
+      
+      // Afficher tous les tokens associés pour le débogage
+      const associatedTokens = Array.from(tokens.keys());
+      console.log(`[TOKEN_ASSOCIATE] Tokens associés au compte ${accountId}: ${associatedTokens.length > 0 ? associatedTokens.join(', ') : 'Aucun'}`);
+      
+      if (isAssociated) {
+        console.log(`[TOKEN_ASSOCIATE] ✅ Le token ${tokenId} est associé au compte ${accountId} (selon SDK)`);
+      } else {
+        console.log(`[TOKEN_ASSOCIATE] ⚠️ Le token ${tokenId} n'est PAS associé au compte ${accountId} (selon SDK)`);
+      }
+      
+      return isAssociated;
     }
-    
-    return isAssociated;
   } catch (error) {
     console.error(`[TOKEN_ASSOCIATE] ❌ Erreur lors de la vérification de l'association du token: ${error.message}`);
     console.error(`[TOKEN_ASSOCIATE] Stack trace:`, error.stack);
