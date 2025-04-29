@@ -613,6 +613,81 @@ module.exports.createHederaTools = function(options) {
         const kitManager = new KitManager();
         return await kitManager.getHtsTokenDetails(tokenId);
       }
+    },
+    {
+      name: 'createAirdrop',
+      description: 'Create a new token airdrop for distribution to multiple recipients',
+      parameters: {
+        type: 'object',
+        properties: {
+          tokenId: {
+            type: 'string',
+            description: 'The token ID to airdrop'
+          },
+          recipientIds: {
+            type: 'array',
+            items: {
+              type: 'string'
+            },
+            description: 'List of recipient account IDs, phone numbers or Telegram usernames'
+          },
+          amounts: {
+            type: 'array',
+            items: {
+              type: 'number'
+            },
+            description: 'List of amounts to airdrop (should match the length of recipientIds)'
+          }
+        },
+        required: ['tokenId', 'recipientIds', 'amounts']
+      },
+      execute: async ({ tokenId, recipientIds, amounts, userId }) => {
+        const { createTokenAirdrop } = require('../hedera/airdrop');
+        return await createTokenAirdrop(userId, tokenId, recipientIds, amounts);
+      }
+    },
+    {
+      name: 'claimAirdrop',
+      description: 'Claim an available airdrop for the user',
+      parameters: {
+        type: 'object',
+        properties: {
+          airdropId: {
+            type: 'string',
+            description: 'The airdrop ID to claim (optional)'
+          }
+        }
+      },
+      execute: async ({ airdropId, userId }) => {
+        const { claimTokenAirdrop } = require('../hedera/airdrop');
+        // Si un ID d'airdrop spécifique est fourni, on le réclame directement
+        if (airdropId) {
+          return await claimTokenAirdrop(userId, airdropId);
+        } 
+        // Sinon, on récupère tous les airdrops disponibles (sera géré par le handler d'interface)
+        else {
+          const { getAvailableAirdrops } = require('../storage/airdrops');
+          return {
+            success: true,
+            airdrops: await getAvailableAirdrops(userId)
+          };
+        }
+      }
+    },
+    {
+      name: 'getAvailableAirdrops',
+      description: 'Get a list of all airdrops available for the user',
+      parameters: {
+        type: 'object',
+        properties: {}
+      },
+      execute: async ({ userId }) => {
+        const { getAvailableAirdrops } = require('../storage/airdrops');
+        return {
+          success: true,
+          airdrops: await getAvailableAirdrops(userId)
+        };
+      }
     }
   ];
 };
