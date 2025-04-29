@@ -456,10 +456,10 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       // L'utilisateur devra s'assurer que le compte treasury a suffisamment de HBAR
       console.log(`[TX_ID] Simplification - utilisation du treasury comme payeur`);
       
-      // Toujours créer la transaction avec le même compte treasury comme payeur
-      airdropTx = new TokenAirdropTransaction()
+      // Utiliser TransferTransaction standard au lieu de TokenAirdropTransaction personnalisée
+      airdropTx = new TransferTransaction()
         .setTransactionMemo(`Airdrop Token ${tokenIdObj.toString()} from ${treasuryAccountId.toString()} to ${recipientAccountId.toString()}`)
-        .setMaxTransactionFee(new Hbar(0.1)); // Limiter les frais de transaction au minimum
+        .setMaxTransactionFee(new Hbar(2)); // Augmenter les frais pour assurer que la transaction passe
       
       console.log(`[TX_CONFIG] Utilisation du treasury comme payeur, avec des frais minimaux (0.1 HBAR)`);
       
@@ -470,9 +470,8 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
       
       console.log(`[TX_MEMO] Ajout d'un memo à la transaction`);
       
-      // Définir une limite de frais plus basse pour éviter INSUFFICIENT_PAYER_BALANCE
-      airdropTx.setMaxTransactionFee(new Hbar(0.05)); // Limite à 0.05 HBAR maximum
-      console.log(`[TX_CONFIG] Frais de transaction limités à 0.05 HBAR (réduit pour éviter INSUFFICIENT_PAYER_BALANCE)`);
+      // Frais de transaction déjà définis ci-dessus (2 HBAR), ne pas les redéfinir ici
+      console.log(`[TX_CONFIG] Frais de transaction maintenus à 2 HBAR pour assurer l'exécution`);
       
       // Ajouter le premier transfert (débit du treasury)
       console.log(`[TX_ADD] Ajout du transfert de débit (treasury): ${tokenIdObj.toString()}, ${treasuryAccountId.toString()}, -${amountToSend}`);
