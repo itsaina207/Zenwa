@@ -84,7 +84,8 @@ You can use these buttons below or type commands manually:
 You can also ask me natural language questions like:
 - "What's my balance?"
 - "Send 5 HBAR to account 0.0.123456"
-- "Create a token called MyToken"`,
+- "Create a token called MyToken"
+- "Claim my airdrop" or "Show my pending airdrops"`,
     help: "Welcome to the Hedera Wallet Bot! Select an option below:",
     createWalletInfo: "Creating a new wallet...",
     balanceInfo: "Checking your balance...",
@@ -169,7 +170,8 @@ Vous pouvez utiliser les boutons ci-dessous ou taper les commandes manuellement 
 Vous pouvez également me poser des questions en langage naturel comme :
 - "Quel est mon solde ?"
 - "Envoyer 5 HBAR au compte 0.0.123456"
-- "Créer un token appelé MonToken"`,
+- "Créer un token appelé MonToken"
+- "Réclamer mon airdrop" ou "Afficher mes airdrops en attente"`,
     help: "Bienvenue sur le Bot Hedera Wallet ! Sélectionnez une option ci-dessous :",
     createWalletInfo: "Création d'un nouveau wallet...",
     balanceInfo: "Vérification de votre solde...",

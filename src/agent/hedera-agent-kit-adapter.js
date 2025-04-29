@@ -174,6 +174,9 @@ function determineAction(result) {
       'getPendingAirdrops': 'history',
       'getTopicMessages': 'history',
       'getTokenHolders': 'token_info',
+      'claimAirdrop': 'claim_airdrop',
+      'hedera_claim_airdrop': 'claim_airdrop',
+      'getPendingAirdrop': 'get_airdrop'
     };
     
     action = toolToActionMap[toolName] || 'unknown';
