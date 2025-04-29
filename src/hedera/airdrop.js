@@ -285,10 +285,12 @@ async function createTokenAirdrop(userId, tokenId, recipients) {
             tokenId: tokenId,
             tokenName: tokenInfoResult.name || 'Unknown',
             tokenSymbol: tokenInfoResult.symbol || 'UNKNOWN',
+            creatorId: userId,  // Champ requis pour la base de données
             senderUserId: userId,
             senderAccountId: accountId,
             recipientAccountId: recipient.accountId,
             amount: Number(recipient.amount),
+            totalAmount: Number(recipient.amount), // Nécessaire pour la BD
             treasuryId: tokenInfoResult.treasury || accountId,
             transactionId: txResponse.transactionId.toString(),
             pendingAirdropId: pendingId,
