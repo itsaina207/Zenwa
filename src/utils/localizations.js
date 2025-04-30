@@ -73,8 +73,8 @@ function translate(userId, key, variables = {}) {
 const translations = {
   // Messages généraux
   'welcome': {
-    'fr': 'Bienvenue sur le bot de wallet Hedera! Utilisez /help pour voir les commandes disponibles.',
-    'en': 'Welcome to the Hedera wallet bot! Use /help to see available commands.'
+    'fr': 'Bienvenue sur le Zenwa bot! Utilisez /help pour voir les commandes disponibles.',
+    'en': 'Welcome to the Zenwa bot! Use /help to see available commands.'
   },
   'help': {
     'fr': 'Commandes disponibles :\n' +
