@@ -244,11 +244,16 @@ async function handleBalance(bot, msg) {
       }
     }
     
+    // Récupérer les informations de l'utilisateur pour avoir son numéro de téléphone
+    const { getWalletByUserId } = require('../storage/userWallets');
+    const wallet = await getWalletByUserId(userId);
+    const phoneNumber = wallet?.phoneNumber || 'Non associé';
+    
     const message = `
 💰 *Solde de votre Wallet Hedera*
 
 *Informations du compte :*
-Account ID: \`${result.accountId}\`
+Account ID: \`${result.accountId}\` (Lié au numéro ${phoneNumber})
 
 *Solde :*
 HBAR: ${result.balance.hbars}
