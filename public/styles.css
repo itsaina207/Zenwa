@@ -244,10 +244,10 @@ nav .container {
 }
 
 .chat-preview .chat-messages {
-    padding: 7px; /* Réduit de 50% */
+    padding: 10px;
     background-color: #f5f8ff;
-    height: 210px; /* Réduit de 50% */
-    overflow-y: auto;
+    height: 150px; /* Hauteur réduite encore plus car moins de contenu */
+    overflow-y: visible; /* Pas besoin de scroll maintenant */
     display: flex;
     flex-direction: column;
 }
@@ -255,11 +255,11 @@ nav .container {
 .chat-preview .bot-bubble,
 .chat-preview .user-bubble {
     max-width: 85%;
-    padding: 6px 7px; /* Réduit de 50% */
-    border-radius: 9px; /* Réduit de 50% */
-    margin-bottom: 6px; /* Réduit de 50% */
+    padding: 8px 10px;
+    border-radius: 12px;
+    margin-bottom: 8px;
     word-wrap: break-word;
-    font-size: 0.45rem; /* Réduit de 50% */
+    font-size: 0.7rem; /* Taille de police plus lisible */
     line-height: 1.4;
 }
 
@@ -287,13 +287,13 @@ nav .container {
 }
 
 .chat-preview .balance {
-    font-size: 0.65rem; /* Réduit de 50% */
+    font-size: 0.9rem; /* Taille augmentée pour meilleure lisibilité */
     font-weight: 700;
     color: #0066FF;
 }
 
 .chat-preview .token {
-    font-size: 0.42rem; /* Réduit de 50% */
+    font-size: 0.7rem; /* Taille augmentée pour meilleure lisibilité */
     color: #666666;
 }
 
@@ -328,16 +328,16 @@ nav .container {
 .chat-preview .chat-input input {
     flex: 1;
     border: 1px solid #dddddd;
-    border-radius: 10px; /* Réduit de 50% */
-    padding: 4px 7px; /* Réduit de 50% */
-    margin-right: 4px; /* Réduit de 50% */
-    font-size: 0.45rem; /* Réduit de 50% */
+    border-radius: 10px;
+    padding: 4px 7px;
+    margin-right: 4px;
+    font-size: 0.7rem; /* Taille augmentée pour meilleure lisibilité */
     outline: none;
 }
 
 .chat-preview .chat-input .send-btn {
-    width: 15px; /* Réduit de 50% */
-    height: 15px; /* Réduit de 50% */
+    width: 20px; /* Légèrement plus grand */
+    height: 20px; /* Légèrement plus grand */
     background-color: #0066FF;
     color: white;
     border: none;
@@ -345,7 +345,7 @@ nav .container {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.5rem; /* Réduit de 50% */
+    font-size: 0.7rem; /* Taille augmentée pour meilleure lisibilité */
     cursor: pointer;
 }
 
