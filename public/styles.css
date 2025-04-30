@@ -199,6 +199,53 @@ nav .container {
     animation: float 5s ease-in-out infinite;
 }
 
+/* ————————————————
+   Agrandir la preview du chatbot
+   ———————————————— */
+.chat-preview {
+    width: 400px;             /* Passe de 280px à 400px */
+    font-size: 1rem;          /* Agrandit légèrement la typo */
+}
+
+.chat-preview .preview-header {
+    padding: 16px 20px;       /* Plus d'espace dans l'en-tête */
+    font-size: 1.1rem;
+}
+
+.chat-preview .bot-bubble,
+.chat-preview .user-bubble {
+    padding: 14px 18px;       /* Bulles plus généreuses */
+    font-size: 0.95rem;       /* Texte un peu plus grand */
+    line-height: 1.4;
+}
+
+.chat-preview .chat-input {
+    padding: 12px 20px;
+}
+
+.chat-preview .chat-input input {
+    padding: 10px 14px;
+    font-size: 0.95rem;
+}
+
+.chat-preview .chat-input .send-btn {
+    padding: 10px 14px;
+    font-size: 1rem;
+}
+
+/* Remise à l'échelle normale / agrandie dans le Hero */
+.hero-illustration .chat-preview {
+    transform: scale(1);             /* Supprime le scale(0.8) */
+    transform-origin: top center;
+}
+
+/* Optionnel : un peu plus grand pour les écrans larges */
+@media (min-width: 1200px) {
+    .hero-illustration .chat-preview {
+        transform: scale(1.1);
+    }
+}
+
 .preview-thumbnails {
     display: flex;
     justify-content: center;
