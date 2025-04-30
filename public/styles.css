@@ -203,7 +203,7 @@ nav .container {
    Agrandir la preview du chatbot
    ———————————————— */
 .chat-preview {
-    width: 400px;             /* Passe de 280px à 400px */
+    width: 520px;             /* Passe de 400px à 520px (400px + 30%) */
     font-size: 1rem;          /* Agrandit légèrement la typo */
 }
 
@@ -242,7 +242,7 @@ nav .container {
 /* Optionnel : un peu plus grand pour les écrans larges */
 @media (min-width: 1200px) {
     .hero-illustration .chat-preview {
-        transform: scale(1.1);
+        transform: scale(1.2);
     }
 }
 
