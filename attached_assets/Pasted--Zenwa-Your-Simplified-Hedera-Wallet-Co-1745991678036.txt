@@ -1,0 +1,146 @@
+**Zenwa** – Your Simplified Hedera Wallet
+=================================================
+
+**Colors & Typography**
+- **Palette** :
+  - Dynamic Blue (#0066FF) for CTAs
+  - Pure White (#FFFFFF) for backgrounds
+  - Anthracite Gray (#333333) for text
+- **Font** : `Inter` or `Helvetica Neue` (light, modern sans-serif)
+
+---
+
+## 1. Hero
+
+> **Navigation Bar** :
+> - Background: transparent overlay on header gradient  
+> - Left: **Zenwa** logo (white)  
+> - Right: text links *About | Features | Use Cases | FAQ* and **Try on Telegram** button
+
+> **Background** :
+> Full-screen vertical gradient from Dark Blue (#00112B) at top to White (#FFFFFF) at bottom, softly blending.
+
+> **Title** :
+> Large, left-aligned, white text (font-size 72px on desktop)  
+> "Zenwa: Manage your HBAR and tokens in a simple Telegram chat"
+
+> **Subtitle** :
+> Medium-weight, left-aligned, semi-transparent white text (font-size 24px)  
+> "A secure custodial Hedera wallet inside Telegram. Send, receive, create airdrops, and query the blockchain using natural language or interactive buttons."
+
+> **Primary Button** :
+> "Try on Telegram" – solid Dynamic Blue (#0066FF) with white text, rounded corners.  
+> Positioned below subtitle, left-aligned.
+
+> **Preview Thumbnails** :
+> Centered horizontally near mid-screen, three small rounded-corner mockup cards showing the bot interface (dark shadows, interactive feel).
+
+> **Scroll Indicator** :
+> Right of thumbnails, circular outline arrow (animate up/down) prompting "Scroll".
+
+> **Title** :
+> "Zenwa: Manage your HBAR and tokens in a simple Telegram chat"
+
+> **Subtitle** :
+> "A secure custodial Hedera wallet inside Telegram. Send, receive, create airdrops, and query the blockchain using natural language or interactive buttons."
+
+> **Primary Button** :
+> "Try on Telegram" (blue CTA on white background)
+
+> **Illustration** :
+> A stylized smartphone showing the Zenwa bot chat with HBAR, token, and airdrop icons.
+
+---
+
+## 2. Problem & Solution
+
+- **Problem** : Crypto wallets are often complex, scattered across multiple interfaces, and inaccessible to most users.
+- **Solution** : Zenwa embeds a custodial wallet directly in Telegram, accessible everywhere, and lets you interact via buttons or natural language.
+
+---
+
+## 3. Use Cases
+
+| Icon | Use Case                      | Scenario                                                                 |
+|------|-------------------------------|--------------------------------------------------------------------------|
+| 👨‍👩‍👧‍👦 | **Friend-to-Friend**         | Send HBAR for carpooling, meals, or gifts in just a few taps.           |
+| 🛒  | **Merchant Payments**         | Merchants and freelancers accept payments instantly via Telegram.        |
+| 🌐  | **Community Airdrops**        | Projects, associations, and DAOs distribute tokens to their members.    |
+| 🎁  | **Loyalty Rewards**           | Token cashback programs for repeat customers.                           |
+| 📲  | **Mobile Micro-Payments**      | Instant tips, digital content payments, and donations.                  |
+| 🏥  | **Humanitarian Aid**          | Distribute vouchers and cash-based transfers to vulnerable communities. |
+
+---
+
+## 4. Key Features
+
+| Icon | Feature                           | Description                                         |
+|------|-----------------------------------|-----------------------------------------------------|
+| 🔐  | **Custodial Security**            | Keys encrypted and stored on secure servers.        |
+| 💰  | **HBAR & Token Transfers**         | Send and receive in just two clicks.                 |
+| 🚀  | **Token Airdrops**                | Create and claim airdrops with ease.                |
+| 🤖  | **NLP & Eliza Plugin**            | Ask blockchain questions in natural language.       |
+| 📊  | **History & Explorer Links**      | Direct links to HashScan for every transaction.     |
+
+---
+
+## 5. How It Works (3 Steps)
+
+1. **Create your wallet**  
+   Send `/start` then `/createwallet` to generate your Hedera account.
+2. **Manage your assets**  
+   Use `/balance`, `/send`, `/sendtoken`, or `/airdrop` via buttons or natural language.
+3. **Query & Automate**  
+   Ask "Who owns token 0.0.xxxx?" or "Am I eligible for an airdrop?" for instant answers.
+
+---
+
+## 6. Testimonials
+
+> "Zenwa changed how I manage HBAR – everything is in Telegram, super intuitive."  
+> *– Aina, Blockchain Engineer*
+
+> "I launched a community airdrop in seconds, and my members received it seamlessly."  
+> *– Clara, Event Organizer*
+
+---
+
+## 7. Call to Action (CTA)
+
+> **Headline** : *"Ready to streamline your crypto experience?"
+
+> **Buttons** :
+> - "Get Started on Telegram" (primary, blue)
+> - "Watch Demo Video" (secondary, light gray)
+
+> **Note** : "No signup fees · Testnet & Mainnet"
+
+---
+
+## 8. Footer
+
+- **Layout** : Dark section (#111111) spanning full width
+- **Content** :
+  - Left: Zenwa logo (white)
+  - Center: text links *FAQ | Support | GitHub | Twitter | Legal* in light gray
+  - Right: social icons (Telegram, Twitter, GitHub) in white
+- **Text** : Bottom-center small caption "© 2025 Zenwa. All rights reserved." in gray
+
+> **Style** : Generous padding (40px), subtle top border (1px solid #333333).
+
+- **Links** : FAQ | Support | GitHub | Twitter | Legal
+- **Text** : "© 2025 Zenwa. All rights reserved."
+
+> **Style** : Very light gray background (#F7F7F7), centered text, spaced small links.
+
+---
+
+**Design Notes** :
+- Responsive 2-column grid (desktop) → 1-column (mobile).
+- Generous padding (60px per section).
+- Subtle animations (fade-in, button micro-interactions).
+- Consistent SVG illustrations and line icons.
+- Unified color and typography for visual cohesion.
+
+*This landing page is crafted to grab attention, showcase security, and convert visitors quickly.*
+
