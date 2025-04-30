@@ -10,8 +10,8 @@ module.exports = {
   PORT: process.env.PORT || 8000,
   NODE_ENV: process.env.NODE_ENV || 'development',
   
-  // Telegram configuration
-  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+  // Telegram configuration - Support des 2 noms de variables
+  TELEGRAM_BOT_TOKEN: process.env.ZENWA_TELEGRAM || process.env.TELEGRAM_BOT_TOKEN,
   
   // OpenAI configuration pour le traitement du langage naturel
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
