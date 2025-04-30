@@ -27,7 +27,7 @@ body {
 
 .container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 0 20px;
 }
@@ -163,9 +163,10 @@ nav .container {
 
 #hero .container {
     display: grid;
-    grid-template-columns: 0.8fr 1.2fr;
-    gap: 40px;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 20px;
     align-items: center;
+    max-width: 1400px;
 }
 
 .hero-content {
@@ -191,7 +192,7 @@ nav .container {
 
 .main-illustration {
     width: 100%;
-    max-width: 600px;
+    max-width: 100%;
     height: auto;
     margin: 0 auto;
     display: block;
