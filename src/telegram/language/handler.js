@@ -63,7 +63,7 @@ const translations = {
   en: {
     languageChanged: '✅ Language changed to English',
     languageOptions: 'Please select a language:\n\nTo choose English: /setlang en\nPour choisir le français: /setlang fr',
-    helpText: `Welcome to the Hedera Wallet Bot! Here are the available commands:
+    helpText: `Welcome to the Zenwa bot! Here are the available commands:
 
 You can use these buttons below or type commands manually:
 
@@ -86,7 +86,7 @@ You can also ask me natural language questions like:
 - "Send 5 HBAR to account 0.0.123456"
 - "Create a token called MyToken"
 - "Claim my airdrop" or "Show my pending airdrops"`,
-    help: "Welcome to the Hedera Wallet Bot! Select an option below:",
+    help: "Welcome to the Zenwa bot! Select an option below:",
     createWalletInfo: "Creating a new wallet...",
     balanceInfo: "Checking your balance...",
     sendInfo: "Send HBAR to another account",
@@ -149,7 +149,7 @@ You can also ask me natural language questions like:
   fr: {
     languageChanged: '✅ Langue changée en Français',
     languageOptions: 'Veuillez choisir une langue :\n\nPour choisir le français : /setlang fr\nTo choose English: /setlang en',
-    helpText: `Bienvenue sur le Bot Hedera Wallet ! Voici les commandes disponibles :
+    helpText: `Bienvenue sur le Zenwa bot ! Voici les commandes disponibles :
 
 Vous pouvez utiliser les boutons ci-dessous ou taper les commandes manuellement :
 
@@ -172,7 +172,7 @@ Vous pouvez également me poser des questions en langage naturel comme :
 - "Envoyer 5 HBAR au compte 0.0.123456"
 - "Créer un token appelé MonToken"
 - "Réclamer mon airdrop" ou "Afficher mes airdrops en attente"`,
-    help: "Bienvenue sur le Bot Hedera Wallet ! Sélectionnez une option ci-dessous :",
+    help: "Bienvenue sur le Zenwa bot ! Sélectionnez une option ci-dessous :",
     createWalletInfo: "Création d'un nouveau wallet...",
     balanceInfo: "Vérification de votre solde...",
     sendInfo: "Envoyer des HBAR à un autre compte",
@@ -348,8 +348,8 @@ const initializeLanguageHandler = (bot) => {
     // Si l'utilisateur a déjà un portefeuille avec un numéro de téléphone, afficher le menu d'aide
     if (wallet && wallet.phoneNumber) {
       const welcomeMessage = lang === 'fr' 
-        ? `👋 Rebonjour ${firstName} ! Bienvenue sur le Bot Hedera Wallet.`
-        : `👋 Welcome back ${firstName}! Welcome to the Hedera Wallet Bot.`;
+        ? `👋 Rebonjour ${firstName} ! Bienvenue sur le Zenwa bot.`
+        : `👋 Welcome back ${firstName}! Welcome to the Zenwa bot.`;
       
       await sendHelpWithButtons(bot, userId, chatId, welcomeMessage);
       return;
