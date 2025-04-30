@@ -1,4 +1,4 @@
-# Hedera Custodial Wallet with Telegram Bot
+# Zenwa: Hedera Custodial Wallet with Telegram Bot
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Hedera](https://img.shields.io/badge/Hedera-Hashgraph-00BFFF)
@@ -256,7 +256,7 @@ This project is deployed on the Hedera Testnet. Key deployed artifacts:
 3. **Wallet Accounts**: User wallets are created on Testnet
    - Operator Account: [0.0.14396235](https://hashscan.io/testnet/account/0.0.14396235)
 
-4. **Telegram Bot**: The bot is active and accessible at [@YourBotName](https://t.me/YourBotName)
+4. **Telegram Bot**: The bot is active and accessible at [@zenwallethederabot](https://t.me/zenwallethederabot)
 
 ## Security
 
