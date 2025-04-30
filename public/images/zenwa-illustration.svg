@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="500" height="600" viewBox="0 0 500 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="400" height="800" viewBox="0 0 400 800" fill="none" xmlns="http://www.w3.org/2000/svg">
   <!-- Smartphone outline -->
-  <rect x="100" y="50" width="300" height="500" rx="30" fill="#ffffff" stroke="#0066FF" stroke-width="8"/>
-  <rect x="120" y="90" width="260" height="420" rx="15" fill="#f5f8ff"/>
+  <rect x="100" y="100" width="200" height="400" rx="30" fill="#ffffff" stroke="#0066FF" stroke-width="8"/>
+  <rect x="110" y="120" width="180" height="360" rx="15" fill="#f5f8ff"/>
   
   <!-- Telegram header -->
   <rect x="120" y="90" width="260" height="60" rx="15" fill="#0088cc"/>

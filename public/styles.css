@@ -158,6 +158,7 @@ nav .container {
     align-items: center;
     padding: 120px 0 var(--section-padding);
     overflow: hidden;
+    position: relative;
 }
 
 #hero .container {
@@ -190,7 +191,7 @@ nav .container {
 
 .main-illustration {
     width: 100%;
-    max-width: 500px;
+    max-width: 300px;
     margin: 0 auto;
     display: block;
     animation: float 5s ease-in-out infinite;
