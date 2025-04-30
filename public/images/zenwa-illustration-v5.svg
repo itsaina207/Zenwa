@@ -26,8 +26,8 @@
   <!-- Messages area -->
   <!-- Bot message 1 -->
   <rect x="216" y="185" width="168" height="60" rx="15" fill="#e6efff"/>
-  <text x="230" y="210" font-family="Inter, sans-serif" font-size="14" fill="#333333">Welcome to Zenwa! Your Hedera</text>
-  <text x="230" y="230" font-family="Inter, sans-serif" font-size="14" fill="#333333">wallet is ready. What would you like?</text>
+  <text x="230" y="210" font-family="Inter, sans-serif" font-size="12" fill="#333333">Welcome to Zenwa! Your Hedera</text>
+  <text x="230" y="230" font-family="Inter, sans-serif" font-size="12" fill="#333333">wallet is ready. What would you like?</text>
   
   <!-- User message -->
   <rect x="264" y="255" width="120" height="30" rx="15" fill="#0066FF"/>
