@@ -163,8 +163,8 @@ nav .container {
 
 #hero .container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 60px;
+    grid-template-columns: 0.8fr 1.2fr;
+    gap: 40px;
     align-items: center;
 }
 
@@ -191,7 +191,8 @@ nav .container {
 
 .main-illustration {
     width: 100%;
-    max-width: 300px;
+    max-width: 500px;
+    height: auto;
     margin: 0 auto;
     display: block;
     animation: float 5s ease-in-out infinite;
