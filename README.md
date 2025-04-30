@@ -419,8 +419,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Contact
 
 For any questions or suggestions, please don't hesitate to contact us:
-- Email: your.email@example.com
-- GitHub: [your-github-name](https://github.com/your-github-name)
+- Email: aina.raherimanantsoa@kedgebs.com
+- GitHub: [itsaina207](https://github.com/itsaina207/Zenwa/)
 
 ---
 
