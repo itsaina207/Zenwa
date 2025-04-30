@@ -200,47 +200,169 @@ nav .container {
 }
 
 /* ————————————————
-   Agrandir la preview du chatbot
+   Interface de chat - Téléphone
    ———————————————— */
 .chat-preview {
-    width: 520px;             /* Passe de 400px à 520px (400px + 30%) */
-    font-size: 1rem;          /* Agrandit légèrement la typo */
+    width: 300px;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    font-size: 1rem;
+    background-color: white;
+    border-radius: 30px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    border: 10px solid #0066FF;
+    position: relative;
 }
 
 .chat-preview .preview-header {
-    padding: 16px 20px;       /* Plus d'espace dans l'en-tête */
-    font-size: 1.1rem;
+    background-color: #0088cc;
+    color: white;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+.chat-preview .close-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.chat-preview .chat-messages {
+    padding: 15px;
+    background-color: #f5f8ff;
+    height: 420px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .chat-preview .bot-bubble,
 .chat-preview .user-bubble {
-    padding: 14px 18px;       /* Bulles plus généreuses */
-    font-size: 0.95rem;       /* Texte un peu plus grand */
+    max-width: 85%;
+    padding: 12px 15px;
+    border-radius: 18px;
+    margin-bottom: 12px;
+    word-wrap: break-word;
+    font-size: 0.9rem;
     line-height: 1.4;
 }
 
+.chat-preview .bot-bubble {
+    background-color: #e6efff;
+    color: #333333;
+    border-bottom-left-radius: 4px;
+    align-self: flex-start;
+}
+
+.chat-preview .user-bubble {
+    background-color: #0066FF;
+    color: white;
+    border-bottom-right-radius: 4px;
+    margin-left: auto;
+    text-align: right;
+}
+
+.chat-preview .bot-bubble p {
+    margin: 0 0 8px 0;
+}
+
+.chat-preview .bot-bubble p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-preview .balance {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #0066FF;
+}
+
+.chat-preview .token {
+    font-size: 0.85rem;
+    color: #666666;
+}
+
+.chat-preview .button-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.chat-preview .button-grid button {
+    background-color: #0066FF;
+    color: white;
+    border: none;
+    border-radius: 15px;
+    padding: 8px 5px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .chat-preview .chat-input {
-    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    border-top: 1px solid #eeeeee;
 }
 
 .chat-preview .chat-input input {
-    padding: 10px 14px;
-    font-size: 0.95rem;
+    flex: 1;
+    border: 1px solid #dddddd;
+    border-radius: 20px;
+    padding: 8px 15px;
+    margin-right: 8px;
+    font-size: 0.9rem;
+    outline: none;
 }
 
 .chat-preview .chat-input .send-btn {
-    padding: 10px 14px;
+    width: 30px;
+    height: 30px;
+    background-color: #0066FF;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 1rem;
+    cursor: pointer;
 }
 
 /* Remise à l'échelle normale / agrandie dans le Hero */
 .hero-illustration .chat-preview {
-    transform: scale(1);             /* Supprime le scale(0.8) */
+    transform: scale(1.5);
     transform-origin: top center;
 }
 
 /* Optionnel : un peu plus grand pour les écrans larges */
 @media (min-width: 1200px) {
+    .hero-illustration .chat-preview {
+        transform: scale(1.7);
+    }
+}
+
+@media (max-width: 768px) {
     .hero-illustration .chat-preview {
         transform: scale(1.2);
     }
