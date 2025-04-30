@@ -203,27 +203,27 @@ nav .container {
    Interface de chat - Téléphone
    ———————————————— */
 .chat-preview {
-    width: 150px; /* Réduit de 50% (de 300px à 150px) */
+    width: 220px; /* Taille optimisée pour l'affichage */
     max-width: 100%;
     height: auto;
     margin: 0 auto;
-    font-size: 0.5rem; /* Réduit la taille du texte proportionnellement */
+    font-size: 0.7rem; /* Taille de texte plus lisible */
     background-color: white;
-    border-radius: 15px; /* Réduit également les rayons de bordure */
+    border-radius: 15px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     overflow: hidden;
-    border: 5px solid #0066FF; /* Bordure réduite de 50% */
+    border: 3px solid #0066FF;
     position: relative;
 }
 
 .chat-preview .preview-header {
     background-color: #0088cc;
     color: white;
-    padding: 7px; /* Réduit de 50% */
+    padding: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.6rem; /* Réduit de 50% */
+    font-size: 0.9rem; /* Taille augmentée pour meilleure lisibilité */
     font-weight: 500;
 }
 
@@ -246,7 +246,7 @@ nav .container {
 .chat-preview .chat-messages {
     padding: 10px;
     background-color: #f5f8ff;
-    height: 150px; /* Hauteur réduite encore plus car moins de contenu */
+    height: 220px; /* Hauteur adaptée à la nouvelle taille */
     overflow-y: visible; /* Pas besoin de scroll maintenant */
     display: flex;
     flex-direction: column;
@@ -259,7 +259,7 @@ nav .container {
     border-radius: 12px;
     margin-bottom: 8px;
     word-wrap: break-word;
-    font-size: 0.7rem; /* Taille de police plus lisible */
+    font-size: 0.9rem; /* Taille de police plus lisible */
     line-height: 1.4;
 }
 
@@ -308,9 +308,9 @@ nav .container {
     background-color: #0066FF;
     color: white;
     border: none;
-    border-radius: 8px; /* Réduit de 50% */
-    padding: 4px 2px; /* Réduit de 50% */
-    font-size: 0.4rem; /* Réduit de 50% */
+    border-radius: 8px;
+    padding: 4px 2px;
+    font-size: 0.8rem; /* Taille augmentée pour meilleure lisibilité */
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
