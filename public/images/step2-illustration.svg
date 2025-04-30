@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with subtle grid -->
+  <rect width="300" height="200" rx="15" fill="#F7F7F7"/>
+  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#E0E0E0" stroke-width="0.5"/>
+  </pattern>
+  <rect width="300" height="200" fill="url(#grid)"/>
+  
+  <!-- Telegram chat interface -->
+  <rect x="75" y="20" width="150" height="160" rx="15" fill="white" stroke="#0066FF" stroke-width="2"/>
+  <rect x="85" y="35" width="130" height="130" rx="5" fill="#F0F7FF"/>
+  
+  <!-- Telegram header -->
+  <rect x="85" y="35" width="130" height="20" rx="5" fill="#0088cc"/>
+  <text x="150" y="49" font-family="Inter, sans-serif" font-size="10" fill="white" text-anchor="middle">Zenwa Bot</text>
+  
+  <!-- Balance command -->
+  <rect x="90" y="65" width="70" height="15" rx="7.5" fill="#e6efff"/>
+  <text x="125" y="76" font-family="monospace" font-size="9" fill="#0066FF" text-anchor="middle">/balance</text>
+  
+  <!-- Balance response -->
+  <rect x="90" y="85" width="120" height="40" rx="10" fill="#0066FF" fill-opacity="0.1"/>
+  <text x="100" y="97" font-family="Inter, sans-serif" font-size="8" fill="#333333">Your balance:</text>
+  <text x="100" y="110" font-family="Inter, sans-serif" font-size="10" fill="#0066FF" font-weight="bold">500 ℏ</text>
+  <text x="100" y="120" font-family="Inter, sans-serif" font-size="8" fill="#666666">1000 TOKEN (0.0.12345)</text>
+  
+  <!-- Action buttons -->
+  <rect x="90" y="135" width="55" height="15" rx="7.5" fill="#0066FF"/>
+  <text x="117.5" y="145" font-family="Inter, sans-serif" font-size="7" fill="white" text-anchor="middle">Send HBAR</text>
+  
+  <rect x="155" y="135" width="55" height="15" rx="7.5" fill="#0066FF"/>
+  <text x="182.5" y="145" font-family="Inter, sans-serif" font-size="7" fill="white" text-anchor="middle">Send Token</text>
+  
+  <rect x="90" y="155" width="55" height="15" rx="7.5" fill="#0066FF"/>
+  <text x="117.5" y="165" font-family="Inter, sans-serif" font-size="7" fill="white" text-anchor="middle">Mint Token</text>
+  
+  <rect x="155" y="155" width="55" height="15" rx="7.5" fill="#0066FF"/>
+  <text x="182.5" y="165" font-family="Inter, sans-serif" font-size="7" fill="white" text-anchor="middle">Airdrop</text>
+  
+  <!-- Animation elements -->
+  <circle cx="30" cy="100" r="20" fill="#0066FF" fill-opacity="0.1">
+    <animate attributeName="opacity" values="0.1;0.3;0.1" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <text x="30" y="104" font-family="Inter, sans-serif" font-size="12" fill="#0066FF" text-anchor="middle">2</text>
+
+  <circle cx="270" cy="100" r="20" fill="#0066FF" fill-opacity="0.1">
+    <animate attributeName="opacity" values="0.1;0.3;0.1" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <text x="270" y="104" font-family="Inter, sans-serif" font-size="12" fill="#0066FF" text-anchor="middle">2</text>
+  
+  <!-- Transaction icons -->
+  <circle cx="40" cy="60" r="15" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="40" y="65" font-family="Inter, sans-serif" font-size="12" fill="#0066FF" text-anchor="middle">💰</text>
+  
+  <circle cx="40" cy="140" r="15" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="40" y="145" font-family="Inter, sans-serif" font-size="12" fill="#0066FF" text-anchor="middle">🪙</text>
+  
+  <circle cx="260" cy="60" r="15" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="260" y="65" font-family="Inter, sans-serif" font-size="12" fill="#0066FF" text-anchor="middle">📊</text>
+  
+  <circle cx="260" cy="140" r="15" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="260" y="145" font-family="Inter, sans-serif" font-size="12" fill="#0066FF" text-anchor="middle">🚀</text>
+  
+  <!-- Hash scan link indicator -->
+  <circle cx="150" cy="180" r="8" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="150" y="183" font-family="Inter, sans-serif" font-size="8" fill="#0066FF" text-anchor="middle">🔗</text>
+  <text x="165" y="183" font-family="Inter, sans-serif" font-size="7" fill="#666666">HashScan links included</text>
+</svg>
