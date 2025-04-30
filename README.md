@@ -402,16 +402,6 @@ For production use, consider the following improvements:
 - Transaction limits
 - Monitoring and alerts
 
-## Contributing
-
-Contributions are welcome! Feel free to submit a Pull Request or open an Issue for any suggestions or problems.
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
