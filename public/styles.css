@@ -203,27 +203,27 @@ nav .container {
    Interface de chat - Téléphone
    ———————————————— */
 .chat-preview {
-    width: 300px;
+    width: 150px; /* Réduit de 50% (de 300px à 150px) */
     max-width: 100%;
     height: auto;
     margin: 0 auto;
-    font-size: 1rem;
+    font-size: 0.5rem; /* Réduit la taille du texte proportionnellement */
     background-color: white;
-    border-radius: 30px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    border-radius: 15px; /* Réduit également les rayons de bordure */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     overflow: hidden;
-    border: 10px solid #0066FF;
+    border: 5px solid #0066FF; /* Bordure réduite de 50% */
     position: relative;
 }
 
 .chat-preview .preview-header {
     background-color: #0088cc;
     color: white;
-    padding: 15px;
+    padding: 7px; /* Réduit de 50% */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 1.2rem;
+    font-size: 0.6rem; /* Réduit de 50% */
     font-weight: 500;
 }
 
@@ -231,11 +231,11 @@ nav .container {
     background: none;
     border: none;
     color: rgba(255, 255, 255, 0.7);
-    font-size: 1.4rem;
+    font-size: 0.7rem; /* Réduit de 50% */
     cursor: pointer;
     padding: 0;
-    width: 25px;
-    height: 25px;
+    width: 12px; /* Réduit de 50% */
+    height: 12px; /* Réduit de 50% */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -244,9 +244,9 @@ nav .container {
 }
 
 .chat-preview .chat-messages {
-    padding: 15px;
+    padding: 7px; /* Réduit de 50% */
     background-color: #f5f8ff;
-    height: 420px;
+    height: 210px; /* Réduit de 50% */
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -255,11 +255,11 @@ nav .container {
 .chat-preview .bot-bubble,
 .chat-preview .user-bubble {
     max-width: 85%;
-    padding: 12px 15px;
-    border-radius: 18px;
-    margin-bottom: 12px;
+    padding: 6px 7px; /* Réduit de 50% */
+    border-radius: 9px; /* Réduit de 50% */
+    margin-bottom: 6px; /* Réduit de 50% */
     word-wrap: break-word;
-    font-size: 0.9rem;
+    font-size: 0.45rem; /* Réduit de 50% */
     line-height: 1.4;
 }
 
@@ -287,30 +287,30 @@ nav .container {
 }
 
 .chat-preview .balance {
-    font-size: 1.3rem;
+    font-size: 0.65rem; /* Réduit de 50% */
     font-weight: 700;
     color: #0066FF;
 }
 
 .chat-preview .token {
-    font-size: 0.85rem;
+    font-size: 0.42rem; /* Réduit de 50% */
     color: #666666;
 }
 
 .chat-preview .button-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 4px; /* Réduit de 50% */
+    margin-top: 5px; /* Réduit de 50% */
 }
 
 .chat-preview .button-grid button {
     background-color: #0066FF;
     color: white;
     border: none;
-    border-radius: 15px;
-    padding: 8px 5px;
-    font-size: 0.8rem;
+    border-radius: 8px; /* Réduit de 50% */
+    padding: 4px 2px; /* Réduit de 50% */
+    font-size: 0.4rem; /* Réduit de 50% */
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
@@ -320,7 +320,7 @@ nav .container {
 .chat-preview .chat-input {
     display: flex;
     align-items: center;
-    padding: 10px;
+    padding: 5px; /* Réduit de 50% */
     background-color: white;
     border-top: 1px solid #eeeeee;
 }
@@ -328,16 +328,16 @@ nav .container {
 .chat-preview .chat-input input {
     flex: 1;
     border: 1px solid #dddddd;
-    border-radius: 20px;
-    padding: 8px 15px;
-    margin-right: 8px;
-    font-size: 0.9rem;
+    border-radius: 10px; /* Réduit de 50% */
+    padding: 4px 7px; /* Réduit de 50% */
+    margin-right: 4px; /* Réduit de 50% */
+    font-size: 0.45rem; /* Réduit de 50% */
     outline: none;
 }
 
 .chat-preview .chat-input .send-btn {
-    width: 30px;
-    height: 30px;
+    width: 15px; /* Réduit de 50% */
+    height: 15px; /* Réduit de 50% */
     background-color: #0066FF;
     color: white;
     border: none;
@@ -345,7 +345,7 @@ nav .container {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
+    font-size: 0.5rem; /* Réduit de 50% */
     cursor: pointer;
 }
 
