@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="500" height="600" viewBox="0 0 500 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Smartphone outline -->
+  <rect x="100" y="50" width="300" height="500" rx="30" fill="#ffffff" stroke="#0066FF" stroke-width="8"/>
+  <rect x="120" y="90" width="260" height="420" rx="15" fill="#f5f8ff"/>
+  
+  <!-- Telegram header -->
+  <rect x="120" y="90" width="260" height="60" rx="15" fill="#0088cc"/>
+  <text x="155" y="130" font-family="Inter, Helvetica Neue, sans-serif" font-size="20" fill="white">Zenwa Bot</text>
+  <circle cx="350" cy="120" r="12" fill="white" fill-opacity="0.5"/>
+  <path d="M355 115L345 125M345 115L355 125" stroke="white" stroke-width="2"/>
+  
+  <!-- Messages area -->
+  <!-- Bot message 1 -->
+  <rect x="140" y="170" width="200" height="60" rx="15" fill="#e6efff"/>
+  <text x="155" y="195" font-family="Inter, Helvetica Neue, sans-serif" font-size="12" fill="#333333">Welcome to Zenwa! Your Hedera wallet is ready.</text>
+  <text x="155" y="215" font-family="Inter, Helvetica Neue, sans-serif" font-size="12" fill="#666666">What would you like to do?</text>
+  
+  <!-- User message -->
+  <rect x="220" y="250" width="140" height="35" rx="15" fill="#0066FF"/>
+  <text x="240" y="272" font-family="Inter, Helvetica Neue, sans-serif" font-size="12" fill="white">Check balance</text>
+  
+  <!-- Bot message 2 -->
+  <rect x="140" y="305" width="220" height="80" rx="15" fill="#e6efff"/>
+  <text x="155" y="325" font-family="Inter, Helvetica Neue, sans-serif" font-size="12" fill="#333333">Your balance:</text>
+  <text x="155" y="350" font-family="Inter, Helvetica Neue, sans-serif" font-size="14" font-weight="bold" fill="#0066FF">500 ℏ</text>
+  <text x="155" y="370" font-family="Inter, Helvetica Neue, sans-serif" font-size="12" fill="#666666">1000 TOKEN (0.0.12345)</text>
+  
+  <!-- Bot message 3 with buttons -->
+  <rect x="140" y="405" width="220" height="85" rx="15" fill="#e6efff"/>
+  <text x="155" y="425" font-family="Inter, Helvetica Neue, sans-serif" font-size="12" fill="#333333">What would you like to do next?</text>
+  
+  <!-- Button row -->
+  <rect x="155" y="435" width="90" height="25" rx="12.5" fill="#0066FF"/>
+  <text x="175" y="452" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="white">Send HBAR</text>
+  
+  <rect x="255" y="435" width="90" height="25" rx="12.5" fill="#0066FF"/>
+  <text x="265" y="452" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="white">Send Token</text>
+  
+  <rect x="155" y="465" width="90" height="25" rx="12.5" fill="#0066FF"/>
+  <text x="170" y="482" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="white">Create Token</text>
+  
+  <rect x="255" y="465" width="90" height="25" rx="12.5" fill="#0066FF"/>
+  <text x="275" y="482" font-family="Inter, Helvetica Neue, sans-serif" font-size="10" fill="white">Airdrop</text>
+  
+  <!-- Message input area -->
+  <rect x="120" y="510" width="260" height="40" rx="20" fill="#ffffff" stroke="#cccccc" stroke-width="1"/>
+  <text x="145" y="535" font-family="Inter, Helvetica Neue, sans-serif" font-size="12" fill="#999999">Type a message...</text>
+  <circle cx="340" cy="530" r="15" fill="#0066FF"/>
+  <path d="M335 530L340 535L345 530" stroke="white" stroke-width="2"/>
+  
+  <!-- Floating HBAR and token icons -->
+  <circle cx="80" cy="150" r="25" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="80" y="155" font-family="Inter, Helvetica Neue, sans-serif" font-size="16" font-weight="bold" fill="#0066FF" text-anchor="middle">ℏ</text>
+  
+  <circle cx="420" cy="200" r="25" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="420" y="205" font-family="Inter, Helvetica Neue, sans-serif" font-size="16" font-weight="bold" fill="#0066FF" text-anchor="middle">₮</text>
+  
+  <circle cx="70" cy="350" r="30" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="70" y="356" font-family="Inter, Helvetica Neue, sans-serif" font-size="18" font-weight="bold" fill="#0066FF" text-anchor="middle">🚀</text>
+  
+  <circle cx="435" cy="400" r="30" fill="#0066FF" fill-opacity="0.2"/>
+  <text x="435" y="406" font-family="Inter, Helvetica Neue, sans-serif" font-size="18" font-weight="bold" fill="#0066FF" text-anchor="middle">🔗</text>
+</svg>
