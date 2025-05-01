@@ -251,7 +251,7 @@ function calculatePoints(totalAmount, pointRate = 0.25) {
 }
 
 /**
- * Attribuer des points de fidélité à un utilisateur
+ * Attribuer des points de fidélité à un utilisateur en utilisant un transfert sécurisé
  * @param {string} userId - ID Telegram de l'utilisateur
  * @param {string} programId - ID du programme de fidélité (token ID)
  * @param {number} amount - Montant de points à attribuer
@@ -259,6 +259,8 @@ function calculatePoints(totalAmount, pointRate = 0.25) {
  */
 async function awardLoyaltyPoints(userId, programId, amount) {
   try {
+    console.log(`[LOYALTY] Début d'attribution de ${amount} points pour programme ${programId} à l'utilisateur ${userId}`);
+    
     // Récupérer les informations du programme de fidélité
     const programResult = await query(
       'SELECT * FROM loyalty_programs WHERE token_id = $1',
@@ -266,6 +268,7 @@ async function awardLoyaltyPoints(userId, programId, amount) {
     );
 
     if (programResult.rows.length === 0) {
+      console.log(`[LOYALTY] Programme de fidélité ${programId} non trouvé`);
       return {
         success: false,
         message: 'Programme de fidélité non trouvé'
@@ -275,29 +278,58 @@ async function awardLoyaltyPoints(userId, programId, amount) {
     const program = programResult.rows[0];
     const creatorId = program.creator_id;
     const tokenId = program.token_id;
+    
+    console.log(`[LOYALTY] Programme trouvé: ${program.program_name}, créateur: ${creatorId}, token: ${tokenId}`);
 
     // Vérifier que l'utilisateur a associé le token
+    console.log(`[LOYALTY] Vérification de l'association du token ${tokenId} pour l'utilisateur ${userId}`);
     const associationResult = await associateToken(userId, tokenId);
+    
     if (!associationResult.success && !associationResult.alreadyAssociated) {
+      console.log(`[LOYALTY] Échec de l'association du token: ${associationResult.message}`);
       return {
         success: false,
         message: `Erreur lors de l'association du token: ${associationResult.message}`
       };
     }
+    
+    console.log(`[LOYALTY] Token ${tokenId} correctement associé, prêt pour le transfert`);
 
-    // Transférer les points depuis le créateur vers l'utilisateur
+    // Utiliser le module d'airdrop pour un transfert robuste et automatique
+    const { createTokenAirdrop } = require('../hedera/airdrop');
+    const { resolveToAccountId } = require('../utils/identifiers');
+    
+    console.log(`[LOYALTY] Préparation de l'envoi de ${amount} points depuis ${creatorId} vers ${userId}`);
+    
+    // Résoudre l'ID du destinataire en account ID Hedera
+    const userAccountId = await resolveToAccountId(userId);
+    console.log(`[LOYALTY] UserId ${userId} résolu en compte Hedera: ${userAccountId}`);
+    
+    if (!userAccountId) {
+      console.log(`[LOYALTY] Impossible de résoudre l'ID ${userId} en compte Hedera`);
+      return {
+        success: false,
+        message: 'Impossible de trouver votre compte Hedera pour le transfert'
+      };
+    }
+    
+    // Créer un transfert direct de token (sans airdrop) en faisant une liste avec un seul destinataire
+    console.log(`[LOYALTY] Exécution du transfert direct de ${amount} ${tokenId} pour ${userAccountId}`);
     const transferResult = await sendToken(creatorId, {
       tokenId: tokenId,
-      recipientId: userId,
+      recipientId: userAccountId,
       amount: amount.toString()
     });
 
     if (!transferResult.success) {
+      console.log(`[LOYALTY] Échec du transfert: ${transferResult.message}`);
       return {
         success: false,
         message: `Erreur lors du transfert des points: ${transferResult.message}`
       };
     }
+    
+    console.log(`[LOYALTY] Transfert réussi, transactionId: ${transferResult.transactionId}`);
 
     return {
       success: true,
@@ -305,10 +337,11 @@ async function awardLoyaltyPoints(userId, programId, amount) {
       tokenId: tokenId,
       amount: amount,
       programName: program.program_name,
-      explorerUrl: transferResult.explorerUrl
+      transactionId: transferResult.transactionId,
+      explorerUrl: transferResult.explorerUrl || explorerUrl(transferResult.transactionId, 'transaction')
     };
   } catch (error) {
-    console.error('Erreur lors de l\'attribution des points de fidélité:', error);
+    console.error('[LOYALTY] Erreur lors de l\'attribution des points de fidélité:', error);
     return {
       success: false,
       message: `Erreur lors de l'attribution des points: ${error.message}`
