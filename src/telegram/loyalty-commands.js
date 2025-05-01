@@ -13,7 +13,7 @@ const {
 
 const { LOYALTY_STATES } = require('../loyalty/loyalty-states');
 const { getWalletByUserId } = require('../storage/userWallets');
-const { hashScanUrl } = require('../hedera/hashscan');
+const { explorerUrl } = require('../utils/explorer');
 
 // État des utilisateurs partagé
 let sharedUserState = null;
