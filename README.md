@@ -381,16 +381,20 @@ All responses are formatted with Markdown and include blockchain explorer links 
 
 This project is deployed on the Hedera Testnet. Key deployed artifacts:
 
-1. **Tokens**: Multiple fungible tokens have been created for testing purposes
-   - Example Token: [0.0.15784236](https://hashscan.io/testnet/token/0.0.15784236)
+1. **Natural Language Token Transfer**: Tokens sent using a natural language interface  
+   - Transaction: [0.0.5876043@1746127004.379066914](https://hashscan.io/testnet/tx/0.0.5876043@1746127004.379066914)
 
-2. **HCS Topics**: Several consensus topics were created for messaging demonstration
+2. **Airdrop**: Tokens distributed via airdrop functionality  
+   - Transaction: [1746127291.955175416](https://hashscan.io/testnet/transaction/1746127291.955175416)
+
+3. **HCS Topics**: Several consensus topics were created for messaging demonstration  
    - Example Topic: [0.0.15784237](https://hashscan.io/testnet/topic/0.0.15784237)
 
-3. **Wallet Accounts**: User wallets are created on Testnet
-   - Operator Account: [0.0.14396235](https://hashscan.io/testnet/account/0.0.14396235)
+4. **Wallet Accounts**: User wallets are created on Testnet  
+   - Master Account: [0.0.5876043](https://hashscan.io/testnet/account/0.0.5876043?ps=1&pt=1&pf=1&ph=1&pc=1&pn=1&pa=1&pr=1&p1=2&k1=1745410250.105068208)  
+   - Main Interaction Account: [0.0.5924830](https://hashscan.io/testnet/account/0.0.5924830)
 
-4. **Telegram Bot**: The bot is active and accessible at [@zenwallethederabot](https://t.me/zenwallethederabot)
+5. **Telegram Bot**: The bot is active and accessible at [@zenwallethederabot](https://t.me/zenwallethederabot)
 
 ## Security
 
