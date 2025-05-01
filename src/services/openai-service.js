@@ -328,5 +328,6 @@ module.exports = {
   isGetAirdropsRequest,
   isCreateAirdropRequest,
   isElizaQuery,
-  processWithEliza
+  processWithEliza,
+  openai // Exporter le client OpenAI pour l'utiliser avec GPT-4V
 };

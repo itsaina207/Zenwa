@@ -30,6 +30,16 @@ const {
   CLAIM_STATES 
 } = airdropModule;
 
+// Importer le module de gestion des programmes de fidélité
+const loyaltyModule = require('./loyalty-commands');
+const {
+  handleCreateLoyaltyProgram,
+  handleEarnPoints,
+  handleLoyaltyInput,
+  handleReceiptPhoto,
+  LOYALTY_STATES
+} = loyaltyModule;
+
 // Définir des placeholders pour les états des campagnes (toujours désactivées)
 const CAMPAIGN_STATES = { NONE: 'none_campaign' };
 
