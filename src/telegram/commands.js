@@ -978,7 +978,8 @@ async function handleNaturalLanguage(bot, msg) {
       const elizaResult = await processWithEliza(userId, text);
       
       if (elizaResult.success) {
-        await bot.sendMessage(chatId, elizaResult.response, { parse_mode: 'Markdown' });
+        // Envoyer sans parse_mode pour éviter les erreurs de formatage Markdown
+        await bot.sendMessage(chatId, elizaResult.response);
       } else {
         await bot.sendMessage(chatId, `❌ ${elizaResult.error || "Erreur lors de l'interrogation de la blockchain"}`);
       }
