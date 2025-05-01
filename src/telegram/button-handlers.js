@@ -6,6 +6,7 @@
 const { getUserLanguage } = require('./language/handler');
 const { getBot } = require('./bot');
 const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
+const { LOYALTY_STATES } = require('../loyalty/loyalty-states');
 
 // Référence au userState partagé
 let userState;

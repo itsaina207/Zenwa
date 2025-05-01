@@ -2,34 +2,28 @@
  * Gestionnaire des commandes de programme de fidélité pour le bot Telegram
  */
 
-const { 
-  createLoyaltyProgram, 
+const {
+  createLoyaltyProgram,
   getUserLoyaltyPrograms,
   getAllLoyaltyPrograms,
   analyzeReceipt,
   calculatePoints,
-  awardLoyaltyPoints 
+  awardLoyaltyPoints
 } = require('../loyalty/loyalty-program');
-const { translate } = require('./language/handler');
 
-// États pour les conversations de fidélité
-const LOYALTY_STATES = {
-  IDLE: 'idle',
-  WAITING_FOR_PROGRAM_NAME: 'waiting_for_program_name',
-  WAITING_FOR_PROGRAM_SUPPLY: 'waiting_for_program_supply',
-  WAITING_FOR_PROGRAM_SELECTION: 'waiting_for_program_selection',
-  WAITING_FOR_RECEIPT: 'waiting_for_receipt'
-};
+const { LOYALTY_STATES } = require('../loyalty/loyalty-states');
+const { getWalletByUserId } = require('../storage/userWallets');
+const { hashScanUrl } = require('../hedera/hashscan');
 
-// État de conversation pour chaque utilisateur
-let userState = new Map();
+// État des utilisateurs partagé
+let sharedUserState = null;
 
 /**
  * Initialiser l'état des utilisateurs partagé
- * @param {Map} sharedUserState - État des utilisateurs partagé
+ * @param {Map} userState - État des utilisateurs partagé
  */
-function initializeSharedUserState(sharedUserState) {
-  userState = sharedUserState;
+function initializeSharedUserState(userState) {
+  sharedUserState = userState;
   console.log('État des utilisateurs partagé initialisé dans loyalty-commands.js');
 }
 
@@ -42,21 +36,28 @@ async function handleCreateLoyaltyProgram(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
   
-  // Initialiser l'état utilisateur si nécessaire
-  if (!userState.has(userId)) {
-    userState.set(userId, { chatId });
+  // Vérifier si l'utilisateur a un portefeuille
+  const wallet = await getWalletByUserId(userId);
+  if (!wallet) {
+    await bot.sendMessage(
+      chatId,
+      "Vous devez d'abord créer un portefeuille avec la commande /createwallet avant de pouvoir créer un programme de fidélité."
+    );
+    return;
   }
   
-  const userInfo = userState.get(userId);
+  // Initialiser l'état de la conversation
+  sharedUserState.set(userId, {
+    state: LOYALTY_STATES.WAITING_FOR_PROGRAM_NAME,
+    chatId: chatId,
+    loyalty: {}
+  });
   
   // Demander le nom du programme
-  userInfo.state = LOYALTY_STATES.WAITING_FOR_PROGRAM_NAME;
-  userState.set(userId, userInfo);
-  
   await bot.sendMessage(
     chatId,
-    'Création d\'un programme de fidélité 🏆\n\nVeuillez entrer le nom de votre programme de fidélité:',
-    { parse_mode: 'Markdown' }
+    "Entrez un nom pour votre programme de fidélité (par exemple: 'Programme Fidélité Boutique'):",
+    { reply_markup: { force_reply: true } }
   );
 }
 
@@ -69,14 +70,17 @@ async function handleEarnPoints(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
   
-  // Initialiser l'état utilisateur si nécessaire
-  if (!userState.has(userId)) {
-    userState.set(userId, { chatId });
+  // Vérifier si l'utilisateur a un portefeuille
+  const wallet = await getWalletByUserId(userId);
+  if (!wallet) {
+    await bot.sendMessage(
+      chatId,
+      "Vous devez d'abord créer un portefeuille avec la commande /createwallet avant de pouvoir gagner des points de fidélité."
+    );
+    return;
   }
   
-  const userInfo = userState.get(userId);
-  
-  // Récupérer tous les programmes de fidélité
+  // Récupérer tous les programmes de fidélité disponibles
   const programs = await getAllLoyaltyPrograms();
   
   if (programs.length === 0) {
@@ -87,29 +91,26 @@ async function handleEarnPoints(bot, msg) {
     return;
   }
   
-  // Préparer les boutons pour sélectionner un programme
-  const keyboard = [];
-  programs.forEach(program => {
-    keyboard.push([{ text: `${program.name} (${program.token_id})` }]);
+  // Créer un clavier inline avec les programmes disponibles
+  const keyboard = programs.map(program => [
+    {
+      text: `${program.program_name} (${program.token_id})`,
+      callback_data: `loyalty_select_${program.token_id}`
+    }
+  ]);
+  
+  // Initialiser l'état de la conversation
+  sharedUserState.set(userId, {
+    state: LOYALTY_STATES.WAITING_FOR_PROGRAM_SELECTION,
+    chatId: chatId,
+    loyalty: {}
   });
   
-  // Ajouter un bouton d'annulation
-  keyboard.push([{ text: 'Annuler' }]);
-  
-  userInfo.programs = programs;
-  userInfo.state = LOYALTY_STATES.WAITING_FOR_PROGRAM_SELECTION;
-  userState.set(userId, userInfo);
-  
+  // Afficher le menu de sélection
   await bot.sendMessage(
     chatId,
-    'Gagner des points de fidélité 🎁\n\nVeuillez sélectionner un programme de fidélité:',
-    {
-      reply_markup: {
-        keyboard,
-        one_time_keyboard: true,
-        resize_keyboard: true
-      }
-    }
+    "Sélectionnez un programme de fidélité pour gagner des points:",
+    { reply_markup: { inline_keyboard: keyboard } }
   );
 }
 
@@ -120,112 +121,79 @@ async function handleEarnPoints(bot, msg) {
  * @returns {boolean} Vrai si l'entrée a été gérée, faux sinon
  */
 async function handleLoyaltyInput(bot, msg) {
-  const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
-  const text = msg.text;
+  const chatId = msg.chat.id;
+  const text = msg.text?.trim();
+  const userInfo = sharedUserState.get(userId);
   
-  // Si l'utilisateur n'a pas d'état ou est dans un état non lié à la fidélité, ignorer
-  if (!userState.has(userId)) return false;
-  
-  const userInfo = userState.get(userId);
-  
-  // Si pas dans un état de conversation lié à la fidélité, ignorer
-  if (!userInfo.state || !Object.values(LOYALTY_STATES).includes(userInfo.state)) {
+  if (!userInfo || !Object.values(LOYALTY_STATES).includes(userInfo.state)) {
     return false;
   }
   
-  // Gérer l'annulation
-  if (text === 'Annuler') {
-    userInfo.state = LOYALTY_STATES.IDLE;
-    userState.set(userId, userInfo);
-    await bot.sendMessage(chatId, 'Opération annulée.');
-    return true;
-  }
-  
-  // Gérer les différents états
   switch (userInfo.state) {
     case LOYALTY_STATES.WAITING_FOR_PROGRAM_NAME:
-      // Enregistrer le nom et demander le nombre de points
-      userInfo.programName = text;
-      userInfo.state = LOYALTY_STATES.WAITING_FOR_PROGRAM_SUPPLY;
-      userState.set(userId, userInfo);
+      if (!text) return false;
       
+      // Enregistrer le nom du programme
+      userInfo.loyalty.programName = text;
+      userInfo.state = LOYALTY_STATES.WAITING_FOR_SUPPLY;
+      sharedUserState.set(userId, userInfo);
+      
+      // Demander la quantité de points
       await bot.sendMessage(
         chatId,
-        `Nom du programme: *${text}*\n\nVeuillez entrer le nombre de points à créer:`,
-        { parse_mode: 'Markdown' }
+        "Combien de points de fidélité souhaitez-vous créer initialement? (entre 1 et 100 000 000)",
+        { reply_markup: { force_reply: true } }
       );
       return true;
       
-    case LOYALTY_STATES.WAITING_FOR_PROGRAM_SUPPLY:
-      // Valider que l'entrée est un nombre
-      const supply = parseInt(text.trim(), 10);
+    case LOYALTY_STATES.WAITING_FOR_SUPPLY:
+      if (!text) return false;
+      
+      // Valider la quantité de points
+      const supply = parseInt(text);
       if (isNaN(supply) || supply <= 0 || supply > 100000000) {
         await bot.sendMessage(
           chatId,
-          'Veuillez entrer un nombre valide entre 1 et 100 000 000.'
+          "La quantité doit être un nombre entier positif entre 1 et 100 000 000. Veuillez réessayer:",
+          { reply_markup: { force_reply: true } }
         );
         return true;
       }
       
       // Créer le programme de fidélité
-      await bot.sendMessage(chatId, 'Création du programme de fidélité en cours...');
+      await bot.sendMessage(chatId, "Création du programme de fidélité en cours...");
       
-      const createResult = await createLoyaltyProgram(
-        userId,
-        userInfo.programName,
+      const result = await createLoyaltyProgram(
+        userId, 
+        userInfo.loyalty.programName, 
         supply
       );
       
-      // Réinitialiser l'état
-      userInfo.state = LOYALTY_STATES.IDLE;
-      userState.set(userId, userInfo);
-      
-      if (createResult.success) {
-        await bot.sendMessage(
-          chatId,
-          `✅ ${createResult.message}\n\nID du token: ${createResult.tokenId}\n\nVous pouvez maintenant permettre à vos clients de gagner des points en utilisant la commande /earnpoints`
-        );
+      if (result.success) {
+        const message = `
+✅ ${result.message}
+
+*Détails du programme:*
+Nom: \`${result.programName}\`
+Token ID: \`${result.tokenId}\`
+
+[Voir dans l'explorateur](${result.explorerUrl})
+
+Utilisez /earnpoints pour commencer à gagner des points en scannant des factures.
+`;
+        await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
       } else {
-        await bot.sendMessage(
-          chatId,
-          `❌ ${createResult.message}`
-        );
-      }
-      return true;
-      
-    case LOYALTY_STATES.WAITING_FOR_PROGRAM_SELECTION:
-      // Trouver le programme sélectionné
-      const selectedProgram = userInfo.programs.find(p => `${p.name} (${p.token_id})` === text);
-      
-      if (!selectedProgram) {
-        await bot.sendMessage(
-          chatId,
-          "Je n'ai pas reconnu ce programme. Veuillez sélectionner un programme dans la liste."
-        );
-        return true;
+        await bot.sendMessage(chatId, `❌ ${result.message}`);
       }
       
-      // Enregistrer la sélection et demander la facture
-      userInfo.selectedProgram = selectedProgram;
-      userInfo.state = LOYALTY_STATES.WAITING_FOR_RECEIPT;
-      userState.set(userId, userInfo);
-      
-      await bot.sendMessage(
-        chatId,
-        `Programme sélectionné: *${selectedProgram.name}*\n\nVeuillez prendre une photo de votre facture pour gagner des points:`,
-        { 
-          parse_mode: 'Markdown',
-          reply_markup: {
-            keyboard: [[{ text: 'Annuler' }]],
-            resize_keyboard: true
-          }
-        }
-      );
+      // Réinitialiser l'état
+      sharedUserState.set(userId, { state: LOYALTY_STATES.NONE });
       return true;
+      
+    default:
+      return false;
   }
-  
-  return false;
 }
 
 /**
@@ -235,37 +203,28 @@ async function handleLoyaltyInput(bot, msg) {
  * @returns {boolean} Vrai si la photo a été gérée, faux sinon
  */
 async function handleReceiptPhoto(bot, msg) {
-  const chatId = msg.chat.id;
   const userId = msg.from.id.toString();
+  const chatId = msg.chat.id;
+  const userInfo = sharedUserState.get(userId);
   
-  // Vérifier si nous attendons une photo de facture
-  if (!userState.has(userId)) return false;
-  
-  const userInfo = userState.get(userId);
-  
-  if (userInfo.state !== LOYALTY_STATES.WAITING_FOR_RECEIPT) {
+  // Vérifier si l'utilisateur est en train d'attendre une photo de facture
+  if (!userInfo || userInfo.state !== LOYALTY_STATES.WAITING_FOR_PHOTO) {
     return false;
   }
   
-  // Vérifier si le message contient une photo
-  if (!msg.photo || msg.photo.length === 0) {
-    return false;
-  }
+  // Récupérer l'ID du fichier de la photo (la plus grande résolution disponible)
+  const photoId = msg.photo[msg.photo.length - 1].file_id;
+  const programId = userInfo.loyalty.selectedProgramId;
   
-  // Obtenir l'ID du fichier photo (prendre la plus grande résolution disponible)
-  const fileId = msg.photo[msg.photo.length - 1].file_id;
-  
-  await bot.sendMessage(chatId, 'Analyse de votre facture en cours...');
+  await bot.sendMessage(chatId, "Analyse de la facture en cours... Cela peut prendre quelques instants.");
   
   try {
-    // Récupérer le fichier photo
-    const fileLink = await bot.getFileLink(fileId);
-    
     // Télécharger la photo
+    const fileLink = await bot.getFileLink(photoId);
     const response = await fetch(fileLink);
     const buffer = await response.arrayBuffer();
     
-    // Convertir en Base64
+    // Convertir en base64
     const base64Image = Buffer.from(buffer).toString('base64');
     
     // Analyser la facture avec GPT-4V
@@ -273,77 +232,77 @@ async function handleReceiptPhoto(bot, msg) {
     
     if (!analysisResult.success) {
       await bot.sendMessage(
-        chatId,
-        `❌ ${analysisResult.message}\n\nVeuillez réessayer avec une photo plus claire.`
+        chatId, 
+        `❌ Erreur lors de l'analyse de la facture: ${analysisResult.message}`
       );
+      sharedUserState.set(userId, { state: LOYALTY_STATES.NONE });
       return true;
     }
     
-    // Calculer les points à attribuer
-    const totalAmount = analysisResult.total;
-    const pointsRate = userInfo.selectedProgram.points_rate || 0.25;
-    const pointsToAward = calculatePoints(totalAmount, pointsRate);
+    // Extraire le montant total
+    const { data } = analysisResult;
+    const store = data.nom_du_magasin || data.store || data.magasin || "Non identifié";
+    const date = data.date || "Non identifiée";
+    const totalAmount = parseFloat(data.montant_total || data.total_amount || data.total || "0");
+    
+    if (isNaN(totalAmount) || totalAmount <= 0) {
+      await bot.sendMessage(
+        chatId,
+        "❌ Impossible de détecter un montant valide sur cette facture. Veuillez réessayer avec une image plus claire."
+      );
+      sharedUserState.set(userId, { state: LOYALTY_STATES.NONE });
+      return true;
+    }
+    
+    // Calculer les points à attribuer (0.25 point par unité monétaire)
+    const pointsToAward = calculatePoints(totalAmount);
     
     await bot.sendMessage(
       chatId,
-      `Montant total détecté: *${totalAmount.toFixed(2)}*€\n\nVous allez recevoir *${pointsToAward}* points de fidélité sur le programme *${userInfo.selectedProgram.name}*.`,
+      `✅ Facture analysée avec succès!
+
+*Détails de la facture:*
+• Magasin: ${store}
+• Date: ${date}
+• Montant total: ${totalAmount.toFixed(2)} €
+
+Vous allez recevoir ${pointsToAward} points de fidélité.
+
+Attribution des points en cours...`,
       { parse_mode: 'Markdown' }
     );
     
     // Attribuer les points
-    await bot.sendMessage(chatId, 'Attribution des points en cours...');
-    
-    const awardResult = await awardLoyaltyPoints(
-      userId,
-      userInfo.selectedProgram.token_id,
-      pointsToAward
-    );
-    
-    // Réinitialiser l'état
-    userInfo.state = LOYALTY_STATES.IDLE;
-    userState.set(userId, userInfo);
+    const awardResult = await awardLoyaltyPoints(userId, programId, pointsToAward);
     
     if (awardResult.success) {
-      await bot.sendMessage(
-        chatId,
-        `✅ Félicitations ! Vous avez reçu *${pointsToAward}* points sur le programme *${userInfo.selectedProgram.name}*.\n\nVous pouvez vérifier votre solde avec la commande /balance`,
-        { 
-          parse_mode: 'Markdown',
-          reply_markup: {
-            remove_keyboard: true
-          }
-        }
-      );
+      const message = `
+✅ ${awardResult.message}
+
+*Détails:*
+Programme: \`${awardResult.programName}\`
+Token ID: \`${awardResult.tokenId}\`
+Points ajoutés: ${awardResult.amount}
+
+[Voir la transaction dans l'explorateur](${awardResult.explorerUrl})
+
+Merci pour votre achat !
+`;
+      await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } else {
-      await bot.sendMessage(
-        chatId,
-        `❌ ${awardResult.message}`,
-        {
-          reply_markup: {
-            remove_keyboard: true
-          }
-        }
-      );
+      await bot.sendMessage(chatId, `❌ ${awardResult.message}`);
     }
     
+    // Réinitialiser l'état
+    sharedUserState.set(userId, { state: LOYALTY_STATES.NONE });
     return true;
   } catch (error) {
-    console.error(`Erreur lors du traitement de la photo: ${error.message}`);
-    
+    console.error('Erreur lors du traitement de la photo:', error);
     await bot.sendMessage(
       chatId,
-      `❌ Une erreur est survenue lors du traitement de votre facture: ${error.message}`,
-      {
-        reply_markup: {
-          remove_keyboard: true
-        }
-      }
+      `❌ Une erreur s'est produite lors du traitement de la photo: ${error.message}`
     );
-    
-    // Réinitialiser l'état
-    userInfo.state = LOYALTY_STATES.IDLE;
-    userState.set(userId, userInfo);
-    
+    sharedUserState.set(userId, { state: LOYALTY_STATES.NONE });
     return true;
   }
 }
