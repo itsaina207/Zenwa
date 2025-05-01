@@ -4,32 +4,34 @@
  * et d'attribuer des points en scannant des factures
  */
 
-const { createToken } = require('../hedera/tokens');
-const { transferToken } = require('../hedera/token-management');
-const { openai } = require('../services/openai-service');
-const { executeQuery } = require('../storage/db');
-const { getWalletByUserId } = require('../storage/userWallets');
+const { query } = require('../storage/db');
+const { mintToken, sendToken, associateToken } = require('../hedera/tokens');
+const { getClient } = require('../hedera/client');
+const { OpenAI } = require('openai');
+
+// Initialiser le client OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 /**
  * Initialiser la table des programmes de fidélité
  */
 async function initLoyaltyProgramsTable() {
   try {
-    // Créer la table des programmes de fidélité si elle n'existe pas
-    await executeQuery(`
+    await query(`
       CREATE TABLE IF NOT EXISTS loyalty_programs (
         id SERIAL PRIMARY KEY,
-        token_id TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        owner_id TEXT NOT NULL,
-        points_rate NUMERIC(10, 2) DEFAULT 0.25,
+        creator_id TEXT NOT NULL,
+        token_id TEXT NOT NULL,
+        program_name TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('Table des programmes de fidélité initialisée');
     return true;
   } catch (error) {
-    console.error(`Erreur lors de l'initialisation de la table des programmes de fidélité: ${error.message}`);
+    console.error('Erreur lors de l\'initialisation de la table des programmes de fidélité:', error);
     return false;
   }
 }
@@ -43,38 +45,53 @@ async function initLoyaltyProgramsTable() {
  */
 async function createLoyaltyProgram(userId, programName, supply) {
   try {
-    // Créer un token fongible pour le programme de fidélité
-    const tokenInfo = {
-      name: programName,
-      symbol: 'POINTS',
-      decimals: 0,
-      initialSupply: supply,
-      maxSupply: 100000000, // Limite max comme demandé
-      autoRenewAccountId: null, // Sera rempli par createToken
-      expirationDays: 365
-    };
+    // Vérifier les paramètres
+    if (!userId || !programName || !supply) {
+      return {
+        success: false,
+        message: 'Paramètres manquants pour la création du programme de fidélité'
+      };
+    }
 
-    const tokenResult = await createToken(userId, tokenInfo);
+    // Créer un token fongible pour ce programme
+    const token = await mintToken(userId, {
+      tokenName: `${programName} Points`, 
+      tokenSymbol: 'PTS',
+      tokenType: 'fungible',
+      initialSupply: supply.toString(),
+      decimals: '0'
+    });
 
-    if (!tokenResult.success) {
-      return tokenResult;
+    if (!token.success) {
+      return {
+        success: false,
+        message: `Erreur lors de la création du token: ${token.message}`
+      };
     }
 
     // Enregistrer le programme de fidélité dans la base de données
-    await executeQuery(`
-      INSERT INTO loyalty_programs (token_id, name, owner_id, points_rate)
-      VALUES ($1, $2, $3, $4)
-    `, [tokenResult.tokenId, programName, userId, 0.25]);
+    const result = await query(
+      'INSERT INTO loyalty_programs (creator_id, token_id, program_name) VALUES ($1, $2, $3) RETURNING id',
+      [userId, token.tokenId, programName]
+    );
+
+    if (result.rows.length === 0) {
+      return {
+        success: false,
+        message: 'Erreur lors de l\'enregistrement du programme de fidélité'
+      };
+    }
 
     return {
       success: true,
-      message: `Programme de fidélité "${programName}" créé avec succès !`,
-      tokenId: tokenResult.tokenId,
-      explorerId: tokenResult.tokenId,
-      explorerUrl: tokenResult.explorerUrl
+      message: `Programme de fidélité "${programName}" créé avec succès`,
+      programId: result.rows[0].id,
+      tokenId: token.tokenId,
+      programName: programName,
+      explorerUrl: token.explorerUrl
     };
   } catch (error) {
-    console.error(`Erreur lors de la création du programme de fidélité: ${error.message}`);
+    console.error('Erreur lors de la création du programme de fidélité:', error);
     return {
       success: false,
       message: `Erreur lors de la création du programme de fidélité: ${error.message}`
@@ -89,13 +106,14 @@ async function createLoyaltyProgram(userId, programName, supply) {
  */
 async function getUserLoyaltyPrograms(userId) {
   try {
-    const result = await executeQuery(`
-      SELECT * FROM loyalty_programs WHERE owner_id = $1
-    `, [userId]);
+    const result = await query(
+      'SELECT * FROM loyalty_programs WHERE creator_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
 
     return result.rows;
   } catch (error) {
-    console.error(`Erreur lors de la récupération des programmes de fidélité: ${error.message}`);
+    console.error('Erreur lors de la récupération des programmes de fidélité:', error);
     return [];
   }
 }
@@ -106,13 +124,14 @@ async function getUserLoyaltyPrograms(userId) {
  */
 async function getAllLoyaltyPrograms() {
   try {
-    const result = await executeQuery(`
-      SELECT * FROM loyalty_programs
-    `);
+    const result = await query(
+      'SELECT * FROM loyalty_programs ORDER BY created_at DESC',
+      []
+    );
 
     return result.rows;
   } catch (error) {
-    console.error(`Erreur lors de la récupération des programmes de fidélité: ${error.message}`);
+    console.error('Erreur lors de la récupération de tous les programmes de fidélité:', error);
     return [];
   }
 }
@@ -124,48 +143,50 @@ async function getAllLoyaltyPrograms() {
  */
 async function analyzeReceipt(imageBase64) {
   try {
-    // Analyser l'image avec GPT-4V
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // le modèle le plus récent qui supporte la vision
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [
         {
           role: "system",
-          content: "Tu es un assistant spécialisé dans l'extraction d'informations de factures et tickets de caisse. Tu dois extraire uniquement le montant total. Réponds uniquement avec un objet JSON contenant la clé 'total' dont la valeur est le montant numérique."
+          content: "Vous êtes un assistant spécialisé dans l'analyse de factures. Examinez cette image de facture et extrayez les informations suivantes dans un format JSON : nom du magasin, date, montant total, et présence de TVA. Si certains champs ne sont pas visibles, indiquez-le par null."
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Extrait le montant total à payer de ce ticket. Réponds uniquement avec un objet JSON avec la clé 'total' dont la valeur est le montant numérique."
+              text: "Analysez cette facture et extrayez les informations demandées."
             },
             {
               type: "image_url",
-              image_url: { url: `data:image/jpeg;base64,${imageBase64}` }
+              image_url: {
+                url: `data:image/jpeg;base64,${imageBase64}`
+              }
             }
           ]
         }
       ],
+      max_tokens: 1000,
       response_format: { type: "json_object" }
     });
 
-    // Extraire le montant total
-    const result = JSON.parse(response.choices[0].message.content);
-    const total = parseFloat(result.total);
-
-    if (isNaN(total)) {
+    // Analyser la réponse JSON
+    try {
+      const analysisResult = JSON.parse(response.choices[0].message.content);
+      return {
+        success: true,
+        data: analysisResult
+      };
+    } catch (parseError) {
+      console.error('Erreur lors du parsing de la réponse JSON:', parseError);
       return {
         success: false,
-        message: "Impossible d'extraire un montant total valide de cette facture."
+        message: 'Erreur lors de l\'analyse de la réponse: format JSON invalide',
+        rawResponse: response.choices[0].message.content
       };
     }
-
-    return {
-      success: true,
-      total: total
-    };
   } catch (error) {
-    console.error(`Erreur lors de l'analyse de la facture: ${error.message}`);
+    console.error('Erreur lors de l\'analyse de la facture avec OpenAI:', error);
     return {
       success: false,
       message: `Erreur lors de l'analyse de la facture: ${error.message}`
@@ -180,10 +201,8 @@ async function analyzeReceipt(imageBase64) {
  * @returns {number} Nombre de points à attribuer
  */
 function calculatePoints(totalAmount, pointRate = 0.25) {
-  // Retirer les décimales
-  const cleanAmount = Math.floor(totalAmount);
-  // Calculer les points (25% de la valeur)
-  return Math.floor(cleanAmount * pointRate);
+  // Conversion du montant en points (arrondi à l'entier inférieur)
+  return Math.floor(totalAmount * pointRate);
 }
 
 /**
@@ -195,43 +214,56 @@ function calculatePoints(totalAmount, pointRate = 0.25) {
  */
 async function awardLoyaltyPoints(userId, programId, amount) {
   try {
-    // Récupérer les infos du programme de fidélité
-    const programResult = await executeQuery(`
-      SELECT * FROM loyalty_programs WHERE token_id = $1
-    `, [programId]);
+    // Récupérer les informations du programme de fidélité
+    const programResult = await query(
+      'SELECT * FROM loyalty_programs WHERE token_id = $1',
+      [programId]
+    );
 
     if (programResult.rows.length === 0) {
       return {
         success: false,
-        message: "Programme de fidélité introuvable."
+        message: 'Programme de fidélité non trouvé'
       };
     }
 
     const program = programResult.rows[0];
-    const ownerUserId = program.owner_id;
+    const creatorId = program.creator_id;
+    const tokenId = program.token_id;
 
-    // Récupérer les adresses Hedera
-    const ownerWallet = await getWalletByUserId(ownerUserId);
-    const userWallet = await getWalletByUserId(userId);
-
-    if (!ownerWallet || !userWallet) {
+    // Vérifier que l'utilisateur a associé le token
+    const associationResult = await associateToken(userId, tokenId);
+    if (!associationResult.success && !associationResult.alreadyAssociated) {
       return {
         success: false,
-        message: "Wallet introuvable pour l'attribution des points."
+        message: `Erreur lors de l'association du token: ${associationResult.message}`
       };
     }
 
-    // Transférer les tokens (points) du propriétaire du programme à l'utilisateur
-    const transferResult = await transferToken(
-      ownerUserId,
-      userWallet.account_id,
-      programId,
-      amount
-    );
+    // Transférer les points depuis le créateur vers l'utilisateur
+    const transferResult = await sendToken(creatorId, {
+      tokenId: tokenId,
+      recipientId: userId,
+      amount: amount.toString()
+    });
 
-    return transferResult;
+    if (!transferResult.success) {
+      return {
+        success: false,
+        message: `Erreur lors du transfert des points: ${transferResult.message}`
+      };
+    }
+
+    return {
+      success: true,
+      message: `${amount} points de fidélité attribués avec succès`,
+      tokenId: tokenId,
+      amount: amount,
+      programName: program.program_name,
+      explorerUrl: transferResult.explorerUrl
+    };
   } catch (error) {
-    console.error(`Erreur lors de l'attribution des points: ${error.message}`);
+    console.error('Erreur lors de l\'attribution des points de fidélité:', error);
     return {
       success: false,
       message: `Erreur lors de l'attribution des points: ${error.message}`
@@ -239,8 +271,12 @@ async function awardLoyaltyPoints(userId, programId, amount) {
   }
 }
 
+// Initialiser la table des programmes de fidélité au démarrage
+initLoyaltyProgramsTable().catch(err => {
+  console.error('Erreur lors de l\'initialisation de la table des programmes de fidélité:', err);
+});
+
 module.exports = {
-  initLoyaltyProgramsTable,
   createLoyaltyProgram,
   getUserLoyaltyPrograms,
   getAllLoyaltyPrograms,
