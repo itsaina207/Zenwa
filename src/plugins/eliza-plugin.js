@@ -226,6 +226,7 @@ class ElizaHederaPlugin {
    */
   async getTokenOwners(tokenId) {
     try {
+      console.log(`[ELIZA] Getting token owners for token: ${tokenId}`);
       // Validate token ID format
       if (!tokenId.match(/^0\.0\.\d+$/)) {
         return {
@@ -234,40 +235,82 @@ class ElizaHederaPlugin {
         };
       }
       
-      // Query the mirror node for token holders
-      const response = await mirrorNodeClient.get(`/tokens/${tokenId}/balances`);
-      
-      if (!response.data || !response.data.balances) {
-        return {
-          success: false,
-          message: "Impossible de récupérer les informations sur les détenteurs du token."
-        };
-      }
-      
-      const balances = response.data.balances;
-      
-      if (balances.length === 0) {
+      // Query the mirror node for token holders with proper limit
+      try {
+        // Use the dedicated function from mirror-node.js
+        const { getTokenHolders } = require('../hedera/mirror-node');
+        const tokenHolders = await getTokenHolders(tokenId, 100);
+        
+        if (!tokenHolders || !tokenHolders.balances) {
+          console.error(`[ELIZA] No balances found for token ${tokenId}`);
+          return {
+            success: false,
+            message: `Impossible de récupérer les informations sur les détenteurs du token ${tokenId}.`
+          };
+        }
+        
+        const balances = tokenHolders.balances;
+        console.log(`[ELIZA] Found ${balances.length} holders for token ${tokenId}`);
+        
+        if (balances.length === 0) {
+          return {
+            success: true,
+            message: `Aucun compte ne détient actuellement le token ${tokenId}.`
+          };
+        }
+        
+        // Format the token holders information
+        const holdersList = balances
+          .slice(0, 10) // Limit to first 10 holders
+          .map(holder => `Compte: ${holder.account}, Solde: ${holder.balance}`)
+          .join('\n');
+          
+        const totalHolders = balances.length;
+        const hasMore = totalHolders > 10;
+        
         return {
           success: true,
-          message: `Aucun compte ne détient actuellement le token ${tokenId}.`
+          message: `Détenteurs du token ${tokenId} (${hasMore ? 'les 10 premiers sur ' + totalHolders : totalHolders}):\n${holdersList}\n\nVoir sur HashScan: https://hashscan.io/testnet/token/${tokenId}/balances`
+        };
+      } catch (error) {
+        // Fallback direct method if the helper function fails
+        console.error(`[ELIZA] Error using getTokenHolders function: ${error.message}, trying direct API call`);
+        
+        const response = await mirrorNodeClient.get(`/tokens/${tokenId}/balances?limit=100`);
+        
+        if (!response.data || !response.data.balances) {
+          return {
+            success: false,
+            message: `Impossible de récupérer les informations sur les détenteurs du token ${tokenId}.`
+          };
+        }
+        
+        const balances = response.data.balances;
+        console.log(`[ELIZA] Found ${balances.length} holders for token ${tokenId} (direct method)`);
+        
+        if (balances.length === 0) {
+          return {
+            success: true,
+            message: `Aucun compte ne détient actuellement le token ${tokenId}.`
+          };
+        }
+        
+        // Format the token holders information
+        const holdersList = balances
+          .slice(0, 10) // Limit to first 10 holders
+          .map(holder => `Compte: ${holder.account}, Solde: ${holder.balance}`)
+          .join('\n');
+          
+        const totalHolders = balances.length;
+        const hasMore = totalHolders > 10;
+        
+        return {
+          success: true,
+          message: `Détenteurs du token ${tokenId} (${hasMore ? 'les 10 premiers sur ' + totalHolders : totalHolders}):\n${holdersList}\n\nVoir sur HashScan: https://hashscan.io/testnet/token/${tokenId}/balances`
         };
       }
-      
-      // Format the token holders information
-      const holdersList = balances
-        .slice(0, 10) // Limit to first 10 holders
-        .map(holder => `Compte: ${holder.account}, Solde: ${holder.balance}`)
-        .join('\n');
-        
-      const totalHolders = balances.length;
-      const hasMore = totalHolders > 10;
-      
-      return {
-        success: true,
-        message: `Détenteurs du token ${tokenId} (${hasMore ? 'les 10 premiers sur ' + totalHolders : totalHolders}):\n${holdersList}\n\nVoir sur HashScan: https://hashscan.io/testnet/token/${tokenId}/balances`
-      };
     } catch (error) {
-      console.error('Error getting token owners:', error);
+      console.error(`[ELIZA] Error getting token owners: ${error.message}`);
       return {
         success: false,
         message: `Erreur lors de la récupération des détenteurs du token : ${error.message}`

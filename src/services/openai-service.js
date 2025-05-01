@@ -219,6 +219,7 @@ function isCreateAirdropRequest(message) {
  * @returns {boolean} True si c'est une requête pour le plugin Eliza
  */
 function isElizaQuery(message) {
+  // IMPORTANT: Nous devons toujours utiliser Eliza pour les requêtes concernant les tokens et la blockchain
   const lowerMessage = message.toLowerCase().trim();
   
   const elizaPatterns = [
@@ -229,18 +230,23 @@ function isElizaQuery(message) {
     { keywords: ['eligibilite', 'airdrop'], threshold: 2 },
     { keywords: ['éligibilité', 'airdrop'], threshold: 2 },
     
-    // Requêtes sur les propriétaires de tokens
-    { keywords: ['qui', 'possède', 'token'], threshold: 2 },
-    { keywords: ['qui', 'possede', 'token'], threshold: 2 },
-    { keywords: ['who', 'owns', 'token'], threshold: 2 },
-    { keywords: ['liste', 'possesseurs', 'token'], threshold: 2 },
-    { keywords: ['liste', 'détenteurs', 'token'], threshold: 2 },
-    { keywords: ['liste', 'detenteurs', 'token'], threshold: 2 },
-    { keywords: ['list', 'holders', 'token'], threshold: 2 },
-    { keywords: ['propriétaires', 'token'], threshold: 2 },
-    { keywords: ['proprietaires', 'token'], threshold: 2 },
+    // Requêtes sur les propriétaires de tokens (élargies)
+    { keywords: ['qui', 'possède'], threshold: 2 },
+    { keywords: ['qui', 'possede'], threshold: 2 },
+    { keywords: ['who', 'owns'], threshold: 2 },
+    { keywords: ['who', 'hold'], threshold: 2 },
+    { keywords: ['liste', 'possesseurs'], threshold: 2 },
+    { keywords: ['liste', 'détenteurs'], threshold: 2 },
+    { keywords: ['liste', 'detenteurs'], threshold: 2 },
+    { keywords: ['list', 'holders'], threshold: 2 },
+    { keywords: ['list', 'owners'], threshold: 2 },
+    { keywords: ['propriétaires'], threshold: 1 },
+    { keywords: ['proprietaires'], threshold: 1 },
+    { keywords: ['détenteurs'], threshold: 1 },
+    { keywords: ['detenteurs'], threshold: 1 },
+    { keywords: ['holders'], threshold: 1 },
     
-    // Requêtes d'information sur les tokens
+    // Requêtes d'information sur les tokens (élargies)
     { keywords: ['token', 'information'], threshold: 2 },
     { keywords: ['token', 'informations'], threshold: 2 },
     { keywords: ['token', 'info'], threshold: 2 },
@@ -250,17 +256,22 @@ function isElizaQuery(message) {
     { keywords: ['offre', 'token'], threshold: 2 },
     { keywords: ['treasury', 'token'], threshold: 2 },
     { keywords: ['trésorerie', 'token'], threshold: 2 },
+    { keywords: ['info', 'sur', 'token'], threshold: 2 },
     
     // Requêtes générales sur la blockchain
     { keywords: ['interroger', 'blockchain'], threshold: 2 },
     { keywords: ['query', 'blockchain'], threshold: 2 },
     { keywords: ['demander', 'blockchain'], threshold: 2 },
     { keywords: ['blockchain', 'info'], threshold: 2 },
+    { keywords: ['blockchain', 'état'], threshold: 2 },
+    { keywords: ['blockchain', 'etat'], threshold: 2 },
+    { keywords: ['blockchain', 'status'], threshold: 2 },
     
     // Requêtes sur le solde des tokens
     { keywords: ['solde', 'token'], threshold: 2 },
     { keywords: ['balance', 'token'], threshold: 2 },
-    { keywords: ['mes', 'tokens'], threshold: 2 }
+    { keywords: ['mes', 'tokens'], threshold: 2 },
+    { keywords: ['my', 'tokens'], threshold: 2 }
   ];
   
   // Recherche de correspondance dans les patterns
@@ -277,19 +288,26 @@ function isElizaQuery(message) {
   }
   
   // Vérifier si un ID de token est mentionné (format 0.0.XXXXX)
+  // Si un token ID est présent, la requête doit TOUJOURS aller à Eliza
   if (lowerMessage.match(/0\.0\.\d+/)) {
-    if (lowerMessage.includes('token') || 
-        lowerMessage.includes('qui') || 
-        lowerMessage.includes('possede') || 
-        lowerMessage.includes('possède') || 
-        lowerMessage.includes('détenteurs') || 
-        lowerMessage.includes('detenteurs') || 
-        lowerMessage.includes('holders') || 
-        lowerMessage.includes('owns') ||
-        lowerMessage.includes('info') ||
-        lowerMessage.includes('details') ||
-        lowerMessage.includes('détails')) {
-      return true;
+    return true;
+  }
+  
+  // Mots individuels très spécifiques aux requêtes blockchain
+  const blockchainSpecificWords = [
+    'token', 'tokens', 'détenteurs', 'detenteurs', 'holders', 
+    'propriétaires', 'proprietaires', 'owners', 'possesseurs',
+    'possède', 'possede', 'owns', 'blockchain', 'hedera'
+  ];
+  
+  // Si deux mots spécifiques blockchain sont présents, considérer comme requête Eliza
+  let specificWordCount = 0;
+  for (const word of blockchainSpecificWords) {
+    if (lowerMessage.includes(word)) {
+      specificWordCount++;
+      if (specificWordCount >= 2) {
+        return true;
+      }
     }
   }
   
