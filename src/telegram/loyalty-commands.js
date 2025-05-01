@@ -273,7 +273,24 @@ Attribution des points en cours...`,
     );
     
     // Attribuer les points
-    const awardResult = await awardLoyaltyPoints(userId, programId, pointsToAward);
+    console.log(`[LOYALTY] Attribution de ${pointsToAward} points du programme ${programId} à l'utilisateur ${userId}`);
+    
+    // Convertir l'ID utilisateur en chaîne pour éviter les problèmes de typage
+    const userIdStr = String(userId);
+    const programIdStr = String(programId);
+    
+    // Vérifier que les valeurs sont correctes
+    if (!userIdStr || !programIdStr || isNaN(pointsToAward)) {
+      console.error(`[LOYALTY] Valeurs invalides: userId=${userIdStr}, programId=${programIdStr}, points=${pointsToAward}`);
+      await bot.sendMessage(
+        chatId,
+        "\u274C Une erreur est survenue lors de la préparation du transfert de points. Veuillez réessayer plus tard."
+      );
+      sharedUserState.set(userId, { state: LOYALTY_STATES.NONE });
+      return true;
+    }
+    
+    const awardResult = await awardLoyaltyPoints(userIdStr, programIdStr, pointsToAward);
     
     if (awardResult.success) {
       const message = `
