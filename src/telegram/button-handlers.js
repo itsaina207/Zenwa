@@ -6,12 +6,10 @@
 const { getUserLanguage } = require('./language/handler');
 const { getBot } = require('./bot');
 const { createTokenAirdrop, claimTokenAirdrop } = require('../hedera/airdrop');
-const { LOYALTY_STATES } = require('../loyalty/loyalty-states');
 
 // Référence au userState partagé
 let userState;
 let AIRDROP_STATES;
-// Les états de fidélité sont importés directement et non passés en paramètre
 
 /**
  * Initialise le module avec l'état partagé des utilisateurs
@@ -263,31 +261,6 @@ async function handleButtonAction(callbackQuery) {
     
     // Réinitialiser l'état de l'utilisateur
     userState.delete(userId);
-    return true;
-  }
-  
-  // Gérer les boutons de sélection de programme de fidélité
-  if (action.startsWith('loyalty_select_')) {
-    await bot.answerCallbackQuery(callbackQuery.id, { text: 'Programme sélectionné' });
-    
-    const tokenId = action.split('loyalty_select_')[1];
-    console.log(`[LOYALTY] Sélection du programme de fidélité. Token ID: ${tokenId}, User: ${userId}`);
-    
-    // Mettre à jour l'état de l'utilisateur
-    userState.set(userId, {
-      state: LOYALTY_STATES.WAITING_FOR_PHOTO,
-      chatId: chatId,
-      loyalty: {
-        selectedProgramId: tokenId
-      }
-    });
-    
-    // Demander à l'utilisateur d'envoyer une photo de facture
-    await bot.sendMessage(
-      chatId,
-      "Veuillez envoyer une photo claire de votre facture. Assurez-vous que le montant total est bien visible."
-    );
-    
     return true;
   }
   

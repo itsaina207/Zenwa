@@ -30,16 +30,6 @@ const {
   CLAIM_STATES 
 } = airdropModule;
 
-// Importer le module de gestion des programmes de fidélité
-const loyaltyModule = require('./loyalty-commands');
-const {
-  handleCreateLoyaltyProgram,
-  handleEarnPoints,
-  handleLoyaltyInput,
-  handleReceiptPhoto,
-  LOYALTY_STATES
-} = loyaltyModule;
-
 // Définir des placeholders pour les états des campagnes (toujours désactivées)
 const CAMPAIGN_STATES = { NONE: 'none_campaign' };
 
@@ -1378,10 +1368,6 @@ function registerCommands(bot) {
   buttonHandlers.initialize(userState, AIRDROP_STATES);
   console.log("État des utilisateurs partagé avec le module button-handlers");
   
-  // Initialiser le module de gestion des programmes de fidélité
-  loyaltyModule.initializeSharedUserState(userState);
-  console.log("État des utilisateurs partagé avec le module loyalty-commands");
-  
   // Define command handlers
   // Supprimé le gestionnaire de /start car il est déjà dans language/handler.js
   // ce qui causait un double affichage des menus
@@ -1402,10 +1388,6 @@ function registerCommands(bot) {
   // Réactiver les commandes d'airdrop avec TokenAirdropTransaction
   bot.onText(/\/airdrop(.*)/, msg => handleAirdrop(bot, msg));
   bot.onText(/\/claimairdrop(.*)/, msg => handleClaimAirdrop(bot, msg));
-  
-  // Ajouter les commandes du programme de fidélité
-  bot.onText(/\/createloyalty(.*)/, msg => handleCreateLoyaltyProgram(bot, msg));
-  bot.onText(/\/earnpoints(.*)/, msg => handleEarnPoints(bot, msg));
   
   // Commandes de campagnes toujours désactivées 
   // bot.onText(/\/campaign(.*)/, msg => handleCampaign(bot, msg));
@@ -1434,20 +1416,10 @@ function registerCommands(bot) {
   
   // Handler pour les messages normaux
   bot.on('message', async (msg) => {
-    const userId = msg.from.id.toString();
-    
-    // Vérifier d'abord s'il s'agit d'une photo pour le programme de fidélité
-    if (msg.photo && msg.photo.length > 0) {
-      const handled = await handleReceiptPhoto(bot, msg);
-      if (handled) return;
-    }
-    
-    // Si ce n'est pas une photo ou si elle n'a pas été traitée comme un reçu,
-    // continuer avec le traitement normal
-    
-    // On ne traite que les messages textuels pour le reste
+    // On ne traite que les messages textuels
     if (!msg.text) return;
     
+    const userId = msg.from.id.toString();
     const isCommand = msg.text.startsWith('/');
     
     // Si c'est une commande, vérifier si c'est une commande setlang connue
@@ -1510,13 +1482,6 @@ function registerCommands(bot) {
           if (handled) return;
         }
         
-        // Vérifier si nous sommes dans une conversation de programme de fidélité
-        if (Object.values(LOYALTY_STATES).includes(userInfo.state)) {
-          // Traiter la conversation du programme de fidélité
-          const handled = await handleLoyaltyInput(bot, msg);
-          if (handled) return;
-        }
-        
         // Vérifier si nous sommes dans une conversation d'airdrop, de campagne ou de réclamation
         if (userInfo.state && 
             (userInfo.state.toString().startsWith('waiting_for_') || 
@@ -1555,9 +1520,6 @@ function registerCommands(bot) {
     // Réactiver les commandes d'airdrop avec TokenAirdropTransaction
     { command: "airdrop", description: "Créer un airdrop de tokens" },
     { command: "claimairdrop", description: "Réclamer des tokens d'un airdrop" },
-    // Ajouter les commandes du programme de fidélité
-    { command: "createloyalty", description: "Créer un programme de fidélité" },
-    { command: "earnpoints", description: "Gagner des points avec une facture" },
     { command: "forcetransfer", description: "Transférer un token directement (Admin)" },
     { command: "setlang", description: "Changer la langue (FR/EN)" },
     { command: "help", description: "Afficher de l'aide" },

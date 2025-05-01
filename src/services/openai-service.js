@@ -219,20 +219,81 @@ function isCreateAirdropRequest(message) {
  * @returns {boolean} True si c'est une requête pour le plugin Eliza
  */
 function isElizaQuery(message) {
-  // IMPORTANT: On doit utiliser Eliza pour les requêtes sur les détenteurs de tokens uniquement
   const lowerMessage = message.toLowerCase().trim();
   
-  // Vérifier si c'est une requête concernant les détenteurs de tokens
-  return lowerMessage.match(/0\.0\.\d+/) && (
-    lowerMessage.includes('qui') ||
-    lowerMessage.includes('possede') ||
-    lowerMessage.includes('possède') ||
-    lowerMessage.includes('détenteurs') ||
-    lowerMessage.includes('detenteurs') ||
-    lowerMessage.includes('holders') ||
-    lowerMessage.includes('own') ||
-    lowerMessage.includes('propriétaire')
-  );
+  const elizaPatterns = [
+    // Requêtes d'éligibilité aux airdrops
+    { keywords: ['eligible', 'airdrop'], threshold: 2 },
+    { keywords: ['droit', 'airdrop'], threshold: 2 },
+    { keywords: ['recevoir', 'airdrop'], threshold: 2 },
+    { keywords: ['eligibilite', 'airdrop'], threshold: 2 },
+    { keywords: ['éligibilité', 'airdrop'], threshold: 2 },
+    
+    // Requêtes sur les propriétaires de tokens
+    { keywords: ['qui', 'possède', 'token'], threshold: 2 },
+    { keywords: ['qui', 'possede', 'token'], threshold: 2 },
+    { keywords: ['who', 'owns', 'token'], threshold: 2 },
+    { keywords: ['liste', 'possesseurs', 'token'], threshold: 2 },
+    { keywords: ['liste', 'détenteurs', 'token'], threshold: 2 },
+    { keywords: ['liste', 'detenteurs', 'token'], threshold: 2 },
+    { keywords: ['list', 'holders', 'token'], threshold: 2 },
+    { keywords: ['propriétaires', 'token'], threshold: 2 },
+    { keywords: ['proprietaires', 'token'], threshold: 2 },
+    
+    // Requêtes d'information sur les tokens
+    { keywords: ['token', 'information'], threshold: 2 },
+    { keywords: ['token', 'informations'], threshold: 2 },
+    { keywords: ['token', 'info'], threshold: 2 },
+    { keywords: ['détails', 'token'], threshold: 2 },
+    { keywords: ['details', 'token'], threshold: 2 },
+    { keywords: ['supply', 'token'], threshold: 2 },
+    { keywords: ['offre', 'token'], threshold: 2 },
+    { keywords: ['treasury', 'token'], threshold: 2 },
+    { keywords: ['trésorerie', 'token'], threshold: 2 },
+    
+    // Requêtes générales sur la blockchain
+    { keywords: ['interroger', 'blockchain'], threshold: 2 },
+    { keywords: ['query', 'blockchain'], threshold: 2 },
+    { keywords: ['demander', 'blockchain'], threshold: 2 },
+    { keywords: ['blockchain', 'info'], threshold: 2 },
+    
+    // Requêtes sur le solde des tokens
+    { keywords: ['solde', 'token'], threshold: 2 },
+    { keywords: ['balance', 'token'], threshold: 2 },
+    { keywords: ['mes', 'tokens'], threshold: 2 }
+  ];
+  
+  // Recherche de correspondance dans les patterns
+  for (const pattern of elizaPatterns) {
+    let matchCount = 0;
+    for (const keyword of pattern.keywords) {
+      if (lowerMessage.includes(keyword)) {
+        matchCount++;
+      }
+    }
+    if (matchCount >= pattern.threshold) {
+      return true;
+    }
+  }
+  
+  // Vérifier si un ID de token est mentionné (format 0.0.XXXXX)
+  if (lowerMessage.match(/0\.0\.\d+/)) {
+    if (lowerMessage.includes('token') || 
+        lowerMessage.includes('qui') || 
+        lowerMessage.includes('possede') || 
+        lowerMessage.includes('possède') || 
+        lowerMessage.includes('détenteurs') || 
+        lowerMessage.includes('detenteurs') || 
+        lowerMessage.includes('holders') || 
+        lowerMessage.includes('owns') ||
+        lowerMessage.includes('info') ||
+        lowerMessage.includes('details') ||
+        lowerMessage.includes('détails')) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -267,6 +328,5 @@ module.exports = {
   isGetAirdropsRequest,
   isCreateAirdropRequest,
   isElizaQuery,
-  processWithEliza,
-  openai // Exporter le client OpenAI pour l'utiliser avec GPT-4V
+  processWithEliza
 };
