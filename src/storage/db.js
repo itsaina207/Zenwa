@@ -80,17 +80,6 @@ const pool = new Pool({
       )
     `);
     
-    // Créer la table pour les programmes de fidélité si elle n'existe pas déjà
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS loyalty_programs (
-        id SERIAL PRIMARY KEY,
-        creator_id TEXT NOT NULL,
-        token_id TEXT NOT NULL,
-        program_name TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    
     console.log('Database tables initialized successfully');
     client.release();
   } catch (err) {

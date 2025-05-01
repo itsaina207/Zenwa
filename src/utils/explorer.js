@@ -43,18 +43,6 @@ function getExplorerUrls(id, type, network = 'testnet') {
   };
 }
 
-/**
- * Fonction simplifiée pour générer un lien d'explorateur
- * @param {string} id - ID de la ressource (transaction, token, etc.)
- * @param {string} type - Type de ressource ('transaction', 'token', 'account', 'topic')
- * @returns {string} URL de l'explorateur
- */
-function explorerUrl(id, type = 'transaction') {
-  const urls = getExplorerUrls(id, type);
-  return urls.hashScan;
-}
-
 module.exports = {
-  getExplorerUrls,
-  explorerUrl
+  getExplorerUrls
 };
