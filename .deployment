@@ -1,0 +1,3 @@
+# Configuration spécifique pour le déploiement Replit
+ENTRYPOINT="node replit.js"
+WEB_ARTIFACT=public
