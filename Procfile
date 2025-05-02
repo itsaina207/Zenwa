@@ -1,1 +1,1 @@
-web: bash run.sh
+web: bash replit_deploy.sh

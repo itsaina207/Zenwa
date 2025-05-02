@@ -18,10 +18,17 @@ if [ -z "$HEDERA_AI_KIT_ACCOUNT_ID" ] || [ -z "$HEDERA_AI_KIT_PRIVATE_KEY" ]; th
   exit 1
 fi
 
+# Déterminer le port pour l'application Flask (Replit utilise des variables dynamiques)
+FLASK_PORT=5000
+if [ -n "$PORT" ]; then
+  FLASK_PORT=$PORT
+  echo "Utilisation du port configuré pour Flask: $PORT"
+fi
+
 # Démarrer l'application Flask en arrière-plan
 echo "Démarrage du serveur web Flask..."
-gunicorn --bind 0.0.0.0:5000 main:app &
-echo "Serveur web démarré sur le port 5000."
+gunicorn --bind 0.0.0.0:$FLASK_PORT main:app &
+echo "Serveur web démarré sur le port $FLASK_PORT"
 
 # Démarrer le bot Telegram (Node.js)
 echo "Démarrage du bot Zenwa..."
