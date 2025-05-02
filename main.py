@@ -18,5 +18,10 @@ def health():
     """Health check endpoint"""
     return {"status": "ok", "version": "1.0.0"}
 
+@app.route('/uptime')
+def uptime_monitor():
+    """Serve the uptime monitoring page"""
+    return send_from_directory(app.static_folder, 'uptime.html')
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

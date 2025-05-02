@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenwa Bot Uptime Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #4285f4;
+            margin-top: 0;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .status.online {
+            background-color: #e6f4ea;
+            color: #137333;
+        }
+        .status.offline {
+            background-color: #fce8e6;
+            color: #c5221f;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .metric h3 {
+            margin-top: 0;
+            font-size: 14px;
+            color: #5f6368;
+        }
+        .metric p {
+            margin-bottom: 0;
+            font-size: 20px;
+            font-weight: bold;
+            color: #202124;
+        }
+        .ping-log {
+            margin-top: 30px;
+        }
+        .ping-log h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        .success {
+            color: #137333;
+        }
+        .error {
+            color: #c5221f;
+        }
+        .version {
+            font-size: 12px;
+            color: #5f6368;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Zenwa Bot Uptime Monitor</h1>
+        
+        <div class="status online" id="statusContainer">
+            Checking status...
+        </div>
+        
+        <div class="metrics">
+            <div class="metric">
+                <h3>Uptime</h3>
+                <p id="uptime">--</p>
+            </div>
+            <div class="metric">
+                <h3>Last checked</h3>
+                <p id="lastChecked">--</p>
+            </div>
+            <div class="metric">
+                <h3>Response time</h3>
+                <p id="responseTime">--</p>
+            </div>
+            <div class="metric">
+                <h3>Bot status</h3>
+                <p id="botStatus">--</p>
+            </div>
+        </div>
+        
+        <div class="ping-log">
+            <h2>Recent Ping Log</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Response</th>
+                    </tr>
+                </thead>
+                <tbody id="pingLog">
+                    <!-- Log entries will be added here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <p class="version">Zenwa Bot Uptime Monitor v1.0</p>
+    </div>
+
+    <script>
+        // Configuration
+        const CHECK_INTERVAL = 60000; // Check every minute
+        const MAX_LOG_ENTRIES = 10; // Maximum number of log entries to display
+        let pingLog = [];
+
+        // Function to check the server status
+        async function checkStatus() {
+            const startTime = Date.now();
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                const responseTime = Date.now() - startTime;
+                
+                updateStatusUI(true, data, responseTime);
+                addLogEntry(true, data, responseTime);
+                
+                // Ping for keep-alive
+                return data;
+            } catch (error) {
+                console.error('Error checking status:', error);
+                updateStatusUI(false, null, 0);
+                addLogEntry(false, {error: error.message}, 0);
+            }
+        }
+
+        // Update the UI with status information
+        function updateStatusUI(isOnline, data, responseTime) {
+            const statusContainer = document.getElementById('statusContainer');
+            const uptimeElement = document.getElementById('uptime');
+            const lastCheckedElement = document.getElementById('lastChecked');
+            const responseTimeElement = document.getElementById('responseTime');
+            const botStatusElement = document.getElementById('botStatus');
+            
+            // Update status indicator
+            statusContainer.className = isOnline ? 'status online' : 'status offline';
+            statusContainer.textContent = isOnline ? 'Bot is online and operational' : 'Bot appears to be offline';
+            
+            // Update metrics
+            lastCheckedElement.textContent = new Date().toLocaleTimeString();
+            responseTimeElement.textContent = isOnline ? `${responseTime}ms` : 'Timeout';
+            
+            if (isOnline && data) {
+                uptimeElement.textContent = data.uptime || '--';
+                botStatusElement.textContent = data.telegram_bot || '--';
+            } else {
+                uptimeElement.textContent = '--';
+                botStatusElement.textContent = 'Disconnected';
+            }
+        }
+
+        // Add a new entry to the ping log
+        function addLogEntry(isSuccess, data, responseTime) {
+            const logTable = document.getElementById('pingLog');
+            
+            // Create new log entry
+            const entry = {
+                time: new Date(),
+                success: isSuccess,
+                data: data,
+                responseTime: responseTime
+            };
+            
+            // Add to our log array
+            pingLog.unshift(entry);
+            if (pingLog.length > MAX_LOG_ENTRIES) {
+                pingLog = pingLog.slice(0, MAX_LOG_ENTRIES);
+            }
+            
+            // Clear and rebuild the table
+            logTable.innerHTML = '';
+            pingLog.forEach(entry => {
+                const row = document.createElement('tr');
+                
+                // Time cell
+                const timeCell = document.createElement('td');
+                timeCell.textContent = entry.time.toLocaleTimeString();
+                row.appendChild(timeCell);
+                
+                // Status cell
+                const statusCell = document.createElement('td');
+                statusCell.textContent = entry.success ? 'Success' : 'Failed';
+                statusCell.className = entry.success ? 'success' : 'error';
+                row.appendChild(statusCell);
+                
+                // Response cell
+                const responseCell = document.createElement('td');
+                if (entry.success) {
+                    responseCell.textContent = `${entry.responseTime}ms`;
+                } else {
+                    responseCell.textContent = entry.data.error || 'Error';
+                    responseCell.className = 'error';
+                }
+                row.appendChild(responseCell);
+                
+                logTable.appendChild(row);
+            });
+        }
+
+        // Initial check
+        checkStatus();
+        
+        // Set up regular checking
+        setInterval(checkStatus, CHECK_INTERVAL);
+    </script>
+</body>
+</html>

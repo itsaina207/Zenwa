@@ -24,10 +24,7 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 app.use(express.json());
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', environment: NODE_ENV });
-});
+// Endpoint pour tester si le serveur est disponible - sera remplacé plus tard
 
 // API routes for testing
 app.use('/api', apiRoutes);
@@ -51,51 +48,40 @@ try {
   // Continue despite errors
 }
 
-// Auto-ping system to keep the application alive 24/7
-const PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
-let pingCounter = 0;
+// Import le système keep-alive amélioré pour un fonctionnement 24/7
+const { initKeepAliveSystem } = require('./keep-alive');
 
-const autoPing = () => {
-  pingCounter++;
-  console.log(`[KEEP-ALIVE] Auto-ping #${pingCounter} at ${new Date().toISOString()}`);
+// Enrichir l'endpoint /health pour plus de détails
+app.get('/health', (req, res) => {
+  const version = '1.0.0';
+  const uptime = Math.floor(process.uptime());
+  const uptimeFormatted = `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`;
   
-  // Simulate a health check request to keep the app active
-  try {
-    const https = require('https');
-    const url = process.env.REPLIT_SLUG ? 
-      `https://${process.env.REPLIT_SLUG}.${process.env.REPLIT_OWNER}.repl.co/health` : 
-      `http://localhost:${PORT}/health`;
-    
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          console.log(`[KEEP-ALIVE] Health check successful: ${data}`);
-        } else {
-          console.error(`[KEEP-ALIVE] Health check failed with status: ${res.statusCode}`);
-        }
-      });
-    }).on('error', (err) => {
-      console.error(`[KEEP-ALIVE] Health check error: ${err.message}`);
-    });
-  } catch (error) {
-    console.error(`[KEEP-ALIVE] Auto-ping error: ${error.message}`);
-  }
-};
-
-// Set up regular pinging
-setInterval(autoPing, PING_INTERVAL);
+  res.status(200).json({
+    status: 'ok',
+    version,
+    environment: NODE_ENV,
+    uptime: uptimeFormatted,
+    timestamp: new Date().toISOString(),
+    telegram_bot: bot ? 'connected' : 'disconnected',
+    hedera_client: 'initialized'
+  });
+});
 
 // Start Express server
 try {
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`API available at http://0.0.0.0:${PORT}/api`);
     
-    // Initial ping to make sure it's working
-    setTimeout(autoPing, 10000);
+    // Initialize the keep-alive system for 24/7 operation
+    initKeepAliveSystem(PORT);
+    
+    console.log(`[SERVER] Zenwa is now running 24/7 with automatic monitoring`);
   });
+  
+  // Add timeout handling
+  server.timeout = 120000; // 2 minutes timeout
 } catch (error) {
   console.error('Error starting Express server:', error);
 }
