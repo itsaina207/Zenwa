@@ -92,8 +92,21 @@ async function healthCheck(port) {
     }
     
     // Try Replit URL as backup
+    let replitUrl = null;
+    
     if (process.env.REPLIT_SLUG && process.env.REPLIT_OWNER) {
-      const replitUrl = `https://${process.env.REPLIT_SLUG}.${process.env.REPLIT_OWNER}.repl.co/health`;
+      replitUrl = `https://${process.env.REPLIT_SLUG}.${process.env.REPLIT_OWNER}.repl.co/health`;
+    } else if (process.env.REPLIT_DB_URL) {
+      // Determine the deployment URL from the REPLIT_DB_URL
+      const match = process.env.REPLIT_DB_URL.match(/([a-zA-Z0-9-]+)\.([a-zA-Z0-9-]+)\.repl\.co/);
+      if (match) {
+        const [_, slug, owner] = match;
+        replitUrl = `https://${slug}.${owner}.repl.co/health`;
+        console.log(`[HEALTH] Detected deployment URL: ${replitUrl}`);
+      }
+    }
+    
+    if (replitUrl) {
       console.log(`[HEALTH] Checking Replit health at ${replitUrl}`);
       
       try {
