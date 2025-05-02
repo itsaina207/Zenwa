@@ -17,20 +17,52 @@ Avant de déployer Zenwa, assurez-vous que les variables d'environnement suivant
    
    Assurez-vous que votre fichier `Procfile` contient:
    ```
-   web: bash start.sh
+   web: bash run.sh
    ```
+   
+   Ce script exécutera `run.sh`, qui affichera des informations sur l'environnement avant de lancer le script principal `start.sh`.
 
-2. **Configurez le script de démarrage**
+2. **Configurez les scripts de démarrage**
    
    Le fichier `start.sh` doit être exécutable et contenir:
    ```bash
    #!/bin/bash
-   
+
+   # Charger les variables d'environnement pour le déploiement
+   if [ -f ".env.deployment" ]; then
+     echo "Chargement des variables d'environnement de déploiement..."
+     export $(grep -v '^#' .env.deployment | xargs)
+     echo "Variables d'environnement chargées avec succès."
+   fi
+
+   # Vérifier que les variables essentielles sont définies
+   if [ -z "$TELEGRAM_BOT_TOKEN" ] && [ -z "$ZENWA_TELEGRAM" ]; then
+     echo "ERREUR: Ni TELEGRAM_BOT_TOKEN ni ZENWA_TELEGRAM ne sont définis. Le bot ne pourra pas fonctionner."
+     exit 1
+   fi
+
    # Démarrer l'application Flask en arrière-plan
+   echo "Démarrage du serveur web Flask..."
    gunicorn --bind 0.0.0.0:5000 main:app &
-   
+   echo "Serveur web démarré sur le port 5000."
+
    # Démarrer le bot Telegram (Node.js)
-   cd src && node index.js
+   echo "Démarrage du bot Zenwa..."
+   cd src && NODE_ENV=production node index.js
+   ```
+   
+   Le fichier `run.sh` doit également être exécutable et contenir:
+   ```bash
+   #!/bin/bash
+
+   # Afficher les informations sur l'environnement
+   echo "=== Configuration de l'environnement Zenwa ==="
+   echo "NODE_ENV: $NODE_ENV"
+   echo "REPLIT_DEPLOYMENT: $REPLIT_DB_URL"
+   echo "=== Fin de la configuration ==="
+
+   # Exécuter le script principal d'exécution
+   bash start.sh
    ```
 
 3. **Environnement de déploiement**
