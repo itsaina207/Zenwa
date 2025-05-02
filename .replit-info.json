@@ -1,0 +1,15 @@
+{
+  "app": "zenwa",
+  "description": "Zenwa Telegram Bot for Hedera",
+  "language": "nodejs",
+  "port": 5000,
+  "tgbot_port": 8000,
+  "engine": "node",
+  "version": "1.0.0",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "web": {
+    "start": "bash run.sh"
+  }
+}
