@@ -1,16 +1,18 @@
 # Guide de déploiement de Zenwa
 
-## Résumé du déploiement
+## Résumé du déploiement (MISE À JOUR)
 
 Pour déployer Zenwa correctement sur Replit, suivez ces étapes essentielles :
 
-1. Assurez-vous que les fichiers `Procfile`, `replit_deploy.sh`, `run.sh` et `start.sh` sont présents et exécutables
+1. Assurez-vous que les fichiers `Procfile` et `replit.js` sont présents 
 2. Configurez les variables d'environnement requises dans les secrets Replit
 3. Dans l'interface Replit, cliquez sur "Deploy" en utilisant la configuration par défaut
 4. Vérifiez que votre bot fonctionne en utilisant `/start` dans Telegram
 
-Le système de déploiement est conçu pour utiliser la chaîne de scripts suivante :
-`Procfile → replit_deploy.sh → run.sh → start.sh → application`
+Le système de déploiement est maintenant simplifié :
+`Procfile → node replit.js`
+
+Cette approche évite les problèmes de compatibilité avec les scripts shell sur Replit Deployments.
 
 ## Prérequis pour le déploiement
 
@@ -29,10 +31,10 @@ Avant de déployer Zenwa, assurez-vous que les variables d'environnement suivant
    
    Assurez-vous que votre fichier `Procfile` contient:
    ```
-   web: bash replit_deploy.sh
+   web: node replit.js
    ```
    
-   Ce script exécutera `replit_deploy.sh`, qui est spécifiquement optimisé pour le déploiement sur Replit.
+   Ce fichier `replit.js` est spécifiquement optimisé pour le déploiement sur Replit, évitant les problèmes de compatibilité avec les scripts shell.
 
 2. **Configurez les scripts de démarrage**
    
@@ -187,8 +189,20 @@ Consultez `UPTIME.md` pour plus de détails sur le système de surveillance.
 
 Si le bot ne fonctionne pas après le déploiement :
 
-1. Vérifiez les logs de Replit pour identifier les erreurs
-2. Assurez-vous que toutes les variables d'environnement sont correctement définies
-3. Vérifiez que le script `start.sh` s'exécute sans erreur
-4. Consultez l'endpoint `/health` pour vérifier l'état des différents composants
-5. Redéployez l'application après avoir corrigé les problèmes identifiés
+1. Exécutez l'outil de diagnostic pour identifier les problèmes :
+   ```
+   node deployment-check.js
+   ```
+   Cet outil vérifiera la présence des fichiers essentiels et la configuration des variables d'environnement.
+
+2. Vérifiez les logs de Replit pour identifier les erreurs spécifiques.
+
+3. Assurez-vous que toutes les variables d'environnement sont correctement définies dans les Secrets Replit.
+
+4. Consultez l'endpoint `/health` pour vérifier l'état du serveur web.
+
+5. Assurez-vous que la variable `TELEGRAM_BOT_TOKEN` ou `ZENWA_TELEGRAM` est correctement définie.
+
+6. Si des erreurs persistent, essayez de déployer avec un fichier `.env.deployment` séparé contenant toutes les variables d'environnement nécessaires.
+
+7. Redéployez l'application après avoir corrigé les problèmes identifiés.

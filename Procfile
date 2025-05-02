@@ -1,1 +1,1 @@
-web: bash replit_deploy.sh
+web: node replit.js
