@@ -4,7 +4,7 @@
  */
 
 // Configuration
-const PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const KEEP_ALIVE_PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
 let pingCounter = 0;
 
 // Function to ping the server
@@ -46,5 +46,5 @@ window.addEventListener('load', () => {
     setTimeout(pingServer, 5000);
     
     // Set up regular pinging
-    setInterval(pingServer, PING_INTERVAL);
+    setInterval(pingServer, KEEP_ALIVE_PING_INTERVAL);
 });
