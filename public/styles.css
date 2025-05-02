@@ -753,6 +753,21 @@ footer {
     padding: 40px 0 20px;
 }
 
+/* Server status indicator */
+.server-status {
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+#ping-status {
+    color: #4caf50;
+    font-weight: 500;
+}
+
 .footer-top {
     display: flex;
     justify-content: space-between;

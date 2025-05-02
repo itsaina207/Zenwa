@@ -1,46 +1,50 @@
 /**
- * Keep Alive Script
- * This script is loaded in the frontend to help keep the Replit app running 24/7
+ * Keep-Alive System for Zenwa
+ * Provides functions to maintain 24/7 operation
  */
 
-// Send periodic pings to the server
-const PING_INTERVAL = 4 * 60 * 1000; // 4 minutes (staggered from server's own 5-minute ping)
+// Configuration
+const PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
+let pingCounter = 0;
 
-function pingServer() {
-  console.log('Sending keep-alive ping to server...');
-  
-  fetch('/health')
-    .then(response => response.json())
-    .then(data => {
-      console.log('Keep-alive ping successful:', data);
-      // Update ping status indicator if it exists
-      const statusElement = document.getElementById('ping-status');
-      if (statusElement) {
-        statusElement.textContent = `Last ping: ${new Date().toLocaleTimeString()}`;
-        statusElement.style.color = 'green';
-        
-        // Reset color after 5 seconds
-        setTimeout(() => {
-          statusElement.style.color = 'inherit';
-        }, 5000);
-      }
-    })
-    .catch(error => {
-      console.error('Keep-alive ping failed:', error);
-      // Update ping status indicator if it exists
-      const statusElement = document.getElementById('ping-status');
-      if (statusElement) {
-        statusElement.textContent = `Ping failed: ${error.message}`;
-        statusElement.style.color = 'red';
-      }
-    });
+// Function to ping the server
+async function pingServer() {
+    pingCounter++;
+    console.log("Sending keep-alive ping to server...");
+    
+    try {
+        const response = await fetch('/health');
+        if (response.ok) {
+            const data = await response.json();
+            console.log("Keep-alive ping successful:", data);
+            updatePingStatus(true);
+            return data;
+        } else {
+            console.error("Keep-alive ping failed:", response.status);
+            updatePingStatus(false);
+        }
+    } catch (error) {
+        console.error("Keep-alive ping error:", error);
+        updatePingStatus(false);
+    }
 }
 
-// Start pinging when the script loads
-pingServer();
+// Update the ping status indicator
+function updatePingStatus(isOnline) {
+    const statusElement = document.getElementById('ping-status');
+    if (statusElement) {
+        statusElement.textContent = isOnline ? 
+            "Server monitoring active" : 
+            "Server connection issue detected";
+        statusElement.style.color = isOnline ? "#4caf50" : "#f44336";
+    }
+}
 
-// Set up periodic pinging
-setInterval(pingServer, PING_INTERVAL);
-
-// Also ping on window focus to quickly restore connection after computer sleep
-window.addEventListener('focus', pingServer);
+// Initial ping after page load
+window.addEventListener('load', () => {
+    // First ping after 5 seconds
+    setTimeout(pingServer, 5000);
+    
+    // Set up regular pinging
+    setInterval(pingServer, PING_INTERVAL);
+});
