@@ -6,10 +6,15 @@
   "tgbot_port": 8000,
   "engine": "node",
   "version": "1.0.0",
+  "alwaysOn": true,
   "env": {
     "NODE_ENV": "production"
   },
   "web": {
-    "start": "bash run.sh"
+    "start": "node replit.js"
+  },
+  "deployment": {
+    "startCommand": "node replit.js",
+    "alwaysOn": true
   }
 }

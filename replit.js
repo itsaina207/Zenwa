@@ -79,6 +79,18 @@ app.listen(PORT, '0.0.0.0', async () => {
     createBot();
     console.log('[REPLIT-DEPLOY] Bot Telegram démarré avec succès');
     
+    // Démarrer le système Always-On
+    const { spawn } = require('child_process');
+    const alwaysOnProcess = spawn('node', ['always-on.js'], {
+      detached: true,
+      stdio: 'inherit'
+    });
+    
+    alwaysOnProcess.on('error', (err) => {
+      console.error('[REPLIT-DEPLOY] Erreur lors du démarrage du système Always-On:', err);
+    });
+    
+    console.log('[REPLIT-DEPLOY] Système Always-On démarré avec succès');
     console.log('[REPLIT-DEPLOY] Application Zenwa démarrée avec succès !');
   } catch (error) {
     console.error('[REPLIT-DEPLOY] Erreur lors de l\'initialisation de l\'application:', error);
