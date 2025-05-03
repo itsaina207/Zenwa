@@ -8,15 +8,16 @@
   "version": "1.0.0",
   "alwaysOn": true,
   "enableCronJob": true,
+  "startCommand": "node replit-deploy.js",
   "env": {
     "NODE_ENV": "production",
     "REPLIT_DEPLOYMENT": "true"
   },
   "web": {
-    "start": "node replit.js"
+    "start": "node replit-deploy.js"
   },
   "deployment": {
-    "startCommand": "node replit.js",
+    "startCommand": "node replit-deploy.js",
     "alwaysOn": true,
     "deploymentTarget": "cloud"
   }
