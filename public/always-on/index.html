@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenwa Always-On System</title>
+    <meta name="description" content="Système Always-On pour maintenir Zenwa en fonctionnement 24/7">
+    <style>
+        :root {
+            --primary-color: #2962ff;
+            --primary-light: #768fff;
+            --primary-dark: #0039cb;
+            --error-color: #f44336;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --card-bg: #fff;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: var(--primary-dark);
+            margin: 0 0 10px 0;
+        }
+        
+        p {
+            margin: 0 0 15px 0;
+        }
+        
+        .status-box {
+            background-color: #f9f9f9;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            background-color: #f9f9f9;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            border-left: 4px solid var(--primary-light);
+        }
+        
+        .info-item h3 {
+            margin-top: 0;
+            color: var(--primary-dark);
+        }
+        
+        .keep-alive-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            font-weight: bold;
+            background-color: #e0e0e0;
+        }
+        
+        .status-initialized {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+        }
+        
+        .status-pinging {
+            background-color: #fff9c4;
+            color: #f57f17;
+        }
+        
+        .status-connected {
+            background-color: #e8f5e9;
+            color: #1b5e20;
+        }
+        
+        .status-error {
+            background-color: #ffebee;
+            color: #b71c1c;
+        }
+        
+        .time {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: auto;
+            padding: 20px 0;
+            color: #666;
+            font-size: 0.9em;
+            width: 100%;
+        }
+        
+        @media (max-width: 600px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                text-align: center;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Zenwa Always-On System</h1>
+            <p>Cette page maintient Zenwa en fonctionnement continu 24/7</p>
+        </header>
+        
+        <div class="status-box">
+            <h2>État du système</h2>
+            <div id="keep-alive-status" class="keep-alive-status status-initialized">
+                <span class="status">Initialisation...</span>
+                <span class="time">--:--:--</span>
+            </div>
+            <p>Cette page maintient automatiquement le système Zenwa actif. Vous pouvez laisser cette page ouverte en arrière-plan pour garantir un fonctionnement 24/7.</p>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <h3>Fonctionnement</h3>
+                <p>Le système envoie automatiquement des pings au serveur à intervalles réguliers pour éviter la mise en veille.</p>
+            </div>
+            <div class="info-item">
+                <h3>Maintenance</h3>
+                <p>Les pings continuent même lorsque cette page est en arrière-plan ou que l'onglet est minimisé.</p>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <a href="/" class="btn">Page d'accueil</a>
+            <button onclick="sendPing()" class="btn">Envoyer ping maintenant</button>
+            <a href="/health" target="_blank" class="btn">Vérifier santé</a>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2024-2025 Zenwa - Système de maintenance automatique</p>
+    </footer>
+    
+    <script src="keep-alive.js"></script>
+    <script>
+        // Afficher l'heure actuelle au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTime();
+            setInterval(updateTime, 1000);
+        });
+        
+        // Mettre à jour l'affichage de l'heure
+        function updateTime() {
+            const timeElements = document.querySelectorAll('.time');
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            
+            timeElements.forEach(elem => {
+                if (elem.getAttribute('data-static') !== 'true') {
+                    elem.textContent = timeString;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
