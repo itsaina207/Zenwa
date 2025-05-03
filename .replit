@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["openssl", "postgresql", "unzip"]
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "gce"
 run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 
 [workflows]
