@@ -1,19 +1,26 @@
 /**
  * Keep-Alive System for Zenwa
  * Provides functions to maintain 24/7 operation
+ * Includes self-pinging mechanism for Replit Always On
  */
 
 const os = require('os');
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const { execSync } = require('child_process');
 
 // Configuration
-const PING_INTERVAL = 4 * 60 * 1000; // 4 minutes
-const UPTIME_REPORT_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
+const PING_INTERVAL = 3 * 60 * 1000; // 3 minutes
+const EXTERNAL_PING_INTERVAL = 10 * 60 * 1000; // 10 minutes
+const UPTIME_REPORT_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
+const REPLIT_URL_FILE = path.join(__dirname, '../.replit_url');
 const MAX_MEMORY_USAGE_MB = 500; // MB before triggering a potential restart
 let pingCounter = 0;
 let uptimeReportCounter = 0;
+let externalPingCounter = 0;
+let applicationUrl = null;
 
 // Analyze system resources
 function checkSystemResources() {
