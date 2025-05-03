@@ -212,9 +212,25 @@ app.listen(PORT, '0.0.0.0', async () => {
     initClient();
     console.log('[ZENWA-DEPLOY] Client Hedera initialisé avec succès');
     
-    // Démarrer le bot Telegram
-    createBot();
-    console.log('[ZENWA-DEPLOY] Bot Telegram démarré avec succès');
+    // Démarrer le bot Telegram avec gestion d'erreur robuste
+    try {
+      createBot();
+      console.log('[ZENWA-DEPLOY] Bot Telegram démarré avec succès');
+    } catch (error) {
+      console.error('[ZENWA-DEPLOY] Erreur lors du démarrage du bot Telegram:', error);
+      console.log('[ZENWA-DEPLOY] Tentative de redémarrage du bot après 10 secondes...');
+      
+      // Tentative de redémarrage après 10 secondes
+      setTimeout(() => {
+        try {
+          createBot();
+          console.log('[ZENWA-DEPLOY] Bot Telegram redémarré avec succès');
+        } catch (retryError) {
+          console.error('[ZENWA-DEPLOY] Échec du redémarrage du bot:', retryError);
+          console.log('[ZENWA-DEPLOY] Vérifiez les variables d\'environnement et les connexions réseau');
+        }
+      }, 10000);
+    }
     
     // Démarrer les processus de surveillance
     startMonitoringProcesses();
