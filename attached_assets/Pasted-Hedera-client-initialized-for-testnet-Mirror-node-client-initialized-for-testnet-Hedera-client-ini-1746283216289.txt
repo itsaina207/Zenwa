@@ -1,0 +1,77 @@
+Hedera client initialized for testnet
+Mirror node client initialized for testnet
+Hedera client initialized successfully
+Telegram middleware initialized
+Initializing simplified language handler with interactive buttons
+Language handler initialized
+État des utilisateurs partagé initialisé dans airdrop-commands.js
+État des utilisateurs partagé avec le module airdrop-commands
+État des utilisateurs partagé initialisé dans button-handlers.js
+État des utilisateurs partagé avec le module button-handlers
+Commands registered successfully
+Telegram bot initialized successfully
+Telegram bot started successfully
+Server running on port 8000
+API available at http://0.0.0.0:8000/api
+[KEEP-ALIVE] Initializing keep-alive system with port 8000
+[KEEP-ALIVE] System initialized successfully
+[SERVER] Zenwa is now running 24/7 with automatic monitoring
+[2025-05-03T14:37:57.770Z] Message from @itsaina207 (7342903080): solde
+[2025-05-03T14:37:57.772Z] Message from @itsaina207 (7342903080): solde du compte
+Successfully connected to PostgreSQL database
+✅ Hedera Agent Kit initialisé avec succès (utilisant l'implémentation interne)
+Database tables initialized successfully
+Long query execution time: {
+  text: '\n' +
+    '      CREATE TABLE IF NOT EXISTS user_wallets (\n' +
+    '        id SERIAL PRIMARY KEY,\n' +
+    '        user_id TEXT NOT NULL UNIQUE,\n' +
+    '        account_id TEXT NOT NULL,\n' +
+    '        private_key TEXT NOT NULL,\n' +
+    '        public_key TEXT NOT NULL,\n' +
+    '        evm_address TEXT,\n' +
+    '        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n' +
+    '      )\n' +
+    '    ',
+  duration: 2953,
+  rows: null
+}
+Database tables initialized successfully
+Long query execution time: {
+  text: 'SELECT * FROM user_wallets WHERE user_id = $1',
+  duration: 522,
+  rows: 1
+}
+[BALANCE] Récupération des tokens pour le compte 0.0.5924830
+[BALANCE] Structure des tokens: {"0.0.5934437":{"low":889,"high":0,"unsigned":true},"0.0.5933874":{"low":8888,"high":0,"unsigned":true},"0.0.5933788":{"low":1000000,"high":0,"unsigned":true},"0.0.5929334":{"low":10000,"high":0,"unsigned":true},"0.0.5924833":{"low":999900,"high":0,"unsigned":true}}
+[BALANCE] Tokens trouvés via _map: 5
+[BALANCE] Token trouvé: 0.0.5934437 = 889
+[BALANCE] Token trouvé: 0.0.5933874 = 8888
+[BALANCE] Token trouvé: 0.0.5933788 = 1000000
+[BALANCE] Token trouvé: 0.0.5929334 = 10000
+[BALANCE] Token trouvé: 0.0.5924833 = 999900
+[BALANCE] Tokens extraits: {"0.0.5934437":"889","0.0.5933874":"8888","0.0.5933788":"1000000","0.0.5929334":"10000","0.0.5924833":"999900"}
+[DISPLAY_BALANCE] Tokens à afficher: {"0.0.5934437":"889","0.0.5933874":"8888","0.0.5933788":"1000000","0.0.5929334":"10000","0.0.5924833":"999900"}
+[BALANCE] Récupération des tokens pour le compte 0.0.5924830
+[BALANCE] Structure des tokens: {"0.0.5934437":{"low":889,"high":0,"unsigned":true},"0.0.5933874":{"low":8888,"high":0,"unsigned":true},"0.0.5933788":{"low":1000000,"high":0,"unsigned":true},"0.0.5929334":{"low":10000,"high":0,"unsigned":true},"0.0.5924833":{"low":999900,"high":0,"unsigned":true}}
+[BALANCE] Tokens trouvés via _map: 5
+[BALANCE] Token trouvé: 0.0.5934437 = 889
+[BALANCE] Token trouvé: 0.0.5933874 = 8888
+[BALANCE] Token trouvé: 0.0.5933788 = 1000000
+[BALANCE] Token trouvé: 0.0.5929334 = 10000
+[BALANCE] Token trouvé: 0.0.5924833 = 999900
+[BALANCE] Tokens extraits: {"0.0.5934437":"889","0.0.5933874":"8888","0.0.5933788":"1000000","0.0.5929334":"10000","0.0.5924833":"999900"}
+[DISPLAY_BALANCE] Tokens à afficher: {"0.0.5934437":"889","0.0.5933874":"8888","0.0.5933788":"1000000","0.0.5929334":"10000","0.0.5924833":"999900"}
+[KEEP-ALIVE] Ping #1 at 2025-05-03T14:38:07.307Z
+[SYSTEM] Memory Usage: 42852MB / 64313MB (67%)
+[SYSTEM] CPU Load: 6.81 (1m), 5.25 (5m), 5.64 (15m)
+[SYSTEM] Uptime: 9 hours, 49 minutes
+[WARNING] Memory usage (42852MB) is above threshold (500MB)
+[KEEP-ALIVE] System resources may be running low
+[HEALTH] Checking local health at http://localhost:8000/health
+[HEALTH] Local health check successful: "{\"status\":\"ok\",\"version\":\"1.0.0\",\"environment\":\"development\",\"uptime\":\"0h 0m 15s\",\"timestamp\":\"2025-05-03T14:38:07.314Z\",\"telegram_bot\":\"connected\",\"hedera_client\":\"initialized\"}"
+==================================================
+[UPTIME] Report #1
+[UPTIME] Server has been running for: 0d 0h 1m 5s
+[UPTIME] Ping counter: 1 pings sent
+[UPTIME] Service status: ACTIVE
