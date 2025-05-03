@@ -1,2 +1,1 @@
-web: node replit.js
-worker: node worker.js
+web: node replit-deploy.js
