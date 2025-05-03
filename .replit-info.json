@@ -2,19 +2,22 @@
   "app": "zenwa",
   "description": "Zenwa Telegram Bot for Hedera",
   "language": "nodejs",
-  "port": 5000,
+  "port": 8000,
   "tgbot_port": 8000,
   "engine": "node",
   "version": "1.0.0",
   "alwaysOn": true,
+  "enableCronJob": true,
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "REPLIT_DEPLOYMENT": "true"
   },
   "web": {
     "start": "node replit.js"
   },
   "deployment": {
     "startCommand": "node replit.js",
-    "alwaysOn": true
+    "alwaysOn": true,
+    "deploymentTarget": "cloud"
   }
 }

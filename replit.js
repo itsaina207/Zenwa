@@ -78,20 +78,43 @@ app.listen(PORT, '0.0.0.0', async () => {
     // Démarrer le bot Telegram
     createBot();
     console.log('[REPLIT-DEPLOY] Bot Telegram démarré avec succès');
+
+    // Démarrer les systèmes de surveillance pour le mode Always-On
+    if (process.env.REPLIT_DEPLOYMENT === 'true') {
+      // Système Always-On principal
+      const { spawn } = require('child_process');
+      console.log('[REPLIT-DEPLOY] Démarrage du système Always-On...');
+      
+      try {
+        // Démarrage du script toujours actif
+        const alwaysOnProcess = spawn('node', ['always-on.js'], {
+          detached: true,
+          stdio: 'inherit'
+        });
+        
+        alwaysOnProcess.on('error', (err) => {
+          console.error('[REPLIT-DEPLOY] Erreur lors du démarrage du système Always-On:', err);
+        });
+        
+        // Démarrage du worker de surveillance
+        console.log('[REPLIT-DEPLOY] Démarrage du worker de surveillance...');
+        const workerProcess = spawn('node', ['worker.js'], {
+          detached: true,
+          stdio: 'inherit'
+        });
+        
+        workerProcess.on('error', (err) => {
+          console.error('[REPLIT-DEPLOY] Erreur lors du démarrage du worker de surveillance:', err);
+        });
+        
+        console.log('[REPLIT-DEPLOY] Systèmes de surveillance démarrés avec succès');
+      } catch (err) {
+        console.error('[REPLIT-DEPLOY] Erreur lors du démarrage des systèmes de surveillance:', err);
+      }
+    }
     
-    // Démarrer le système Always-On
-    const { spawn } = require('child_process');
-    const alwaysOnProcess = spawn('node', ['always-on.js'], {
-      detached: true,
-      stdio: 'inherit'
-    });
-    
-    alwaysOnProcess.on('error', (err) => {
-      console.error('[REPLIT-DEPLOY] Erreur lors du démarrage du système Always-On:', err);
-    });
-    
-    console.log('[REPLIT-DEPLOY] Système Always-On démarré avec succès');
     console.log('[REPLIT-DEPLOY] Application Zenwa démarrée avec succès !');
+    console.log('[REPLIT-DEPLOY] Bot prêt à recevoir des messages sur Telegram 24/7');
   } catch (error) {
     console.error('[REPLIT-DEPLOY] Erreur lors de l\'initialisation de l\'application:', error);
   }
