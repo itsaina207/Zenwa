@@ -761,6 +761,25 @@ footer {
     border-radius: 4px;
     font-size: 0.8rem;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.status-link {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    text-align: center;
+    transition: background-color 0.3s ease;
+}
+
+.status-link:hover {
+    background-color: #0055d4;
+    color: white;
 }
 
 #ping-status {
